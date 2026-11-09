@@ -23,8 +23,9 @@ install -m 0755 "$tmp/tailscale/root/usr/sbin/tailscaled" "$root/boot/bin/tailsc
 
 # Xray archive digest is published by its official GitHub release.
 xray_base="https://github.com/XTLS/Xray-core/releases/download/v26.3.27"
-curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 --max-time 300 "$xray_base/Xray-linux-64.zip" -o "$tmp/Xray-linux-64.zip"
-curl --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 --max-time 300 "$xray_base/Xray-linux-64.zip.dgst" -o "$tmp/Xray-linux-64.zip.dgst"
+# Let curl apply its capped exponential backoff for transient GitHub release 5xx responses.
+curl --fail --location --silent --show-error --retry 10 --retry-all-errors --retry-max-time 600 --max-time 300 "$xray_base/Xray-linux-64.zip" -o "$tmp/Xray-linux-64.zip"
+curl --fail --location --silent --show-error --retry 10 --retry-all-errors --retry-max-time 600 --max-time 300 "$xray_base/Xray-linux-64.zip.dgst" -o "$tmp/Xray-linux-64.zip.dgst"
 xray_expected="$(awk -F'= *' '/^SHA2-256=/ {print $2; exit}' "$tmp/Xray-linux-64.zip.dgst" | tr '[:upper:]' '[:lower:]')"
 xray_actual="$(sha256sum "$tmp/Xray-linux-64.zip" | awk '{print $1}')"
 [[ -n "$xray_expected" && "$xray_actual" == "$xray_expected" ]] || { echo 'Xray release digest mismatch.' >&2; exit 1; }
