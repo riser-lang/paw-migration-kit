@@ -138,9 +138,11 @@ fi
 sync || fail_finalize FAIL 'sync' 'sync 失败'
 
 # 8-10: Chinese success notice, cancellable countdown, reboot.
+say '[PAW-REBOOT] all gates PASS; completion record is atomic and synced.'
 say 'PAW 迁移成功：克隆、独立 SHA256 校验、离线修复、GPT/ext4 扩容和首次启动检查全部通过。'
 say '完成记录已原子写入并同步到磁盘。'
 say "系统将在 ${countdown} 秒后自动重启进入正式 Ubuntu；按 C 取消自动重启。"
+say "Auto reboot in ${countdown}s; press C to cancel."
 if [[ -c "$tty_dev" ]]; then exec 3<"$tty_dev"; fi
 cancelled=0
 for ((i=countdown; i>=1; i--)); do
@@ -158,6 +160,7 @@ if ((cancelled == 1)); then
   write_reboot_status CANCELLED '用户取消自动重启' false '{"cancelled_by_user":true}'
   log WARN '用户取消自动重启；未执行 reboot。'
   say '已取消自动重启，请手动重启：sudo systemctl reboot'
+  say '[PAW-REBOOT] CANCELLED; run: sudo systemctl reboot'
   exit 0
 fi
 
@@ -178,8 +181,10 @@ if ((rc != 0)); then
   write_reboot_status NEEDS_MANUAL_ACTION "reboot 命令失败，退出码 ${rc}" false "{\"reboot_exit_code\":${rc}}"
   log ERROR "reboot 命令失败，退出码 ${rc}；需要人工重启。"
   say '自动重启命令执行失败！迁移数据已完成，请立即手动重启：sudo systemctl reboot'
+  say '[PAW-REBOOT] FAILED; migration data is complete, run: sudo systemctl reboot'
   exit 3
 fi
 write_reboot_status PASS '自动重启命令已成功下发' true "{\"reboot_exit_code\":0}"
 log INFO '最终门禁全部通过，已完成 sync 并成功下发 systemctl reboot。'
 say '自动重启命令已下发。'
+say '[PAW-REBOOT] PASS; reboot command issued.'

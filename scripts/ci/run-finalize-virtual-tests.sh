@@ -14,6 +14,15 @@ fail(){ printf 'FAIL %s\n' "$1" >>"$report"; failed=$((failed+1)); }
 printf 'PAW finalize/reboot virtual fault-injection results\n' >"$report"
 printf 'Executed: %s\n' "$(date -u +%FT%TZ)" >>"$report"
 
+firstboot_line="$(grep -n 'paw-firstboot-check\.sh' "$root/scripts/paw-final-confirm.sh" | head -n1 | cut -d: -f1)"
+finalize_line="$(grep -n 'paw-finalize-reboot\.sh' "$root/scripts/paw-final-confirm.sh" | head -n1 | cut -d: -f1)"
+[[ -n "$firstboot_line" && -n "$finalize_line" && "$finalize_line" -gt "$firstboot_line" ]] \
+  && pass 'A0 final-confirm 在首次启动检查之后才调用 finalizer' \
+  || fail 'A0 final-confirm 调用顺序错误'
+! grep -q 'with open(receipt' "$root/scripts/paw-final-confirm.sh" \
+  && pass 'A0 旧的直接完成记录写入已移除（仅 finalizer 原子写）' \
+  || fail 'A0 final-confirm 仍直接写完成记录'
+
 new_case(){
   local name="$1"
   CASE="$work/$name"
