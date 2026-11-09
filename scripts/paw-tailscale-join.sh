@@ -22,7 +22,16 @@ set +e
 join_output="$(tailscale up --hostname=paw-migration-client 2>&1)"; rc=$?
 set -e
 login_url="$(grep -Eo 'https://login\.tailscale\.com/a/[A-Za-z0-9]+' <<<"$join_output" | head -n1 || true)"
-if [[ -n "$login_url" ]]; then printf 'Approve this one-time Tailscale login in your browser: %s\n' "$login_url"; fi
+if [[ -n "$login_url" ]]; then
+  python3 - "$PAW_REPORT_DIR/tailscale-login.json" "$login_url" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$PAW_REPORT_DIR/tailscale-login.json"
+import datetime,json,sys
+path,url=sys.argv[1:]
+sys.stdout.write(json.dumps({"schema":"paw.tailscale-login.v1",
+ "login_url":url,"created_at":datetime.datetime.now(datetime.timezone.utc).isoformat()},
+ indent=2)+"\n")
+PY
+  log WARN 'Tailscale 需要一次性网页授权；登录链接已写入报告，请在 tty1 控制台菜单选择 7 查看。'
+fi
 unset join_output
 if ((rc != 0)) && [[ -z "$login_url" ]]; then log WARN 'Tailscale join did not complete; raw output suppressed.'; exit 2; fi
 wait_seconds="${PAW_TAILSCALE_WAIT_SECONDS:-900}"

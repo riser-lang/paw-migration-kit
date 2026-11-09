@@ -27,9 +27,13 @@ else
   [[ -n "$serial" && "$size" =~ ^[0-9]+$ ]] || die 'Removable media serial or size is unavailable.'
   printf 'Boot media: removable device; capacity=%s bytes; model and serial are shown only here.\n' "$size"
   lsblk -dn -o MODEL,SERIAL "$disk"
-  read -r -p '为保护其他磁盘，请输入该设备序列号最后 6 位：' confirm
+  if [[ ${#PAW_DATA_CONFIRM_SUFFIX:-0} -eq 6 ]]; then
+    confirm="$PAW_DATA_CONFIRM_SUFFIX"
+  else
+    read -r -p '为保护其他磁盘，请输入该设备序列号最后 6 位：' confirm
+  fi
   [[ ${#serial} -ge 6 && "$confirm" == "${serial: -6}" ]] || die 'Removable media confirmation did not match.'
-  unset confirm serial
+  unset confirm serial PAW_DATA_CONFIRM_SUFFIX
 fi
 
 for child in $(lsblk -nrpo NAME "$disk"); do

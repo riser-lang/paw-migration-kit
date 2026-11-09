@@ -68,11 +68,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          shellcheck --severity=error scripts/*.sh scripts/ci/*.sh
-          for file in scripts/*.sh scripts/ci/*.sh; do bash -n "$file"; done
+          shellcheck --severity=error scripts/*.sh scripts/ci/*.sh tests/qemu/*.sh
+          for file in scripts/*.sh scripts/ci/*.sh tests/qemu/*.sh; do bash -n "$file"; done
           python3 - <<'PY'
           from pathlib import Path
-          for path in Path('scripts').rglob('*.py'):
+          for path in list(Path('scripts').rglob('*.py')) + list(Path('tests/qemu').glob('*.py')):
               compile(path.read_bytes(), str(path), 'exec')
           print('Python source compile PASS')
           PY
@@ -157,6 +157,13 @@ jobs:
           set -euo pipefail
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-network-virtual-tests.sh
 
+      - name: Run finalize/reboot and tty1 virtual suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-finalize-virtual-tests.sh
+          env PAW_ARTIFACT_DIR="$PWD/artifacts" PAW_REQUIRE_PTY=1 scripts/ci/run-tty-virtual-tests.sh
+
       - name: Upload reviewed build and test outputs (3-day retention)
         if: always()
         uses: actions/upload-artifact@v4
@@ -177,6 +184,9 @@ jobs:
             artifacts/virtual-fault-injection-report.txt
             artifacts/repair-virtual-test-report.txt
             artifacts/network-virtual-test-report.txt
+            artifacts/finalize-virtual-test-report.txt
+            artifacts/tty-virtual-test-report.txt
+            artifacts/pty-tty-test.log
           retention-days: 3
           compression-level: 0
           if-no-files-found: warn
