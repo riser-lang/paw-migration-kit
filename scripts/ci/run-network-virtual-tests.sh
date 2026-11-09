@@ -18,7 +18,7 @@ printf 'Network and staged connectivity virtual tests\n' >"$report"
 
 cat >"$mock/curl" <<'MOCKCURL'
 #!/usr/bin/env bash
-if [[ ${PAW_TEST_CURL_FAIL:-0} == 1 && " $* " == *" --noproxy '*' "* ]]; then exit 7; fi
+if [[ ${PAW_TEST_CURL_FAIL:-0} == 1 && " $* " == *" --noproxy "* ]]; then exit 7; fi
 if [[ " $* " == *" -w "* ]]; then printf '200'; fi
 exit 0
 MOCKCURL
