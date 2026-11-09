@@ -36,6 +36,9 @@ if "$root/scripts/paw-prepare-data-partition.sh" "$media_loop" >"$prepare_log" 2
   [[ -n "$data_dev" && "$(blkid -s TYPE -o value "$data_dev")" == ext4 ]] && pass 'ISO hybrid media gained a labeled ext4 PAWDATA partition' || fail 'PAWDATA label is visible'
 else
   cat "$prepare_log"
+  if [[ -s "$PAW_LOG_DIR/media-partition-table.before.txt" ]]; then cat "$PAW_LOG_DIR/media-partition-table.before.txt"; fi
+  sfdisk --dump "$media_loop" 2>&1 || true
+  fdisk -l "$media_loop" 2>&1 || true
   fail 'ISO hybrid layout accepted an appended PAWDATA partition'
 fi
 mountpoint -q "$mount_dir" && mounts+=("$mount_dir")

@@ -8,6 +8,7 @@ mkdir -p "$out" "$tmp"
 serial="$tmp/serial.log"
 qemu="${QEMU_BIN:-qemu-system-x86_64}"
 xorriso -indev "$iso" -report_system_area plain >"$out/iso-system-area.txt" 2>&1
+cat "$out/iso-system-area.txt"
 grep -Eiq 'isohybrid|isohdpfx|isohybrid.*MBR|MBR.*isohybrid' "$out/iso-system-area.txt" || {
   echo 'ISO system-area report does not identify an isohybrid MBR.' >"$out/qemu-smoke-report.txt"
   exit 1
