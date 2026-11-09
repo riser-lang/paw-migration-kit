@@ -1,0 +1,14 @@
+[Unit]
+Description=PAW initial network checks and staged connectivity
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/paw-migration.env
+ExecStart=/opt/paw-migration/scripts/paw-network-bootstrap.sh
+RemainAfterExit=yes
+TimeoutStartSec=30min
+
+[Install]
+WantedBy=multi-user.target

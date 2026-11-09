@@ -1,0 +1,131 @@
+name: PAW live build and isolated tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paw-live-build-and-test
+  cancel-in-progress: false
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out sanitized migration kit
+        uses: actions/checkout@v4
+
+      - name: Check runner storage budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          available_kb="$(df --output=avail -k "$RUNNER_TEMP" | tail -n1 | tr -d ' ')"
+          echo "Available runner storage: ${available_kb} KiB"
+          if (( available_kb < 8000000 )); then
+            echo 'Less than 8 GiB available; refusing to start the image build.' >&2
+            exit 1
+          fi
+
+      - name: Install bounded build and test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bash shellcheck python3 python3-yaml jq \
+            gpgv gnupg curl unzip xorriso squashfs-tools \
+            live-build debootstrap syslinux-utils isolinux \
+            grub-pc-bin grub-efi-amd64-bin mtools dosfstools \
+            qemu-system-x86 qemu-utils \
+            gdisk cloud-guest-utils e2fsprogs zstd pv smartmontools \
+            openssh-client iproute2 iputils-ping dnsutils ethtool \
+            pciutils usbutils lshw lm-sensors nvme-cli rsync less \
+            memtest86+ parted util-linux
+          sudo apt-get clean
+          df -h "$RUNNER_TEMP"
+
+      - name: Static, syntax, PowerShell, config, and public-safety checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          shellcheck --severity=error scripts/*.sh scripts/ci/*.sh
+          for file in scripts/*.sh scripts/ci/*.sh; do bash -n "$file"; done
+          pwsh -NoLogo -NoProfile -Command '$files = Get-ChildItem scripts -Filter *.ps1 -Recurse; foreach ($f in $files) { $t=$null; $e=$null; [System.Management.Automation.Language.Parser]::ParseFile($f.FullName,[ref]$t,[ref]$e) | Out-Null; if ($e) { $e | ForEach-Object { Write-Error $_ }; exit 1 } }; Write-Output "PowerShell parse PASS ($($files.Count) files)"'
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+          for path in Path('configs').rglob('*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+          workflow = yaml.safe_load(Path('.github/workflows/build-live-and-test.yml').read_text(encoding='utf-8'))
+          assert isinstance(workflow, dict) and 'jobs' in workflow
+          for path in Path('boot').glob('*'):
+              if path.suffix in {'.service', '.mount', '.network'}:
+                  sections = [line.strip() for line in path.read_text(encoding='utf-8').splitlines() if line.strip().startswith('[') and line.strip().endswith(']')]
+                  assert sections and sections[0] == '[Unit]', f'Invalid unit structure: {path}'
+          print('JSON, workflow YAML, and systemd unit structure PASS')
+          PY
+          python3 scripts/ci/check-public-safety.py .
+          pwsh -NoLogo -NoProfile -File scripts/windows-static-check.ps1 -Root "$PWD"
+
+      - name: Verify signed Debian base image and official hash manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/verify-debian-base.sh
+
+      - name: Stage signature-verified Tailscale and Xray clients
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAW_ARTIFACT_DIR="$PWD/artifacts" sudo --preserve-env=PAW_ARTIFACT_DIR scripts/ci/stage-verified-tools.sh
+
+      - name: Build minimal Debian Live ISO
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          sudo env PAW_BUILD_WORK="$RUNNER_TEMP/paw-live-build" scripts/build-debian-live.sh 2>&1 | tee artifacts/live-build.log
+          test -s boot/custom/paw-live-amd64.iso
+          xorriso -indev boot/custom/paw-live-amd64.iso -toc >/dev/null
+          sha256sum boot/custom/paw-live-amd64.iso > artifacts/paw-live-amd64.iso.sha256
+          cp boot/custom/paw-live-amd64.iso artifacts/
+          cat configs/live-build/package-lists/paw.list.chroot > artifacts/software-packages.txt
+          cat artifacts/software-manifest.txt >> artifacts/software-packages.txt
+          df -h "$RUNNER_TEMP"
+
+      - name: Boot ISO with SeaBIOS and TCG
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/qemu-live-smoke.sh "$PWD/boot/custom/paw-live-amd64.iso"
+
+      - name: Run isolated virtual disk and fault-injection suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-virtual-tests.sh
+
+      - name: Upload reviewed build and test outputs (3-day retention)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paw-live-build-test-results
+          path: |
+            artifacts/paw-live-amd64.iso
+            artifacts/paw-live-amd64.iso.sha256
+            artifacts/debian-base-verification.txt
+            artifacts/software-manifest.txt
+            artifacts/software-packages.txt
+            artifacts/live-build.log
+            artifacts/qemu-smoke-report.txt
+            artifacts/virtual-fault-injection-report.txt
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: warn

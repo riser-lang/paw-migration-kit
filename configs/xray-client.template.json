@@ -1,0 +1,18 @@
+{
+  "log": { "loglevel": "warning" },
+  "inbounds": [
+    { "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true } },
+    { "listen": "127.0.0.1", "port": 10809, "protocol": "http" }
+  ],
+  "outbounds": [
+    {
+      "protocol": "vless",
+      "settings": { "vnext": [{ "address": "<PUBLIC_ENDPOINT_TO_CONFIRM>", "port": 443, "users": [{ "id": "<SECRET_UUID_NOT_STORED_HERE>", "encryption": "none", "flow": "<FROM_SERVER_CONFIG>" }] }] },
+      "streamSettings": {
+        "network": "tcp", "security": "reality",
+        "realitySettings": { "serverName": "<FROM_SERVER_CONFIG>", "fingerprint": "<USER_MUST_SUPPLY_OR_APPROVE>", "password": "<DERIVE_FROM_SERVER_PRIVATE_KEY_AT_RUNTIME>", "shortId": "<FROM_SERVER_CONFIG>" }
+      }
+    },
+    { "protocol": "freedom", "tag": "direct" }
+  ]
+}

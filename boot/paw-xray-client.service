@@ -1,0 +1,23 @@
+[Unit]
+Description=Temporary PAW Xray client proxy (loopback only)
+After=network-online.target
+Wants=network-online.target
+ConditionPathIsReadable=/run/paw-network/xray-client.json
+
+[Service]
+Type=simple
+User=root
+UMask=0077
+ExecStart=/opt/paw-migration/bin/xray run -config /run/paw-network/xray-client.json
+Restart=on-failure
+RestartSec=2
+StandardOutput=null
+StandardError=null
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/run/paw-network
+
+[Install]
+WantedBy=multi-user.target

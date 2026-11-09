@@ -1,0 +1,20 @@
+[Unit]
+Description=PAW staging Tailscale join (interactive authorization only)
+After=network-online.target tailscaled.service paw-network-bootstrap.service
+Wants=network-online.target paw-network-bootstrap.service
+ConditionPathExists=/usr/sbin/tailscale
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/paw-migration.env
+Environment=PAW_TAILSCALE_WAIT_SECONDS=900
+ExecStart=/opt/paw-migration/scripts/paw-tailscale-join.sh
+TimeoutStartSec=20min
+StandardOutput=tty
+StandardError=null
+TTYPath=/dev/console
+TTYReset=yes
+TTYVHangup=yes
+
+[Install]
+WantedBy=multi-user.target

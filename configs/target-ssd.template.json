@@ -1,0 +1,10 @@
+{
+  "approved": false,
+  "device_path": null,
+  "model": null,
+  "capacity_bytes": null,
+  "serial": null,
+  "registered_at": null,
+  "registered_by": null,
+  "note": "Fill only after physical 240 GB SSD arrival and identity verification. Never use wildcard values."
+}

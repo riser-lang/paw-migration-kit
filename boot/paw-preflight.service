@@ -1,0 +1,15 @@
+[Unit]
+Description=PAW migration live preflight (read-only)
+After=local-fs.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/paw-migration.env
+ExecStart=/opt/paw-migration/scripts/paw-live-controller.sh
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

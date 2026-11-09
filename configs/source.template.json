@@ -1,0 +1,15 @@
+{
+  "source_mode": "not_authorized",
+  "device_path": null,
+  "root_partition": null,
+  "model": null,
+  "capacity_bytes": null,
+  "serial": null,
+  "root_uuid": null,
+  "ssh_host": null,
+  "ssh_port": null,
+  "ssh_user": "root",
+  "identity_file": "/run/paw-network/rescue_ed25519",
+  "known_hosts_file": "/run/paw-network/known_hosts",
+  "note": "Populate only from an approved Rescue Mode inventory. A one-time key and pinned Rescue Mode host key must be provisioned in RAM before cloning."
+}
