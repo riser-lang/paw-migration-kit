@@ -240,7 +240,7 @@ d=json.load(open(sys.argv[1])); assert d['status']=='PASS'
 assert d['memory_status']=='OPERATOR_CONFIRMED'
 assert d['memory_trust']=='operator_attestation_not_cryptographic'
 PY
-printf '3\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
+printf '3\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1 || true
 expect_fail 'Hardware gate rejects unconfirmed memory' "$root/scripts/paw-hardware-preflight.sh" "$target_loop"
 python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" <<'PY' && pass 'Unconfirmed memory stays WARN and cannot produce hardware PASS' || { echo 'FAIL hardware WARN status' >>"$report"; failed=$((failed+1)); }
 import json,sys
