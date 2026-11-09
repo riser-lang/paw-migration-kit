@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Check out sanitized migration kit
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check runner storage budget
         shell: bash
@@ -39,7 +41,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             bash shellcheck python3 python3-yaml jq \
             gpgv gnupg debian-archive-keyring curl unzip xorriso squashfs-tools \
-            live-build debootstrap syslinux-utils isolinux \
+            debootstrap syslinux-utils isolinux \
             grub-pc-bin grub-efi-amd64-bin mtools dosfstools \
             qemu-system-x86 qemu-utils \
             gdisk cloud-guest-utils e2fsprogs zstd pv smartmontools \
@@ -53,11 +55,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo 'deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian trixie main' | sudo tee /etc/apt/sources.list.d/paw-live-build.list >/dev/null
+          echo 'Acquire::Check-Valid-Until "false";' | sudo tee /etc/apt/apt.conf.d/99paw-snapshot >/dev/null
+          echo 'deb [check-valid-until=no signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] https://snapshot.debian.org/archive/debian/20261101T000000Z trixie main' | sudo tee /etc/apt/sources.list.d/paw-live-build.list >/dev/null
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends live-build/trixie
+          sudo apt-get install -y --no-install-recommends live-build=1:20250505+deb13u1
           lb --version
           sudo rm -f /etc/apt/sources.list.d/paw-live-build.list
+          sudo rm -f /etc/apt/apt.conf.d/99paw-snapshot
           sudo apt-get clean
 
       - name: Static, syntax, PowerShell, config, and public-safety checks
@@ -66,6 +70,12 @@ jobs:
           set -euo pipefail
           shellcheck --severity=error scripts/*.sh scripts/ci/*.sh
           for file in scripts/*.sh scripts/ci/*.sh; do bash -n "$file"; done
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in Path('scripts').rglob('*.py'):
+              compile(path.read_bytes(), str(path), 'exec')
+          print('Python source compile PASS')
+          PY
           pwsh -NoLogo -NoProfile -Command '$files = Get-ChildItem scripts -Filter *.ps1 -Recurse; foreach ($f in $files) { $t=$null; $e=$null; [System.Management.Automation.Language.Parser]::ParseFile($f.FullName,[ref]$t,[ref]$e) | Out-Null; if ($e) { $e | ForEach-Object { Write-Error $_ }; exit 1 } }; Write-Output "PowerShell parse PASS ($($files.Count) files)"'
           python3 - <<'PY'
           import json
@@ -85,6 +95,7 @@ jobs:
           print('JSON, workflow YAML, and systemd unit structure PASS')
           PY
           python3 scripts/ci/check-public-safety.py .
+          python3 scripts/ci/check-public-history.py .
           pwsh -NoLogo -NoProfile -File scripts/windows-static-check.ps1 -Root "$PWD"
 
       - name: Verify signed Debian base image and official hash manifest
@@ -112,6 +123,8 @@ jobs:
           cp boot/custom/paw-live-amd64.iso artifacts/
           cat configs/live-build/package-lists/paw.list.chroot > artifacts/software-packages.txt
           cat artifacts/software-manifest.txt >> artifacts/software-packages.txt
+          cp boot/custom/software-packages.lock artifacts/software-packages.lock
+          cp boot/custom/build-provenance.txt artifacts/build-provenance.txt
           df -h "$RUNNER_TEMP"
 
       - name: Boot ISO with SeaBIOS and TCG
@@ -119,6 +132,12 @@ jobs:
         run: |
           set -euo pipefail
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/qemu-live-smoke.sh "$PWD/boot/custom/paw-live-amd64.iso"
+
+      - name: Exercise PAWDATA layout and persistence on virtual media
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-pawdata-virtual-tests.sh
 
       - name: Run isolated virtual disk and fault-injection suite
         shell: bash
@@ -137,8 +156,12 @@ jobs:
             artifacts/debian-base-verification.txt
             artifacts/software-manifest.txt
             artifacts/software-packages.txt
+            artifacts/software-packages.lock
+            artifacts/build-provenance.txt
             artifacts/live-build.log
             artifacts/qemu-smoke-report.txt
+            artifacts/iso-system-area.txt
+            artifacts/pawdata-virtual-test-report.txt
             artifacts/virtual-fault-injection-report.txt
           retention-days: 3
           compression-level: 0

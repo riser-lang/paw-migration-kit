@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$(dirname "$0")/paw-lib.sh"
+phase="${PAW_NETWORK_PHASE:-$(cat /run/paw-network/network-phase 2>/dev/null || echo RESCUE)}"
+[[ "$phase" == RESTORED_UBUNTU ]] || { log WARN 'Direct-route recovery is disabled during Rescue Mode.'; exit 2; }
 dropin=/run/systemd/system/tailscaled.service.d/50-paw-temporary-proxy.conf
 backup=/run/paw-network/50-paw-temporary-proxy.conf
 [[ -f "$dropin" ]] || { log INFO 'No temporary Tailscale proxy override is active.'; exit 0; }

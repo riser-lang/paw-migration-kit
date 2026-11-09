@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$(dirname "$0")/paw-lib.sh"
-logf="$PAW_ROOT/logs/memtest86plus-serial.log"; out="$PAW_REPORT_DIR/memory-test.json"
-if [[ ! -s "$logf" ]]; then write_status WARN 'Memtest86+ was not run or produced no serial log.' "$out"; exit 2; fi
-if grep -Eiq 'errors[=: ]+[1-9]|FAIL|ERROR' "$logf"; then write_status FAIL 'Memtest86+ reported an error.' "$out"; exit 1; fi
-if grep -Eiq 'PASS|completed.*0 errors|0 errors' "$logf"; then write_status PASS 'Completion evidence found; confirm full memory coverage.' "$out"; else write_status WARN 'No definitive completion summary.' "$out"; exit 2; fi
+out="$PAW_REPORT_DIR/memory-test.json"
+evidence="${PAW_MEMTEST_ATTESTATION:-$PAW_STATE_DIR/memtest-attestation.json}"
+
+# A text transcript alone is mutable and cannot establish that Memtest86+ really ran.
+# Until a hardware-specific, independently verifiable capture path exists, it is never PASS.
+if [[ ! -s "$evidence" ]]; then
+  write_status WARN 'No independently verifiable Memtest86+ capture attestation; plain or hand-written logs are not accepted.' "$out"
+  log WARN 'Memtest result is WARN; no manual log can produce PASS.'
+  exit 2
+fi
+write_status WARN 'Memtest attestation was present but no trusted signature verifier is configured; physical memory health remains unverified.' "$out"
+log WARN 'Memtest attestation was not accepted without a trusted verifier.'
+exit 2
