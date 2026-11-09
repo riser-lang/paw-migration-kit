@@ -6,6 +6,7 @@ lb config noauto \
   --architectures amd64 \
   --archive-areas 'main contrib non-free non-free-firmware' \
   --security false \
+  --linux-packages none \
   --binary-images iso-hybrid \
   --debian-installer false \
   --apt-recommends false \

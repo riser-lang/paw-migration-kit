@@ -4,6 +4,7 @@ systemd-resolved
 systemd-timesyncd
 live-boot
 live-config
+linux-image-amd64
 openssh-client
 openssh-server
 sudo
