@@ -8,7 +8,6 @@ lb config noauto \
   --security false \
   --linux-packages none \
   --initsystem systemd \
-  --syslinux-theme live-build \
   --binary-images iso-hybrid \
   --debian-installer false \
   --apt-recommends false \
