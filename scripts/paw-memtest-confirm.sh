@@ -12,12 +12,13 @@ read_fields=()
 mapfile -d '' -t read_fields < <(python3 - "$target_cfg" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
-sys.stdout.write("".join(str(d.get(k) or "")+"\0" for k in ("device_path","model","serial","capacity_bytes")))
+sys.stdout.write("".join(str(d.get(k) or "")+"\0" for k in ("device_path","model","serial","capacity_bytes","approved")))
 PY
 )
-target_dev="${read_fields[0]:-}"; target_model="${read_fields[1]:-}"; target_serial="${read_fields[2]:-}"; target_capacity="${read_fields[3]:-}"
+target_dev="${read_fields[0]:-}"; target_model="${read_fields[1]:-}"; target_serial="${read_fields[2]:-}"; target_capacity="${read_fields[3]:-}"; target_approved="${read_fields[4]:-}"
 unset read_fields
 [[ "$target_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$target_dev" && -n "$target_serial" ]] || die '目标 SSD 登记不完整，无法绑定内存检测结果。'
+[[ "$target_approved" == True ]] || die '目标 SSD 尚未批准登记，不能登记内存检测结果。'
 [[ "$target_capacity" =~ ^[0-9]+$ ]] || die '目标 SSD 容量登记无效。'
 actual_serial="$(lsblk -dn -o SERIAL "$target_dev" | xargs)"
 actual_capacity="$(blockdev --getsize64 "$target_dev")"

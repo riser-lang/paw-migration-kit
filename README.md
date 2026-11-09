@@ -30,6 +30,7 @@ Actions 在 Ubuntu 24.04 runner 上：
 1. 将最终 ISO 以 DD/整盘模式写入 TF 卡；写前核对设备型号、容量、序列号和 SHA256。
 2. 新电脑插网线，开机选择一次 TF 卡 Legacy BIOS 启动。
 3. 启动后按中文提示确认 TF 卡序列号末六位，让 PAWDATA 自动创建在卡尾；ISO 启动分区不会被格式化。
+4. 物理显示器/键盘的 tty1 会显示 PAW 中文控制台菜单；可逐项完成内存确认、源盘识别、目标盘登记、硬件检查、最终授权。
 4. 如需内存检测：从 ISOLINUX 菜单进入 Memtest86+，完成后回到 PAW Live，用中文界面登记轮次和错误数；该记录是 `OPERATOR_CONFIRMED`，不是机器证明。
 5. 通过固定 SSH 主机指纹和 Rescue 临时密钥识别旧 VPS 源盘，核对根 UUID、50 GiB、GPT、BIOS Boot。
 6. 登记目标 SSD，完成 SMART/只读扫描；内存未完成或错误时不会允许克隆。

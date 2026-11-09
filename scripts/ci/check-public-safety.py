@@ -36,6 +36,8 @@ for path in root.rglob("*"):
         for match in pattern.finditer(data):
             if label == "IPv4 literal" and match.group(0) == allowed_ip:
                 continue
+            if label == "email address" and match.group(0) == b"getty@tty1.service":
+                continue
             if label == "canonical UUID" and match.group(0).lower() in allowed_partition_guids:
                 continue
             line = data.count(b"\n", 0, match.start()) + 1

@@ -22,7 +22,7 @@ cp "$src/scripts/paw-count-bytes.py" "$work/config/includes.chroot/opt/paw-migra
 cp "$src/scripts/paw-xray-client-configure.py" "$work/config/includes.chroot/opt/paw-migration/scripts/"
 cp -a "$src/boot/bin" "$work/config/includes.chroot/opt/paw-migration/"
 cp "$src/configs/source.template.json" "$src/configs/target-ssd.template.json" "$src/configs/xray-client.template.json" "$work/config/includes.chroot/opt/paw-migration/configs/"
-cp "$src/boot/paw-preflight.service" "$src/boot/paw-data-init.service" "$src/boot/paw-network-bootstrap.service" "$src/boot/paw-xray-client.service" "$src/boot/paw-tailscale-join.service" "$work/config/includes.chroot/etc/systemd/system/"
+cp "$src/boot/paw-preflight.service" "$src/boot/paw-data-init.service" "$src/boot/paw-console.service" "$src/boot/paw-network-bootstrap.service" "$src/boot/paw-xray-client.service" "$src/boot/paw-tailscale-join.service" "$work/config/includes.chroot/etc/systemd/system/"
 cp "$src/boot/20-wired.network" "$work/config/includes.chroot/etc/systemd/network/20-wired.network"
 cp "$src/configs/paw-migration.env.template" "$work/config/includes.chroot/etc/paw-migration.env"
 cp "$src/boot/paw-data.mount" "$work/config/includes.chroot/etc/systemd/system/var-lib-paw\\x2dmigration.mount"
@@ -41,6 +41,7 @@ install -d /etc/systemd/system/multi-user.target.wants /etc/systemd/system/local
 ln -sf ../tailscaled.service /etc/systemd/system/multi-user.target.wants/tailscaled.service
 ln -sf ../paw-data-init.service /etc/systemd/system/multi-user.target.wants/paw-data-init.service
 ln -sf ../paw-preflight.service /etc/systemd/system/multi-user.target.wants/paw-preflight.service
+ln -sf ../paw-console.service /etc/systemd/system/multi-user.target.wants/paw-console.service
 ln -sf ../paw-network-bootstrap.service /etc/systemd/system/multi-user.target.wants/paw-network-bootstrap.service
 ln -sf ../var-lib-paw\\x2dmigration.mount /etc/systemd/system/local-fs.target.wants/var-lib-paw\\x2dmigration.mount
 ln -sf /lib/systemd/system/systemd-networkd.service /etc/systemd/system/multi-user.target.wants/systemd-networkd.service

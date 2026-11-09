@@ -106,6 +106,9 @@ chmod 0644 "$mount_root/etc/cloud/cloud.cfg.d/99-paw-disable-network-config.cfg"
 
 rm -f "$mount_root/etc/machine-id" "$mount_root/var/lib/dbus/machine-id"
 systemd-machine-id-setup --root="$mount_root" >/dev/null
+install -d -m 0755 "$mount_root/var/lib/dbus"
+cp "$mount_root/etc/machine-id" "$mount_root/var/lib/dbus/machine-id"
+chmod 0444 "$mount_root/var/lib/dbus/machine-id"
 find "$mount_root/etc/ssh" -maxdepth 1 -type f -name 'ssh_host_*' -delete
 ssh-keygen -A -f "$mount_root"
 if [[ -d "$mount_root/var/lib/tailscale" ]]; then mv "$mount_root/var/lib/tailscale" "$backup/tailscale-original/state"; fi
