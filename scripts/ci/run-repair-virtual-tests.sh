@@ -27,7 +27,7 @@ int main(void){return 1;}
 C
 
 make_fixture(){
-  local image="$1" loop part mount fail_grub="$2"
+  local image="$1" mnt="$2" fail_grub="$3" loop part
   truncate -s 512M "$image"
   printf 'label: dos\n,,83\n' | sfdisk "$image" >/dev/null
   loop="$(losetup --find --show -P "$image")"; loops+=("$loop")
@@ -35,12 +35,12 @@ make_fixture(){
   for _ in $(seq 1 30); do [[ -b "$part" ]] && break; sleep 1; done
   [[ -b "$part" ]] || { echo "partition missing" >&2; return 1; }
   mkfs.ext4 -F "$part" >/dev/null
-  mount "$part" "$mount"; mounts+=("$mount")
-  install -d "$mount"/etc/{netplan,cloud/cloud.cfg.d,udev/rules.d,ssh,default,initramfs-tools} \
-    "$mount"/boot/grub "$mount"/usr/sbin "$mount"/lib/modules/6.1.0/kernel/drivers/ata \
-    "$mount"/lib/modules/6.1.0/kernel/drivers/net/ethernet/realtek \
-    "$mount"/var/lib/{dbus,tailscale,paw} "$mount"/root/.ssh
-  cat >"$mount/etc/netplan/50-cloud-init.yaml" <<'YAML'
+  mount "$part" "$mnt"; mounts+=("$mnt")
+  install -d "$mnt"/etc/{netplan,cloud/cloud.cfg.d,udev/rules.d,ssh,default,initramfs-tools} \
+    "$mnt"/boot/grub "$mnt"/usr/sbin "$mnt"/lib/modules/6.1.0/kernel/drivers/ata \
+    "$mnt"/lib/modules/6.1.0/kernel/drivers/net/ethernet/realtek \
+    "$mnt"/var/lib/{dbus,tailscale,paw} "$mnt"/root/.ssh
+  cat >"$mnt/etc/netplan/50-cloud-init.yaml" <<'YAML'
 network:
   version: 2
   ethernets:
@@ -48,31 +48,31 @@ network:
       match: {name: eth0}
       dhcp4: true
 YAML
-  printf 'SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:11:22:33:44:55", NAME="eth0"\n' >"$mount/etc/udev/rules.d/70-tencent.rules"
-  printf 'network: {config: disabled}\n' >"$mount/etc/cloud/cloud.cfg.d/50-cloud-init.cfg"
-  printf '11111111111111111111111111111111\n' >"$mount/etc/machine-id"
-  cp "$mount/etc/machine-id" "$mount/var/lib/dbus/machine-id"
-  printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIciOnlyFixtureKey paw@test\n' >"$mount/root/.ssh/authorized_keys"
-  printf 'paw-database-must-survive\n' >"$mount/var/lib/paw/important.db"
-  printf 'tailscale-state-must-be-backed-up\n' >"$mount/var/lib/tailscale/tailscaled.state"
-  printf 'GRUB_DEFAULT=0\n' >"$mount/etc/default/grub"
-  printf 'oldmodule\n' >"$mount/etc/initramfs-tools/modules"
-  : >"$mount/boot/grub/grub.cfg"
-  : >"$mount/lib/modules/6.1.0/kernel/drivers/ata/ahci.ko"
-  : >"$mount/lib/modules/6.1.0/kernel/drivers/net/ethernet/realtek/r8169.ko"
+  printf 'SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:11:22:33:44:55", NAME="eth0"\n' >"$mnt/etc/udev/rules.d/70-tencent.rules"
+  printf 'network: {config: disabled}\n' >"$mnt/etc/cloud/cloud.cfg.d/50-cloud-init.cfg"
+  printf '11111111111111111111111111111111\n' >"$mnt/etc/machine-id"
+  cp "$mnt/etc/machine-id" "$mnt/var/lib/dbus/machine-id"
+  printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIciOnlyFixtureKey paw@test\n' >"$mnt/root/.ssh/authorized_keys"
+  printf 'paw-database-must-survive\n' >"$mnt/var/lib/paw/important.db"
+  printf 'tailscale-state-must-be-backed-up\n' >"$mnt/var/lib/tailscale/tailscaled.state"
+  printf 'GRUB_DEFAULT=0\n' >"$mnt/etc/default/grub"
+  printf 'oldmodule\n' >"$mnt/etc/initramfs-tools/modules"
+  : >"$mnt/boot/grub/grub.cfg"
+  : >"$mnt/lib/modules/6.1.0/kernel/drivers/ata/ahci.ko"
+  : >"$mnt/lib/modules/6.1.0/kernel/drivers/net/ethernet/realtek/r8169.ko"
   ssh-keygen -q -t ed25519 -N '' -f "$work/host-before"
-  install -m 0600 "$work/host-before" "$mount/etc/ssh/ssh_host_ed25519_key"
-  install -m 0644 "$work/host-before.pub" "$mount/etc/ssh/ssh_host_ed25519_key.pub"
-  gcc -static -O2 -o "$mount/usr/sbin/update-initramfs" "$work/stub.c"
-  gcc -static -O2 -o "$mount/usr/sbin/grub-install" "$work/stub.c"
+  install -m 0600 "$work/host-before" "$mnt/etc/ssh/ssh_host_ed25519_key"
+  install -m 0644 "$work/host-before.pub" "$mnt/etc/ssh/ssh_host_ed25519_key.pub"
+  gcc -static -O2 -o "$mnt/usr/sbin/update-initramfs" "$work/stub.c"
+  gcc -static -O2 -o "$mnt/usr/sbin/grub-install" "$work/stub.c"
   if [[ "$fail_grub" == 1 ]]; then
-    gcc -static -O2 -o "$mount/usr/sbin/update-grub" "$work/fail.c"
+    gcc -static -O2 -o "$mnt/usr/sbin/update-grub" "$work/fail.c"
   else
-    gcc -static -O2 -o "$mount/usr/sbin/update-grub" "$work/stub.c"
+    gcc -static -O2 -o "$mnt/usr/sbin/update-grub" "$work/stub.c"
   fi
-  chmod 0755 "$mount/usr/sbin/update-initramfs" "$mount/usr/sbin/grub-install" "$mount/usr/sbin/update-grub"
+  chmod 0755 "$mnt/usr/sbin/update-initramfs" "$mnt/usr/sbin/grub-install" "$mnt/usr/sbin/update-grub"
   sync
-  umount "$mount"; mounts=()
+  umount "$mnt"; mounts=()
   printf '%s\n' "$loop"
 }
 
