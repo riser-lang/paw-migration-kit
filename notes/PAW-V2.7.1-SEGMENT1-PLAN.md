@@ -58,3 +58,11 @@ unit：
 
 只使用 loop 镜像/QEMU 虚拟盘；不触碰任何真实块设备、旧 VPS、网络配置、TF 卡、生产 PAW。
 不合并 PR #2；不修改仓库可见性。
+
+## 执行结果（2026-11-10 本地）
+
+- P0-A finalize 故障注入：36/36 PASS（真实进程 + mock reboot，非真实重启）。
+- P0-B 静态/结构：29/29 PASS；pty 因沙箱禁止 /dev/ptmx 标记 BLOCKED（QEMU 覆盖）。
+- P0-B QEMU：ok 11/11、bad 7/7、timeout 6/6，共 24 项 PASS；screendump 字形匹配 399/399。
+- 中文控制台字形：BLOCKED（vgacon 无 CJK 字体，见 docs/PAW-V2.7.1-BLOCKERS.md B01）。
+- 未重跑原有 79 项 loop 套件（本机 sudo/losetup 不可用）；未构建 ISO（第 3 段）。
