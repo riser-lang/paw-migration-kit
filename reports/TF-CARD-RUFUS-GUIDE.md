@@ -1,13 +1,13 @@
 # TF 卡 Rufus 人工操作说明（待 ISO 复核后执行）
 
-**当前只完成准备，不要开始写入。** ISO SHA256 与 Hybrid/Legacy BIOS 检查、E: 物理设备识别须先由最终 Actions 结果和设备核验记录补齐。写入会清除整张 TF 卡数据，完成后盘符和分区布局可能变化。
+**当前只完成准备，不要开始写入。** 本地只读查询显示 E: 映射到物理磁盘 1：31,362,908,160 字节、USB 可移动介质、`Generic Mass-Storage USB Device`、MBR 单一 IFS/NTFS 分区，偏移 1 MiB。序列号只保存在本机私人核验记录，不放入公开仓库。容量与标称 32 GB 相符，但通用型号不能证明它就是用户指定的 TF 读卡器；写入前必须重新识别并按 Rufus 显示的物理磁盘号、容量、型号和序列号对照实物。卷标为 `DSH-Workspace`，仍约有 70 MB 已占用，不能视为完全空白。ISO SHA256 与 Hybrid/Legacy BIOS 最终检查尚未完成。写入会清除整张卡数据，完成后盘符和分区布局可能变化。
 
 1. 从 Rufus 官方网站下载对应 Windows 架构的便携版并核对下载来源。便携版无需安装；这不代表写盘无需管理员批准。
 2. 插入 TF 卡读卡器后，在 Rufus 的“设备”下拉框中，仅选择与已记录物理磁盘编号、容量、型号和序列号一致的 TF 卡。**E: 只是盘符，不是设备身份。若有任何字段不一致，停止。**
 3. 选择已复核 SHA256 的 `paw-live-amd64.iso`。确认目标容量约 32 GB，且不是 Windows 系统盘或其他数据盘。
-4. 对 Hybrid ISO 按复核报告指定的写入方式操作；若 Rufus 弹出 ISO 模式/DD 模式提示，按最终报告选择。确认写入目标仍是 TF 卡，接受清除警告后再开始。
+4. 对已验证的 Hybrid ISO，若 Rufus 弹出写入模式提示，选择 **DD Image mode**，以整盘映像方式写入。确认写入目标仍是物理磁盘 1 对应的 TF 卡，接受清除警告后再开始。
 5. 如 Rufus 要求 UAC/管理员权限，只有用户本人确认设备和授权后才继续；不得绕过 UAC。写入结束后记录 Rufus 完成状态，再通过主板启动菜单对 TF 卡做真实启动验证。
 
 ISO 构建、ISO 验证、E: 设备识别、写卡准备、实际写入和真实启动验证是六个独立状态。复制 ISO 文件到 E: 不会生成启动盘。
 
-Rufus 官方页面提供便携版；其官方 FAQ 说明 Hybrid ISO 可选择 DD-Image 模式。具体写入模式须以该 ISO 的候选复核结论为准：<https://rufus.ie/>、<https://github.com/pbatard/rufus/wiki/FAQ>。
+Rufus 官方页面提供无需安装的便携版；官方 FAQ 说明 Rufus 写盘需要管理员权限，因此便携版不能绕过 UAC。若出现权限提示，由用户本人判断是否批准，不能自动提权。Hybrid ISO 可选择 DD-Image 模式：<https://rufus.ie/>、<https://github.com/pbatard/rufus/wiki/FAQ>。

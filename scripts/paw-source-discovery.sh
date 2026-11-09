@@ -23,7 +23,7 @@ d=json.load(open(path,encoding="utf-8"))
 found=[]
 def visit(node,parent=None):
     here=node.get("path") or ("/dev/"+node["name"] if node.get("name") else "")
-    if node.get("uuid","").casefold()==expected.casefold():
+    if (node.get("uuid") or "").casefold()==expected.casefold():
         found.append((node,parent))
     for child in node.get("children") or []: visit(child,node)
 for top in d.get("blockdevices",[]): visit(top)
