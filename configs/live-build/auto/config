@@ -13,6 +13,7 @@ lb config noauto \
   --binary-images iso-hybrid \
   --debian-installer false \
   --apt-recommends false \
+  --apt-options '--yes -o Acquire::Check-Valid-Until=false' \
   --bootappend-live 'boot=live components locales=zh_CN.UTF-8 keyboard-layouts=us hostname=paw-live username=paw console=tty1 console=ttyS0,115200n8' \
   --iso-application 'PAW Migration Live' \
   --iso-publisher 'PAW Migration Preparation' \

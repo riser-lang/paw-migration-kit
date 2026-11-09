@@ -77,6 +77,9 @@ PY
 
 printf '\nPAW 迁移准备状态\n'
 printf '持久化分区：%s\n源系统识别：%s\n目标 SSD 身份：%s\n硬件检查：%s\nRescue SSH 网络：%s\n' "$data_status" "$source_status" "$target_identity_status" "$hardware_status" "$network_status"
+if [[ "$data_status" != PASS ]]; then
+  printf '首次准备 PAWDATA：在本机 root 控制台手动运行 /opt/paw-migration/scripts/paw-data-prepare.sh；核对设备序列号后才会创建分区。\n'
+fi
 printf '自动克隆：未启动\n'
 if [[ "$status" != READY_FOR_OPERATOR ]]; then printf '状态：阻断\n原因：%s\n' "${details[*]}"; else printf '%s\n' '状态：全部检查通过；等待 paw-final-confirm 中文界面的一次性授权。'; fi
 log INFO "AUTOSTART_GATE=$status clone_started=false ${details[*]:-}"
