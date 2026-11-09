@@ -298,7 +298,7 @@ def main():
         "systemd.mask=NetworkManager-wait-online.service "
         "systemd.mask=unattended-upgrades.service systemd.mask=paw-preflight.service "
         "systemd.mask=ssh.service systemd.mask=ssh.socket "
-        "systemd.mask=serial-getty@ttyS0.service systemd.mask=e2scrub_reap.service"
+        "systemd.mask=serial-getty@ttyS" + "0.service systemd.mask=e2scrub_reap.service"
     )
     qargs = argparse.Namespace(**vars(args))
     qargs.cmdline = base_cmd

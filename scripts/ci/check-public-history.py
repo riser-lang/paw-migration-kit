@@ -56,7 +56,7 @@ for entry in objects:
         for match in pattern.finditer(data):
             if label == "IPv4 literal" and match.group(0) in safe_ips:
                 continue
-            if label == "email address" and match.group(0) == b"getty@tty1.service":
+            if label == "email address" and match.group(0) in (b"getty@tty1.service", b"serial-getty@ttyS0.service"):
                 continue
             line = data.count(b"\n", 0, match.start()) + 1
             findings.append(f"{label}: {path}:{line} blob={oid[:12]}")
