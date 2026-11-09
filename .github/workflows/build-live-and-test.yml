@@ -38,7 +38,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             bash shellcheck python3 python3-yaml jq \
-            gpgv gnupg curl unzip xorriso squashfs-tools \
+            gpgv gnupg debian-archive-keyring curl unzip xorriso squashfs-tools \
             live-build debootstrap syslinux-utils isolinux \
             grub-pc-bin grub-efi-amd64-bin mtools dosfstools \
             qemu-system-x86 qemu-utils \
@@ -48,6 +48,17 @@ jobs:
             memtest86+ parted util-linux
           sudo apt-get clean
           df -h "$RUNNER_TEMP"
+
+      - name: Install Debian Trixie live-build toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian trixie main' | sudo tee /etc/apt/sources.list.d/paw-live-build.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends live-build/trixie
+          lb --version
+          sudo rm -f /etc/apt/sources.list.d/paw-live-build.list
+          sudo apt-get clean
 
       - name: Static, syntax, PowerShell, config, and public-safety checks
         shell: bash
