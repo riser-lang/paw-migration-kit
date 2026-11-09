@@ -110,15 +110,28 @@ export PAW_REPAIR_ARM=I_HAVE_VERIFIED_OFFLINE_FILESYSTEM
 export PAW_EXPAND_ARM=I_HAVE_VERIFIED_CLONE
 "$PAW_ROOT/scripts/paw-gpt-expand.sh" "$dst" "$target_root"
 "$PAW_ROOT/scripts/paw-firstboot-check.sh"
-python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$PAW_REPORT_DIR/migration-completion.json" <<'PY'
-import json,os,sys,datetime
-auth,receipt=sys.argv[1:]
-with open(auth,encoding="utf-8") as handle: data=json.load(handle)
-data["status"]="CONSUMED"; data["completed_at"]=datetime.datetime.now(datetime.timezone.utc).isoformat()
-tmp=auth+".tmp"
-with open(tmp,"w",encoding="utf-8") as handle: json.dump(data,handle,indent=2)
-os.chmod(tmp,0o600); os.replace(tmp,auth)
-with open(receipt,"w",encoding="utf-8") as handle: json.dump({"status":"PASS","target_serial_suffix":data["target_serial"][-6:],"completed_at":data["completed_at"]},handle,indent=2)
-os.chmod(receipt,0o600)
+completion_data="$(mktemp "$PAW_REPORT_DIR/.migration-completion.XXXXXX")"
+python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$completion_data" <<'PY'
+import datetime,hashlib,json,os,sys
+auth,out=sys.argv[1:]
+with open(auth,encoding="utf-8") as handle: authorization=json.load(handle)
+report_dir=os.path.dirname(auth)
+evidence={}
+for name in ("stream-verify","offline-repair","gpt-expand","firstboot-check"):
+    path=os.path.join(report_dir,name+".json")
+    with open(path,"rb") as handle: evidence[name]=hashlib.sha256(handle.read()).hexdigest()
+document={"schema":"paw.migration-completion.v2","status":"PASS",
+ "target_serial_suffix":authorization["target_serial"][-6:],
+ "completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+ "checks":{"clone":"PASS","sha256":"PASS","offline_repair":"PASS",
+           "gpt_ext4_expand":"PASS","firstboot":"PASS"},
+ "evidence_sha256":evidence}
+with open(out,"w",encoding="utf-8") as handle:
+    json.dump(document,handle,indent=2)
+os.chmod(out,0o600)
 PY
-log INFO 'Clone, independent verification, offline adaptation, GPT/ext4 expansion and completion receipt succeeded.'
+if ! "$PAW_ROOT/scripts/paw-finalize-reboot.sh" --completion-data "$completion_data" --authorization "$PAW_REPORT_DIR/operator-authorization.json" --receipt "$PAW_REPORT_DIR/migration-completion.json"; then
+  rm -f "$completion_data"
+  exit 1
+fi
+rm -f "$completion_data"
