@@ -38,7 +38,7 @@
 1. 重启，在 ISOLINUX 菜单选择 `Memory test (Memtest86+ x64...)`。
 2. 至少完成 1 轮，记录完成轮次和错误数。
 3. 重启回到 PAW Live。
-4. 在控制台运行：
+4. 在 tty1 中文菜单选择 **1) 登记 Memtest86+ 人工确认结果**；也可以运行：
 
    ```bash
    /opt/paw-migration/scripts/paw-memtest-confirm.sh
@@ -56,7 +56,7 @@
 
 此步骤需要你已在 Tencent Cloud 控制台把旧 VPS 进入 Rescue Mode，并取得 VNC 中显示的 SSH 主机名/地址和端口。
 
-1. 运行：
+1. 在中文菜单选择 **3) 配置 Rescue SSH 并识别旧 VPS 源盘**；也可以运行：
 
    ```bash
    /opt/paw-migration/scripts/paw-rescue-key-prepare.sh
@@ -70,14 +70,14 @@
 
 ## 6. 登记目标 SSD
 
-1. 运行 `/opt/paw-migration/scripts/paw-target-discovery.sh`。
+1. 在中文菜单选择 **4) 登记目标 SSD**，或运行 `/opt/paw-migration/scripts/paw-target-discovery.sh`。
 2. 按编号选择目标 SSD；只读盘点，不写盘。
 3. 核对型号、容量、序列号，输入序列号末六位登记。
-4. 运行硬件预检（SMART、只读扫描、温度、内存状态）。任何 FAIL/WARN 都会阻断。
+4. 在中文菜单选择 **5) 运行目标 SSD 硬件检查**（SMART、只读扫描、温度、内存状态）。任何 FAIL/WARN 都会阻断。
 
 ## 7. 最终授权与自动迁移
 
-1. 运行 `/opt/paw-migration/scripts/paw-final-confirm.sh`。
+1. 在中文菜单选择 **6) 最终中文授权并开始迁移**，或运行 `/opt/paw-migration/scripts/paw-final-confirm.sh`。
 2. 屏幕会显示源盘、目标盘、容量、序列号、组合身份、主机指纹、硬件、网络和数据损失。
 3. 确认目标 SSD 整盘会被覆盖后，输入目标 SSD 序列号最后 6 位。
 4. 程序会再次识别源盘和目标盘；任何变化立即停止。

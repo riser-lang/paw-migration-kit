@@ -2,49 +2,53 @@
 
 Updated: 2026-11-09 UTC
 Branch: `fix/v2.6.2-final-readiness`
-Base: `0128110` (`fix/v2.6.1-migration-readiness`)
-PR: #2 (to be opened as Draft; #1 remains untouched)
+Final cloud-tested commit: `338b884c6024a02f459d5a2c0d1263cf93455185`
+PR: #2 (Draft; #1 untouched)
 
 ## Phase
 
 - Phase 1: repository and environment takeover — complete.
-- Phase 2: P0 blockers — code implemented, waiting for GitHub Actions evidence.
-- Phase 3: P1 adaptation — code implemented for Netplan/offline repair/network tests; waiting for Actions.
-- Phase 4: cloud build — Run `42605312024` in progress.
-- Phase 5: full virtual test matrix — expanded, waiting for run evidence.
-- Phase 6: public security audit and delivery package — pending final artifacts.
+- Phase 2: P0 blockers — implemented and virtually verified.
+- Phase 3: P1 adaptation — implemented and virtually verified; real hardware pending.
+- Phase 4: cloud build — PASS, Run `42615204317`.
+- Phase 5: expanded virtual test matrix — PASS, 79/79 reported tests.
+- Phase 6: public security audit and delivery package — final documentation in progress.
 
-## Implemented in this branch
+## Final cloud evidence
 
-- Memtest86+ operator-attestation UI and hardware gate.
-- PAWDATA auto-init service, MBR/GPT append, new-partition-only format, remount check.
-- Rescue composite source identity without mandatory Virtio serial.
-- Actual decompressed byte counter and mixed-data stream tests.
-- Full Chinese final authorization with pre-write source/target re-identification.
-- Netplan `e*` compatibility, loop ext4 offline repair/rollback suite, network stage suite.
-- Draft PR #2 opened; PR #1 untouched.
+- Run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42615204317>
+- Artifact ID: `13672831707`, `paw-live-build-test-results`, 938,778,035 bytes
+- Expires: 2026-11-12 12:20:59 UTC
+- ISO SHA256: `5daf4c0b7af05258c7e90d8c84ba5e474b2ba8215a2cc75781c5374e4c15a4b8`
+- Test totals: PAWDATA 12/12, fault injection 35/35, repair/rollback 15/15, network 17/17
+- QEMU SeaBIOS/TCG: PASS, readiness BLOCKED, clone_started=false
 
 ## Verified now
 
-- Repository cloned from GitHub; expected `main` and v2.6.1 branch heads match the task brief.
-- GitHub CLI authenticated as repository admin.
-- Latest v2.6.1 Actions run was success and its artifact existed at takeover time.
-- Local public-safety and reachable-Git-history scans pass on the new tree.
-- Bash `-n`, Python compile, ShellCheck 0.11.0, JSON and workflow YAML checks pass locally.
-- P0 code and tests committed as `a254fcd`.
+- Branch checkout, static checks, ShellCheck, Python/JSON/YAML, public safety and reachable-history scan.
+- Debian base signature/hash, Tailscale signed package, Xray release digest.
+- ISO build, ISO SHA sidecar, Hybrid ISO/Memtest menu, QEMU boot.
+- PAWDATA MBR/GPT auto-init, only-new-partition format, remount persistence.
+- Memtest operator confirmation states and hardware gate.
+- Rescue source identity with and without Virtio serial.
+- Remote zstd stream, raw fallback, actual restored byte count, mixed data, interruption.
+- Offline repair/rollback on loop ext4, Netplan e* compatibility.
+- Mock Xray/Tailscale/network stage behavior.
 
 ## Not verified
 
-- Current Actions run result and artifact contents.
-- Real TF card write.
+- Real TF card write and read-back.
 - Real ASUS motherboard/SeaBIOS boot.
-- Real SSD SMART/read scan.
+- Real SSD SMART/read scan/temperature.
 - Real Tencent Cloud Rescue Mode SSH.
-- Real PAW production migration.
+- Real full-disk clone and real PAW migration.
 - Physical Memtest86+ run and operator observation.
 
-These must remain explicitly unverified until the user performs them on hardware.
+These remain open until the user performs them on hardware. No production VPS was accessed.
 
-## Immediate next step
+## Immediate next steps for the user
 
-Collect Run `42605312024` logs and artifact, fix any real test failure, then update acceptance and delivery package.
+1. Download the artifact from Run `42615204317` before 2026-11-12 12:20:59 UTC.
+2. Recompute ISO SHA256 on the downloaded file and compare with the sidecar.
+3. Write the TF card only after reviewing the user guide and rollback guide.
+4. Perform physical boot, Memtest, SSD and Rescue checks; keep results separate from cloud/virtual results.
