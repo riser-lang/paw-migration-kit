@@ -31,18 +31,23 @@ cleanup(){
 trap cleanup EXIT
 
 ready=0
-for _ in $(seq 1 450); do
+kernel_seen=0
+for attempt in $(seq 1 450); do
   if grep -q 'AUTOSTART_GATE=' "$serial" 2>/dev/null; then ready=1; break; fi
+  if grep -Eiq 'Linux version |Kernel command line:' "$serial" 2>/dev/null; then kernel_seen=1; fi
+  if (( attempt == 90 && kernel_seen == 0 )); then break; fi
   kill -0 "$pid" 2>/dev/null || break
   sleep 2
 done
 if [[ $ready != 1 ]]; then
   {
     echo 'QEMU smoke test: FAIL'
-    echo 'Live boot did not reach the migration readiness gate within 15 minutes.'
+    if (( kernel_seen == 0 )); then echo 'Linux kernel serial output observed: no'; else echo 'Linux kernel serial output observed: yes'; fi
+    if grep -Eiq 'ISOLINUX|SYSLINUX|GNU GRUB' "$serial" 2>/dev/null; then echo 'Bootloader serial output observed: yes'; else echo 'Bootloader serial output observed: no'; fi
+    if grep -Eiq 'systemd\[1\]|systemd .*running in system mode' "$serial" 2>/dev/null; then echo 'Systemd started: yes'; else echo 'Systemd started: no'; fi
+    if grep -Eiq 'Kernel panic|VFS: Unable to mount root|No working init found' "$serial" 2>/dev/null; then echo 'Kernel or root filesystem fatal marker observed: yes'; else echo 'Kernel or root filesystem fatal marker observed: no'; fi
+    echo 'Live boot did not reach the migration readiness gate.'
     if grep -q 'AUTOSTART_GATE=' "$serial" 2>/dev/null; then echo 'Gate marker observed: yes'; else echo 'Gate marker observed: no'; fi
-    if grep -Eiq 'Reached target .*Multi-User System|Startup finished' "$serial" 2>/dev/null; then echo 'Systemd reached userspace-ready stage: yes'; else echo 'Systemd reached userspace-ready stage: no'; fi
-    if grep -Eiq 'Failed to start|Dependency failed for' "$serial" 2>/dev/null; then echo 'Systemd reported a failed unit: yes'; else echo 'Systemd reported a failed unit: no'; fi
     echo 'Raw serial output is discarded and is not uploaded.'
   } >"$out/qemu-smoke-report.txt"
   exit 1
