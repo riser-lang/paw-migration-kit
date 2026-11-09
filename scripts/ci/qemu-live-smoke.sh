@@ -31,13 +31,20 @@ cleanup(){
 trap cleanup EXIT
 
 ready=0
-for _ in $(seq 1 180); do
+for _ in $(seq 1 450); do
   if grep -q 'AUTOSTART_GATE=' "$serial" 2>/dev/null; then ready=1; break; fi
   kill -0 "$pid" 2>/dev/null || break
   sleep 2
 done
 if [[ $ready != 1 ]]; then
-  echo 'QEMU live boot did not reach the migration readiness gate.' >"$out/qemu-smoke-report.txt"
+  {
+    echo 'QEMU smoke test: FAIL'
+    echo 'Live boot did not reach the migration readiness gate within 15 minutes.'
+    if grep -q 'AUTOSTART_GATE=' "$serial" 2>/dev/null; then echo 'Gate marker observed: yes'; else echo 'Gate marker observed: no'; fi
+    if grep -Eiq 'Reached target .*Multi-User System|Startup finished' "$serial" 2>/dev/null; then echo 'Systemd reached userspace-ready stage: yes'; else echo 'Systemd reached userspace-ready stage: no'; fi
+    if grep -Eiq 'Failed to start|Dependency failed for' "$serial" 2>/dev/null; then echo 'Systemd reported a failed unit: yes'; else echo 'Systemd reported a failed unit: no'; fi
+    echo 'Raw serial output is discarded and is not uploaded.'
+  } >"$out/qemu-smoke-report.txt"
   exit 1
 fi
 gate="$(grep -Eo 'AUTOSTART_GATE=(READY_FOR_OPERATOR|BLOCKED) clone_started=false' "$serial" | tail -n1)"
