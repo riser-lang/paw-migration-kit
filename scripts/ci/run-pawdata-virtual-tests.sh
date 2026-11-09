@@ -61,7 +61,7 @@ small_file="$root/tests/virtual/pawdata-small.img"; truncate -s 32M "$small_file
 small_loop="$(losetup --find --show "$small_file")"; loops+=("$small_loop")
 mkfs.ext4 -F -L PAWDATA "$small_loop" >/dev/null
 small_dir="$work/small-mount"; mkdir -p "$small_dir"; mount -t ext4 -o rw "$small_loop" "$small_dir"; mounts+=("$small_dir")
-set +e; dd if=/dev/zero of="$small_dir/fill.bin" bs=1M conv=fsync status=none; fill_rc=$?; set -e
+set +e; dd if=/dev/zero of="$small_dir/fill.bin" bs=1M conv=fsync status=none 2>"$work/dd-exhaustion.err"; fill_rc=$?; set -e
 if ((fill_rc != 0)) && ! PAW_MOUNTPOINT_OVERRIDE="$small_dir" PAW_STATE_MIN_FREE_BYTES=67108864 "$root/scripts/paw-data-check.sh" >/dev/null 2>&1; then
   pass 'Space exhaustion is detected and remains non-PASS'
 else
@@ -69,4 +69,5 @@ else
 fi
 
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
+cat "$report"
 ((failed == 0))

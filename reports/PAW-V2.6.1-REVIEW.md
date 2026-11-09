@@ -15,7 +15,7 @@
 
 本地 PowerShell 语法解析、Bash `-n`、Python 编译、Windows 静态安全检查、工作区公开安全扫描和当前本地可达 Git 对象扫描通过。此 Windows 环境未安装 Linux 构建依赖，不能在本机生成 ISO。
 
-第一次候选 Actions 在 ISO 构建阶段因冻结 Debian snapshot 的 `trixie-updates` Release 有效期过期而失败；未生成候选 ISO。快照有效期检查修正后，第二次候选成功构建，系统区报告识别 Hybrid MBR，但 SeaBIOS 测试前发现 Memtest 菜单文件未打包入 ISO，故停止后续测试。该文件现显式加入 ISO 根目录，需由下一次完整 Actions 复核。PAWDATA 首次准备使用手动入口并要求末六位序列号确认。真实 Rescue SSH、真实磁盘、真实 TF 卡写入和物理启动均未执行。
+第一次候选 Actions 因冻结 snapshot 的 `trixie-updates` Release 有效期失败。修正后已生成 Hybrid ISO；Memtest 菜单显式打包，SeaBIOS/TCG 启动及 fail-closed 门槛通过。PAWDATA 虚拟介质步骤运行到 ext4 空间耗尽检查后返回失败；本次日志缺少逐项报告，现已增加逐项结果输出并将重跑。PAWDATA 首次准备使用手动入口并要求末六位序列号确认。真实 Rescue SSH、真实磁盘、真实 TF 卡写入和物理启动均未执行。
 
 ## 仍需关闭的验收项
 
