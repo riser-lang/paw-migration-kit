@@ -5,6 +5,7 @@ lb config noauto \
   --distribution trixie \
   --architectures amd64 \
   --archive-areas 'main contrib non-free non-free-firmware' \
+  --security false \
   --binary-images iso-hybrid \
   --debian-installer false \
   --apt-recommends false \
