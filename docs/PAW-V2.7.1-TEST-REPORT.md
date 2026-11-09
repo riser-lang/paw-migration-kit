@@ -110,8 +110,8 @@ Debian 13 一次性 ext4 测试盘（loop 镜像内再建 512 MiB GPT 虚拟盘�
 
 | 用例 | 注入方式 | 结果 | 关键证据 |
 |---|---|---|---|
-| B1/B2/B5/B6 正确 | `sendkey 1..6 + ret` | PASS 11/11 | 提示/接受/菜单均出现在 VGA 帧缓存；状态文件 `tty_path=/dev/tty1`；`menu_tty=input_tty=/dev/tty1`；`max_holders=1` |
-| B3 错误 | `sendkey 000000 + ret` | PASS 7/7 | `PAW-TTY1-INPUT-BAD`；无 `INPUT-OK`；状态记录同一 tty1；`max_holders=1` |
+| B1/B2/B5/B6 正确 | `sendkey 1..6 + ret` | PASS 11/11（菜单结构与同一 tty1）；中文字形受 B01 限制 | 提示/接受/菜单均出现在 VGA 帧缓存；状态文件 `tty_path=/dev/tty1`；`menu_tty=input_tty=/dev/tty1`；`max_holders=1` |
+| B3 错误 | `sendkey 000000 + ret` | PASS 7/7（停止与单一占用）；中文原因字形受 B01 限制 | `PAW-TTY1-INPUT-BAD`；无 `INPUT-OK`；中文原因已写入 tty1（字形不可见）；状态记录同一 tty1；`max_holders=1` |
 | B4 超时 | 不注入，`paw.timeout=5` | PASS 6/6 | 5 秒后 `PAW-TTY1-INPUT-TIMEOUT`；安全停止；`max_holders=1` |
 
 证据链：
