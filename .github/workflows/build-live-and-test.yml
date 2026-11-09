@@ -47,7 +47,7 @@ jobs:
             gdisk cloud-guest-utils e2fsprogs zstd pv smartmontools \
             openssh-client iproute2 iputils-ping dnsutils ethtool \
             pciutils usbutils lshw lm-sensors nvme-cli rsync less \
-            memtest86+ parted util-linux
+            memtest86+ parted util-linux gcc libc6-dev
           sudo apt-get clean
           df -h "$RUNNER_TEMP"
 
@@ -145,6 +145,18 @@ jobs:
           set -euo pipefail
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-virtual-tests.sh
 
+      - name: Run offline repair and rollback suite on loop ext4
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-repair-virtual-tests.sh
+
+      - name: Run network and staged connectivity suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-network-virtual-tests.sh
+
       - name: Upload reviewed build and test outputs (3-day retention)
         if: always()
         uses: actions/upload-artifact@v4
@@ -163,6 +175,8 @@ jobs:
             artifacts/iso-system-area.txt
             artifacts/pawdata-virtual-test-report.txt
             artifacts/virtual-fault-injection-report.txt
+            artifacts/repair-virtual-test-report.txt
+            artifacts/network-virtual-test-report.txt
           retention-days: 3
           compression-level: 0
           if-no-files-found: warn

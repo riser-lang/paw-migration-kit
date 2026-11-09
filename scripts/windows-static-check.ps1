@@ -1,6 +1,6 @@
 param([string]$Root = (Join-Path $env:USERPROFILE 'PAW-Migration'))
 $ErrorActionPreference = 'Stop'
-$required = @('paw-live-preflight.sh','paw-hardware-preflight.sh','paw-ssd-smart-check.sh','paw-ssd-read-scan.sh','paw-memory-test-report.sh','paw-source-discovery.sh','paw-stream-clone.sh','paw-stream-verify.sh','paw-offline-repair.sh','paw-gpt-expand.sh','paw-firstboot-check.sh','paw-rescue-key-prepare.sh','paw-target-discovery.sh','paw-final-confirm.sh','paw-prepare-data-partition.sh','paw-data-prepare.sh','paw-data-check.sh','paw-network-phase-select.sh','paw-xray-client-configure.sh')
+$required = @('paw-live-preflight.sh','paw-hardware-preflight.sh','paw-ssd-smart-check.sh','paw-ssd-read-scan.sh','paw-memory-test-report.sh','paw-memtest-confirm.sh','paw-source-discovery.sh','paw-stream-clone.sh','paw-stream-verify.sh','paw-offline-repair.sh','paw-gpt-expand.sh','paw-firstboot-check.sh','paw-rescue-key-prepare.sh','paw-target-discovery.sh','paw-final-confirm.sh','paw-prepare-data-partition.sh','paw-data-prepare.sh','paw-data-check.sh','paw-network-phase-select.sh','paw-xray-client-configure.sh')
 $missing = @($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Root "scripts\$_")) })
 $psErrors = @()
 Get-ChildItem -LiteralPath (Join-Path $Root 'scripts') -Filter '*.ps1' -File | ForEach-Object {

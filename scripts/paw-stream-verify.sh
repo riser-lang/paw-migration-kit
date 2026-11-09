@@ -25,6 +25,14 @@ fi
 
 [[ "$source_bytes" =~ ^[0-9]+$ && "$target_bytes" =~ ^[0-9]+$ ]] || die 'Could not validate source/target size for verification.'
 ((target_bytes >= source_bytes)) || die 'Target is smaller than the source byte range.'
+python3 - "$PAW_REPORT_DIR/stream-transfer-report.json" "$source_bytes" <<'PY' || die 'Stream receipt byte counts are incomplete or inconsistent.'
+import json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+assert d.get("status")=="STREAM_COMPLETE_UNVERIFIED"
+assert d.get("byte_count_streams_complete") is True
+assert d.get("source_bytes")==int(sys.argv[2])
+assert d.get("restored_bytes")==int(sys.argv[2])
+PY
 b="$(head -c "$source_bytes" "$dst" | sha256sum | awk '{print $1}')"
 [[ "$a" =~ ^[0-9a-f]{64}$ && "$a" == "$b" ]] || die 'Independent SHA256 mismatch; CLONE-INCOMPLETE remains set.'
 

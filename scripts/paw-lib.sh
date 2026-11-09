@@ -86,7 +86,7 @@ PY
   [[ "$identity" == /run/paw-network/* && -r "$identity" && "$(stat -c %u "$identity")" == 0 && ( "$(stat -c %a "$identity")" == 600 || "$(stat -c %a "$identity")" == 400 ) ]] || die 'Rescue key must be a root-only RAM file.'
   [[ "$known" == /run/paw-network/* && -s "$known" ]] || die 'Pinned Rescue Mode host key missing.'
   need ssh
-  ssh -T -i "$identity" -p "$port" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known" -o ConnectTimeout=12 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 "$user@$host" "$@"
+  ssh -T -i "$identity" -p "$port" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known" -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=12 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 "$user@$host" "$@"
 }
 assert_unmounted(){ local m; command -v lsblk >/dev/null 2>&1 || return 0; m="$(lsblk -nrpo MOUNTPOINT "$1" | sed '/^$/d')"; [[ -z "$m" ]] || die "Device has mounted filesystem(s): $1 $m"; }
 mark_incomplete(){ printf 'INCOMPLETE %s\n' "$(date -u +%FT%TZ)" >"$PAW_REPORT_DIR/CLONE-INCOMPLETE"; }

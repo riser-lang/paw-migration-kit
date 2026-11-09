@@ -1,0 +1,23 @@
+[Unit]
+Description=PAW PAWDATA first-use guided initialization
+DefaultDependencies=no
+After=local-fs.target systemd-udev-settle.service
+Before=paw-preflight.service
+ConditionPathExists=!/run/paw-migration/.paw-data-auto-disabled
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/paw-migration.env
+ExecStart=/opt/paw-migration/scripts/paw-data-prepare.sh auto
+StandardInput=tty
+StandardOutput=journal+console
+StandardError=journal+console
+TTYPath=/dev/console
+TTYReset=yes
+TTYVHangup=yes
+TimeoutStartSec=180
+SuccessExitStatus=0 2
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

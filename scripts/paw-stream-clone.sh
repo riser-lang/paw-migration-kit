@@ -66,8 +66,9 @@ if [[ "$network_simulation" == 1 || "$simulation" != 1 ]]; then
 fi
 
 payload_count="$PAW_LOG_DIR/ssh-payload-bytes.pending"
+restored_count="$PAW_LOG_DIR/restored-bytes.pending"
 progress_log="$PAW_LOG_DIR/ssh-transfer-progress.log"
-rm -f "$payload_count" "$progress_log" "$PAW_REPORT_DIR/stream-transfer-report.json" "$PAW_REPORT_DIR/stream-verify.json"
+rm -f "$payload_count" "$restored_count" "$progress_log" "$PAW_REPORT_DIR/stream-transfer-report.json" "$PAW_REPORT_DIR/stream-verify.json"
 mark_incomplete
 trap 'rc=$?; if ((rc != 0)); then mark_incomplete; log ERROR "clone stream exit=$rc; incomplete marker retained"; fi' EXIT
 log INFO "Clone stream starts; mode=$stream_mode. Failed writes keep CLONE-INCOMPLETE."
@@ -76,36 +77,44 @@ set -o pipefail
 if [[ "$stream_mode" == local-simulation-zstd ]]; then
   dd if="$src" bs=4M iflag=fullblock status=none \
     | zstd -T1 -1 -c \
-    | pv -s "$source_bytes" -ptebar 2>>"$progress_log" \
+    | pv -ptebar 2>>"$progress_log" \
     | python3 "$PAW_ROOT/scripts/paw-count-bytes.py" --count-file "$payload_count" \
     | zstd -d -c \
+    | python3 "$PAW_ROOT/scripts/paw-count-bytes.py" --count-file "$restored_count" \
     | dd of="$dst" bs=4M conv=notrunc,fsync status=none
 elif [[ "$stream_mode" == remote-zstd-level1-thread1 ]]; then
   rescue_ssh "bash -o pipefail -c 'dd if='$src' bs=4M iflag=fullblock status=none | zstd -T1 -1 -c'" \
-    | pv -s "$source_bytes" -ptebar 2>>"$progress_log" \
+    | pv -ptebar 2>>"$progress_log" \
     | python3 "$PAW_ROOT/scripts/paw-count-bytes.py" --count-file "$payload_count" \
     | zstd -d -c \
+    | python3 "$PAW_ROOT/scripts/paw-count-bytes.py" --count-file "$restored_count" \
     | dd of="$dst" bs=4M conv=fsync status=none
 elif [[ "$stream_mode" == raw-fallback ]]; then
   rescue_ssh "dd if='$src' bs=4M iflag=fullblock status=none" \
     | pv -s "$source_bytes" -ptebar 2>>"$progress_log" \
     | python3 "$PAW_ROOT/scripts/paw-count-bytes.py" --count-file "$payload_count" \
+    | python3 "$PAW_ROOT/scripts/paw-count-bytes.py" --count-file "$restored_count" \
     | dd of="$dst" bs=4M conv=fsync status=none
 else
   die 'Unsupported transfer mode.'
 fi
 
 [[ -s "$payload_count" ]] || die 'SSH stream byte counter did not produce a complete count.'
-ssh_stream_bytes="$(cat "$payload_count")"; rm -f "$payload_count"
+[[ -s "$restored_count" ]] || die 'Restored byte counter did not produce a complete count.'
+ssh_stream_bytes="$(cat "$payload_count")"; restored_bytes="$(cat "$restored_count")"
+rm -f "$payload_count" "$restored_count"
 [[ "$ssh_stream_bytes" =~ ^[0-9]+$ ]] || die 'SSH stream byte count is malformed.'
-python3 - "$PAW_REPORT_DIR/stream-transfer-report.json" "$source_bytes" "$ssh_stream_bytes" "$stream_mode" "$transport_kind" "$compression_reason" <<'PY'
+[[ "$restored_bytes" =~ ^[0-9]+$ ]] || die 'Restored byte count is malformed.'
+((restored_bytes == source_bytes)) || die "Restored byte count ${restored_bytes} does not match source ${source_bytes}; CLONE-INCOMPLETE remains."
+python3 - "$PAW_REPORT_DIR/stream-transfer-report.json" "$source_bytes" "$ssh_stream_bytes" "$restored_bytes" "$stream_mode" "$transport_kind" "$compression_reason" <<'PY'
 import json,sys
-out,src,wire,mode,transport,reason=sys.argv[1:]
-s=int(src); w=int(wire)
+out,src,wire,restored,mode,transport,reason=sys.argv[1:]
+s=int(src); w=int(wire); r=int(restored)
 json.dump({"status":"STREAM_COMPLETE_UNVERIFIED","source_bytes":s,"ssh_stream_bytes":w,
- "restored_bytes":s,"stream_mode":mode,"transport":transport,"compression_reason":reason,
+ "restored_bytes":r,"stream_mode":mode,"transport":transport,"compression_reason":reason,
+ "byte_count_streams_complete":True,
  "transfer_to_source_ratio":(w/s if s else None),
  "compression_reduction_percent":(100*(s-w)/s if s else None),
  "sha256":None,"independent_sha256_verified":False},open(out,"w"),indent=2)
 PY
-log INFO "Stream complete; source_bytes=$source_bytes ssh_stream_bytes=$ssh_stream_bytes mode=$stream_mode. Independent SHA256 verification is still required."
+log INFO "Stream complete; source_bytes=$source_bytes ssh_stream_bytes=$ssh_stream_bytes restored_bytes=$restored_bytes mode=$stream_mode. Independent SHA256 verification is still required."

@@ -56,6 +56,10 @@ case "$cmd" in
       head -c 1048576 "$PAW_MOCK_SOURCE_FILE" | zstd -T1 -1 -c
       exit 255
     fi
+    if [[ "${PAW_TEST_SSH_MODE:-ok}" == short ]]; then
+      head -c 4194304 "$PAW_MOCK_SOURCE_FILE" | zstd -T1 -1 -c
+      exit 0
+    fi
     zstd -T1 -1 -c "$PAW_MOCK_SOURCE_FILE"
     exit 0
     ;;
@@ -92,7 +96,17 @@ printf 'PAW virtual fault-injection results\n' >"$report"
 source_file="$root/tests/virtual/ci-source.img"
 target_file="$root/tests/virtual/ci-target.img"
 truncate -s 8M "$source_file"
-dd if=/dev/zero of="$source_file" bs=1M count=8 status=none
+python3 - "$source_file" <<'PY'
+import random,sys
+path=sys.argv[1]
+rng=random.Random(20261109)
+chunks=[b"\0"*(2*1024*1024),rng.randbytes(2*1024*1024),
+        (b"PAW mixed-data compression test 0123456789\n"*65536)[:2*1024*1024],
+        rng.randbytes(2*1024*1024)]
+with open(path,"wb") as handle:
+    for chunk in chunks: handle.write(chunk)
+    handle.truncate(8*1024*1024)
+PY
 truncate -s 16M "$target_file"
 source_loop="$(losetup --find --show "$source_file")"; loop_devices+=("$source_loop")
 target_loop="$(losetup --find --show "$target_file")"; loop_devices+=("$target_loop")
@@ -103,13 +117,39 @@ printf '{"host":"rescue.invalid","port":22}\n' >/run/paw-network/rescue-endpoint
 chmod 0600 /run/paw-network/rescue-endpoint.json
 printf 'ci-only-placeholder\n' >/run/paw-network/rescue_ed25519
 chmod 0600 /run/paw-network/rescue_ed25519
-printf 'rescue.invalid ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIciOnlyTestKey\n' >/run/paw-network/known_hosts
+ssh-keygen -q -t ed25519 -N '' -f "$work/ci-host-ed25519"
+printf 'rescue.invalid %s\n' "$(cat "$work/ci-host-ed25519.pub")" >/run/paw-network/known_hosts
 chmod 0600 /run/paw-network/known_hosts
 PAW_EXPECTED_ROOT_UUID="$test_uuid" "$root/scripts/paw-source-discovery.sh" && pass 'Authenticated mock Rescue SSH discovery matched 50 GiB GPT, BIOS Boot and ext4 root' || { echo 'FAIL remote source discovery' >>"$report"; failed=$((failed+1)); }
 grep -q '"status": "PASS"' "$PAW_REPORT_DIR/source-discovery.json" || { echo 'FAIL source discovery report missing PASS' >>"$report"; failed=$((failed+1)); }
+sed 's/,"serial":"CI-SOURCE-ONLY"//' "$root/tests/virtual/ci-source-lsblk.json" >"$root/tests/virtual/ci-source-noserial-lsblk.json"
+PAW_MOCK_LSBLK_JSON="$root/tests/virtual/ci-source-noserial-lsblk.json" PAW_EXPECTED_ROOT_UUID="$test_uuid" "$root/scripts/paw-source-discovery.sh" && pass 'Virtio-style source without serial uses strict composite identity' || { echo 'FAIL no-serial source discovery' >>"$report"; failed=$((failed+1)); }
+python3 - "$PAW_CONFIG_DIR/source.json" <<'PY' && pass 'No-serial source identity is composite and records pinned host fingerprint' || { echo 'FAIL no-serial identity fields' >>"$report"; failed=$((failed+1)); }
+import json,sys
+d=json.load(open(sys.argv[1])); assert d['serial_available'] is False and d['serial']==""
+assert len(d['composite_identity_sha256'])==64 and d['ssh_host_key_fingerprint'].startswith('SHA256:')
+assert d['identity_strength']=='composite-no-serial+layout+hostkey'
+PY
 expect_fail 'Read-write-mounted Rescue source' env PAW_EXPECTED_ROOT_UUID="$test_uuid" PAW_TEST_RW_MOUNT=1 "$root/scripts/paw-source-discovery.sh"
 PAW_EXPECTED_ROOT_UUID="$test_uuid" "$root/scripts/paw-source-discovery.sh" >/dev/null 2>&1
 write_configs "$source_loop" "$target_loop"
+
+# Memtest86+ has no cryptographic capture path in this kit. Test the explicit
+# operator-attestation states and the binding to the current boot and target.
+printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1 && pass 'Memtest manual confirmation records OPERATOR_CONFIRMED' || { echo 'FAIL memtest operator confirmation' >>"$report"; failed=$((failed+1)); }
+grep -q '"status": "OPERATOR_CONFIRMED"' "$PAW_REPORT_DIR/memory-test.json" && pass 'Memtest OPERATOR_CONFIRMED is bound to current boot_id and target serial' || { echo 'FAIL memtest attestation binding' >>"$report"; failed=$((failed+1)); }
+printf '2\n1\n3\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1 && { echo 'FAIL memtest error state unexpectedly accepted' >>"$report"; failed=$((failed+1)); } || pass 'Memtest observed errors are recorded as FAIL and rejected'
+grep -q '"status": "FAIL"' "$PAW_REPORT_DIR/memory-test.json" && pass 'Memtest FAIL is not converted to PASS' || { echo 'FAIL memtest FAIL status' >>"$report"; failed=$((failed+1)); }
+printf '3\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1 && { echo 'FAIL memtest incomplete state unexpectedly accepted' >>"$report"; failed=$((failed+1)); } || pass 'Memtest incomplete observation is recorded as WARN and rejected'
+grep -q '"status": "WARN"' "$PAW_REPORT_DIR/memory-test.json" && pass 'Memtest WARN blocks the clone gate' || { echo 'FAIL memtest WARN status' >>"$report"; failed=$((failed+1)); }
+printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
+python3 - "$PAW_CONFIG_DIR/target-ssd.json" <<'PY'
+import json,sys
+p=sys.argv[1]; d=json.load(open(p)); d['serial']='WRONG-MEMTEST-TARGET'; json.dump(d,open(p,'w'))
+PY
+expect_fail 'Memtest attestation target mismatch' "$root/scripts/paw-memory-test-report.sh"
+write_configs "$source_loop" "$target_loop"
+printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
 
 expect_fail 'Rescue SSH login failure' env PAW_TEST_SSH_MODE=fail_all bash -c 'source "$PAW_ROOT/scripts/paw-lib.sh"; rescue_ssh true'
 before="$(sha256sum "$target_file" | awk '{print $1}')"
@@ -123,14 +163,18 @@ write_configs "$source_loop" "$target_loop"
 expect_fail 'Interrupted SSH stream' env PAW_TEST_SSH_MODE=interrupt "$root/scripts/paw-stream-clone.sh" "$source_loop" "$target_loop"
 [[ -f "$PAW_REPORT_DIR/CLONE-INCOMPLETE" ]] && pass 'Interrupted stream retained CLONE-INCOMPLETE' || { echo 'FAIL interrupted stream marker missing' >>"$report"; failed=$((failed+1)); }
 dd if=/dev/zero of="$target_loop" bs=1M count=16 conv=notrunc status=none
+expect_fail 'Short SSH stream' env PAW_TEST_SSH_MODE=short "$root/scripts/paw-stream-clone.sh" "$source_loop" "$target_loop"
+[[ -f "$PAW_REPORT_DIR/CLONE-INCOMPLETE" ]] && pass 'Short SSH stream retained CLONE-INCOMPLETE' || { echo 'FAIL short stream marker missing' >>"$report"; failed=$((failed+1)); }
+dd if=/dev/zero of="$target_loop" bs=1M count=16 conv=notrunc status=none
 "$root/scripts/paw-stream-clone.sh" "$source_loop" "$target_loop"
 stream_bytes="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["ssh_stream_bytes"])' "$PAW_REPORT_DIR/stream-transfer-report.json")"
-((stream_bytes < 1048576)) && pass 'Remote zstd reduced the SSH payload below 1 MiB for an 8 MiB virtual source' || { echo 'FAIL compressed SSH payload was not smaller than source' >>"$report"; failed=$((failed+1)); }
+((stream_bytes < 7340032)) && pass 'Remote zstd reduced mixed-data SSH payload below 7 MiB for an 8 MiB source' || { echo 'FAIL compressed SSH payload was not smaller than source' >>"$report"; failed=$((failed+1)); }
 "$root/scripts/paw-stream-verify.sh" "$source_loop" "$target_loop"
 "$root/scripts/paw-firstboot-check.sh" && pass 'SSH stream, zstd round-trip, SHA256, and firstboot gate' || { echo 'FAIL successful clone path' >>"$report"; failed=$((failed+1)); }
-python3 - "$PAW_REPORT_DIR/stream-transfer-report.json" <<'PY' && pass 'Stream report distinguishes source bytes, SSH payload, restored bytes, compression and SHA256'
+python3 - "$PAW_REPORT_DIR/stream-transfer-report.json" <<'PY' && pass 'Stream report distinguishes source bytes, SSH payload, actual restored bytes, compression and SHA256'
 import json,sys
 d=json.load(open(sys.argv[1])); assert d['source_bytes']==8388608 and d['restored_bytes']==8388608
+assert d['byte_count_streams_complete'] is True
 assert d['ssh_stream_bytes']<d['source_bytes'] and d['independent_sha256_verified'] is True and len(d['sha256'])==64
 PY
 
@@ -162,6 +206,48 @@ expect_fail 'Target image absent' "$root/scripts/paw-stream-clone.sh" "$source_f
 export PAW_SIMULATION=0
 
 # Hardware fault cases use only the loop-backed target; command stubs cannot access host disks.
+cat >"$mock/smartctl" <<'MOCKSMARTPASS'
+#!/usr/bin/env bash
+case "$1" in
+  -x) echo 'SMART support is: Available'; exit 0 ;;
+  -H) echo 'SMART overall-health self-assessment test result: PASSED'; exit 0 ;;
+  -c) echo 'Self-test execution status: 0'; echo 'Short self-test routine recommended polling time: 1 minutes'; echo 'Extended self-test routine recommended polling time: 2 minutes'; exit 0 ;;
+  -t) echo 'Short offline self-test started'; exit 0 ;;
+  -l) echo '# 1  Short offline  Completed without error  00%  1  -'; exit 0 ;;
+  *) exit 0 ;;
+esac
+MOCKSMARTPASS
+cat >"$mock/badblocks" <<'MOCKBADPASS'
+#!/usr/bin/env bash
+echo 'Pass completed, 0 bad blocks found.'
+exit 0
+MOCKBADPASS
+cat >"$mock/dmesg" <<'MOCKDMESG'
+#!/usr/bin/env bash
+exit 0
+MOCKDMESG
+cat >"$mock/sensors" <<'MOCKSENSORS'
+#!/usr/bin/env bash
+echo 'Package id 0:  +40.0°C  (high = +80.0°C, crit = +95.0°C)'
+exit 0
+MOCKSENSORS
+chmod 0755 "$mock/smartctl" "$mock/badblocks" "$mock/dmesg" "$mock/sensors"
+export PAW_SIMULATION=1
+"$root/scripts/paw-hardware-preflight.sh" "$target_loop" && pass 'Hardware gate accepts OPERATOR_CONFIRMED memory and clean virtual SMART/read scan' || { echo 'FAIL hardware gate with operator memory' >>"$report"; failed=$((failed+1)); }
+python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" <<'PY' && pass 'Hardware report records operator memory trust separately from machine proof' || { echo 'FAIL hardware memory trust field' >>"$report"; failed=$((failed+1)); }
+import json,sys
+d=json.load(open(sys.argv[1])); assert d['status']=='PASS'
+assert d['memory_status']=='OPERATOR_CONFIRMED'
+assert d['memory_trust']=='operator_attestation_not_cryptographic'
+PY
+printf '3\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
+expect_fail 'Hardware gate rejects unconfirmed memory' "$root/scripts/paw-hardware-preflight.sh" "$target_loop"
+python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" <<'PY' && pass 'Unconfirmed memory stays WARN and cannot produce hardware PASS' || { echo 'FAIL hardware WARN status' >>"$report"; failed=$((failed+1)); }
+import json,sys
+d=json.load(open(sys.argv[1])); assert d['status']!='PASS'
+PY
+printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
+
 cat >"$mock/smartctl" <<'MOCKSMART'
 #!/usr/bin/env bash
 case "$1" in
@@ -181,9 +267,6 @@ exit 1
 MOCKBADBLOCKS
 chmod 0755 "$mock/badblocks"
 expect_fail 'Read I/O timeout injection' "$root/scripts/paw-ssd-read-scan.sh" "$target_loop"
-printf 'Test 0 errors\nFAIL: injected memory error\n' >"$root/logs/memtest86plus-serial.log"
-expect_fail 'Memory error report injection' "$root/scripts/paw-memory-test-report.sh"
-grep -q '"status": "FAIL"' "$PAW_REPORT_DIR/memory-test.json" && pass 'Memory failure recorded as FAIL'
 
 # GPT repair and ext4 growth operate only on a loop image located below tests/virtual.
 gpt_file="$root/tests/virtual/ci-gpt-ext4.img"
@@ -194,8 +277,7 @@ part="${gpt_loop}p1"
 for _ in $(seq 1 20); do [[ -b "$part" ]] && break; sleep 1; done
 [[ -b "$part" ]] || { echo 'FAIL GPT loop partition absent' >>"$report"; failed=$((failed+1)); }
 mkfs.ext4 -F "$part" >/dev/null
-export PAW_SIMULATION=1 PAW_REPAIR_ARM=I_HAVE_VERIFIED_OFFLINE_FILESYSTEM PAW_EXPAND_ARM=I_HAVE_VERIFIED_CLONE
-"$root/scripts/paw-offline-repair.sh" "$part" >/dev/null
+export PAW_SIMULATION=1 PAW_EXPAND_ARM=I_HAVE_VERIFIED_CLONE
 old_bytes="$(blockdev --getsize64 "$part")"
 old_fs_bytes="$(dumpe2fs -h "$part" 2>/dev/null | awk -F: '/Block count/ {gsub(/ /,"",$2); b=$2} /Block size/ {gsub(/ /,"",$2); s=$2} END {print b*s}')"
 truncate -s 256M "$gpt_file"
