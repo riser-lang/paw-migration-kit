@@ -154,6 +154,7 @@ mkfs.ext4 -F "$part" >/dev/null
 export PAW_SIMULATION=1 PAW_REPAIR_ARM=I_HAVE_VERIFIED_OFFLINE_FILESYSTEM PAW_EXPAND_ARM=I_HAVE_VERIFIED_CLONE
 "$root/scripts/paw-offline-repair.sh" "$part" >/dev/null
 old_bytes="$(blockdev --getsize64 "$part")"
+old_fs_bytes="$(dumpe2fs -h "$part" 2>/dev/null | awk -F: '/Block count/ {gsub(/ /,"",$2); b=$2} /Block size/ {gsub(/ /,"",$2); s=$2} END {print b*s}')"
 truncate -s 256M "$gpt_file"
 losetup -c "$gpt_loop"
 partprobe "$gpt_loop" || true
@@ -163,7 +164,7 @@ new_bytes="$(blockdev --getsize64 "$part")"
 ((new_bytes > old_bytes)) && pass 'Loop-backed GPT partition expanded' || { echo 'FAIL GPT partition did not grow' >>"$report"; failed=$((failed+1)); }
 e2fsck -fn "$part" >/dev/null
 fs_bytes="$(dumpe2fs -h "$part" 2>/dev/null | awk -F: '/Block count/ {gsub(/ /,"",$2); b=$2} /Block size/ {gsub(/ /,"",$2); s=$2} END {print b*s}')"
-((fs_bytes > old_bytes)) && pass 'Loop-backed ext4 filesystem expanded' || { echo 'FAIL ext4 filesystem did not grow' >>"$report"; failed=$((failed+1)); }
+((fs_bytes > old_fs_bytes)) && pass 'Loop-backed ext4 filesystem expanded' || { echo 'FAIL ext4 filesystem did not grow' >>"$report"; failed=$((failed+1)); }
 
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 ((failed == 0))

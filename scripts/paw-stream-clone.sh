@@ -4,7 +4,8 @@ source "$(dirname "$0")/paw-lib.sh"
 src="${1:-}"; dst="${2:-}"; [[ -n "$src" && -n "$dst" ]] || die 'Usage: paw-stream-clone.sh SOURCE_DEVICE_OR_SIMULATION_FILE TARGET_DEVICE_OR_SIMULATION_FILE'
 require_sim_or_enrollment; for c in zstd pv dd; do need "$c"; done
 if [[ ${PAW_SIMULATION:-0} == 1 ]]; then [[ -f "$src" && -f "$dst" ]] || die 'Simulation requires regular image files.'; assert_sim_files "$src" "$dst"; else [[ -b "$src" && -b "$dst" ]] || die 'Real clone requires block devices.'; fi
-[[ "$src" != "$dst" ]] || die 'Source and target are identical.'; assert_unmounted "$dst"
+[[ "$src" != "$dst" ]] || die 'Source and target are identical.'
+[[ ${PAW_SIMULATION:-0} == 1 ]] || assert_unmounted "$dst"
 if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
   expected="$(sed -n 's/.*"serial"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PAW_CONFIG_DIR/target-ssd.json")"
   expected_bytes="$(sed -n 's/.*"capacity_bytes"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$PAW_CONFIG_DIR/target-ssd.json")"

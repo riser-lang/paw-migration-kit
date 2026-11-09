@@ -84,7 +84,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PAW_ARTIFACT_DIR="$PWD/artifacts" sudo --preserve-env=PAW_ARTIFACT_DIR scripts/ci/stage-verified-tools.sh
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/stage-verified-tools.sh
 
       - name: Build minimal Debian Live ISO
         shell: bash
