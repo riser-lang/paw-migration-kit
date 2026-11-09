@@ -142,7 +142,11 @@ missing_dir="$work/missing-mount"; mkdir -p "$missing_dir"; PAW_MOUNTPOINT_OVERR
 corrupt_file="$root/tests/virtual/pawdata-corrupt.img"; truncate -s 48M "$corrupt_file"
 corrupt_loop="$(losetup --find --show "$corrupt_file")"; loops+=("$corrupt_loop")
 mkfs.ext4 -F -L PAWDATA "$corrupt_loop" >/dev/null
-dd if=/dev/zero of="$corrupt_file" bs=4096 count=1 conv=notrunc status=none
+# Write through the loop device and flush its buffer cache; writing directly to
+# the backing file can leave e2fsck reading a stale, valid superblock.
+dd if=/dev/zero of="$corrupt_loop" bs=4096 count=1 conv=notrunc status=none
+blockdev --flushbufs "$corrupt_loop" || true
+sync
 set +e; e2fsck -fn "$corrupt_loop" >/dev/null 2>&1; corrupt_rc=$?; set -e
 ((corrupt_rc != 0)) && pass 'Corrupted ext4 superblock fails closed' || fail 'Corrupted ext4 superblock fails closed'
 
