@@ -3,7 +3,7 @@ set -Eeuo pipefail
 source "$(dirname "$0")/paw-lib.sh"
 disk="${1:-}"
 [[ -n "$disk" && -b "$disk" ]] || die 'Usage: paw-prepare-data-partition.sh /dev/verified-live-media-disk'
-for c in lsblk sgdisk partprobe udevadm blkid mkfs.ext4 mountpoint mount rsync; do need "$c"; done
+for c in lsblk sfdisk blockdev partprobe udevadm blkid mkfs.ext4 mountpoint mount rsync; do need "$c"; done
 
 if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
   assert_sim_loop_device "$disk"
@@ -39,11 +39,27 @@ if [[ -n "$existing" ]]; then
   [[ "$(blkid -s TYPE -o value "$existing")" == ext4 ]] || die 'Existing PAWDATA label is not ext4; no reformat was attempted.'
 else
   table="$PAW_LOG_DIR/media-partition-table.before.txt"
-  sgdisk -p "$disk" >"$table"
-  next="$(awk '/^[[:space:]]*[0-9]+[[:space:]]/ {n=$1} END {print n+1}' "$table")"
-  [[ "$next" =~ ^[1-9][0-9]*$ ]] && ((next <= 128)) || die 'Could not select an unused GPT partition number.'
-  sgdisk --move-second-header "$disk"
-  sgdisk --new="$next:0:0" --typecode="$next:8300" --change-name="$next:PAWDATA" "$disk"
+  layout="$PAW_LOG_DIR/media-partition-table.before.json"
+  sfdisk --dump "$disk" >"$table"
+  sfdisk --json "$disk" >"$layout"
+  read -r start size < <(python3 - "$layout" "$(blockdev --getsz "$disk")" <<'PY'
+import json,sys
+layout=json.load(open(sys.argv[1],encoding="utf-8"))["partitiontable"]
+total=int(sys.argv[2])
+if layout.get("label")!="dos": raise SystemExit("live media partition table is not MBR/DOS")
+if int(layout.get("sectorsize",0))!=512: raise SystemExit("unsupported live media sector size")
+parts=layout.get("partitions") or []
+if not parts or len(parts)>=4: raise SystemExit("no free MBR primary partition slot")
+last_end=max(int(p["start"])+int(p["size"]) for p in parts)
+start=((last_end+2047)//2048)*2048
+size=total-start
+if size < 128*1024*1024//512: raise SystemExit("less than 128 MiB remains after the ISO partitions")
+if size > 0xffffffff: raise SystemExit("PAWDATA exceeds the MBR partition size limit")
+print(start,size)
+PY
+  ) || die 'Could not validate the hybrid MBR layout or append space.'
+  [[ "$start" =~ ^[0-9]+$ && "$size" =~ ^[0-9]+$ ]] || die 'Calculated PAWDATA MBR extent is invalid.'
+  printf '%s,%s,83\n' "$start" "$size" | sfdisk --append "$disk" >"$PAW_LOG_DIR/media-partition-append.txt"
   partprobe "$disk"
   udevadm settle
   for _ in $(seq 1 20); do
@@ -54,7 +70,7 @@ else
     [[ -n "$existing" ]] && break
     sleep 1
   done
-  [[ -n "$existing" ]] || die 'PAWDATA partition did not appear after GPT update.'
+  [[ -n "$existing" ]] || die 'PAWDATA partition did not appear after MBR update.'
   mkfs.ext4 -F -L PAWDATA "$existing" >/dev/null
 fi
 
