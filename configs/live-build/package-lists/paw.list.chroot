@@ -5,6 +5,8 @@ systemd-timesyncd
 live-boot
 live-config
 linux-image-amd64
+isolinux
+syslinux-common
 openssh-client
 openssh-server
 sudo
