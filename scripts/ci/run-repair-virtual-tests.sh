@@ -30,6 +30,7 @@ make_fixture(){
   local image="$1" mnt="$2" fail_grub="$3" loop part
   rm -f "$work/host-before" "$work/host-before.pub"
   truncate -s 512M "$image"
+  mkdir -p "$mnt"
   printf 'label: dos\n,,83\n' | sfdisk "$image" >/dev/null
   loop="$(losetup --find --show -P "$image")"; loops+=("$loop")
   part="${loop}p1"
