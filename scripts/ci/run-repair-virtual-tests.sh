@@ -39,6 +39,7 @@ make_fixture(){
   mkfs.ext4 -F "$part" >/dev/null
   mount "$part" "$mnt"; mounts+=("$mnt")
   install -d "$mnt"/etc/{netplan,cloud/cloud.cfg.d,udev/rules.d,ssh,default,initramfs-tools} \
+    "$mnt"/dev "$mnt"/proc "$mnt"/sys \
     "$mnt"/boot/grub "$mnt"/usr/sbin "$mnt"/lib/modules/6.1.0/kernel/drivers/ata \
     "$mnt"/lib/modules/6.1.0/kernel/drivers/net/ethernet/realtek \
     "$mnt"/var/lib/{dbus,tailscale,paw} "$mnt"/root/.ssh
