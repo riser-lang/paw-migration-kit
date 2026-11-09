@@ -58,7 +58,7 @@ YAML
   printf 'tailscale-state-must-be-backed-up\n' >"$mnt/var/lib/tailscale/tailscaled.state"
   printf 'GRUB_DEFAULT=0\n' >"$mnt/etc/default/grub"
   printf 'oldmodule\n' >"$mnt/etc/initramfs-tools/modules"
-  : >"$mnt/boot/grub/grub.cfg"
+  printf 'set default=0\n' >"$mnt/boot/grub/grub.cfg"
   : >"$mnt/lib/modules/6.1.0/kernel/drivers/ata/ahci.ko"
   : >"$mnt/lib/modules/6.1.0/kernel/drivers/net/ethernet/realtek/r8169.ko"
   ssh-keygen -q -t ed25519 -N '' -f "$work/host-before"
