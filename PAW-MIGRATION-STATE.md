@@ -2,7 +2,7 @@
 
 Updated: 2026-11-09 UTC
 Branch: `fix/v2.6.2-final-readiness`
-Final cloud-tested commit: `338b884c6024a02f459d5a2c0d1263cf93455185`
+Final cloud-tested commit: `f18202b714cd2431733ff54e132c3083a4197aca`
 PR: #2 (Draft; #1 untouched)
 
 ## Phase
@@ -10,16 +10,16 @@ PR: #2 (Draft; #1 untouched)
 - Phase 1: repository and environment takeover — complete.
 - Phase 2: P0 blockers — implemented and virtually verified.
 - Phase 3: P1 adaptation — implemented and virtually verified; real hardware pending.
-- Phase 4: cloud build — PASS, Run `42615204317`.
+- Phase 4: cloud build — PASS, Run `42618901559`.
 - Phase 5: expanded virtual test matrix — PASS, 79/79 reported tests.
 - Phase 6: public security audit and delivery package — final documentation in progress.
 
 ## Final cloud evidence
 
-- Run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42615204317>
-- Artifact ID: `13672831707`, `paw-live-build-test-results`, 938,778,035 bytes
-- Expires: 2026-11-12 12:20:59 UTC
-- ISO SHA256: `5daf4c0b7af05258c7e90d8c84ba5e474b2ba8215a2cc75781c5374e4c15a4b8`
+- Run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42618901559>
+- Artifact ID: `13675072020`, `paw-live-build-test-results`, 938,778,039 bytes
+- Expires: 2026-11-12 12:48:02 UTC
+- ISO SHA256: `8c8ffedd3a6eb84c56f1da84b3ee3a79df10b8e1e987099ad88d398e6854c4a7`
 - Test totals: PAWDATA 12/12, fault injection 35/35, repair/rollback 15/15, network 17/17
 - QEMU SeaBIOS/TCG: PASS, readiness BLOCKED, clone_started=false
 
@@ -48,7 +48,7 @@ These remain open until the user performs them on hardware. No production VPS wa
 
 ## Immediate next steps for the user
 
-1. Download the artifact from Run `42615204317` before 2026-11-12 12:20:59 UTC.
+1. Download the artifact from Run `42618901559` before 2026-11-12 12:48:02 UTC.
 2. Recompute ISO SHA256 on the downloaded file and compare with the sidecar.
 3. Write the TF card only after reviewing the user guide and rollback guide.
 4. Perform physical boot, Memtest, SSD and Rescue checks; keep results separate from cloud/virtual results.

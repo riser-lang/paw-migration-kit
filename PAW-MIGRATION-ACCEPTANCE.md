@@ -1,19 +1,20 @@
 # PAW Migration Acceptance
 
 Updated: 2026-11-09 UTC
-Cloud-tested commit: `338b884c6024a02f459d5a2c0d1263cf93455185`
-Run: `42615204317` — success
+Cloud-tested commit: `f18202b714cd2431733ff54e132c3083a4197aca`
+Run: `42618901559` — success
 
 ## A. Cloud build acceptance
 
 - [x] Workflow runs on the v2.6.2 branch and completes successfully.
 - [x] Debian Live ISO `paw-live-amd64.iso` is produced (938,475,520 bytes).
-- [x] Build-generated ISO SHA256 sidecar is uploaded: `5daf4c0b7af05258c7e90d8c84ba5e474b2ba8215a2cc75781c5374e4c15a4b8`.
+- [x] Build-generated ISO SHA256 sidecar is uploaded: `8c8ffedd3a6eb84c56f1da84b3ee3a79df10b8e1e987099ad88d398e6854c4a7`.
 - [x] Debian base signature/hash verification is PASS.
 - [x] Tailscale and Xray provenance/digest checks are PASS.
 - [x] Software package list and build provenance are present.
-- [x] Artifact is retained for 3 days (expires 2026-11-12 12:20:59 UTC).
+- [x] Artifact is retained for 3 days (expires 2026-11-12 12:48:02 UTC).
 - [ ] ISO was independently re-downloaded and re-hashed on the cloud workstation. This was not done because the full artifact transfer was bandwidth-limited; user should re-hash after download.
+- [ ] Two builds of the same code tree produce the same ISO SHA256. Two runs produced the same size but different SHA256; byte-for-byte reproducibility remains unproven.
 
 ## B. Virtual boot acceptance
 

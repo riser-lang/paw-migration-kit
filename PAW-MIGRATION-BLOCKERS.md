@@ -13,7 +13,8 @@ Updated: 2026-11-09 UTC
 | P1-2 | VIRTUALLY_VERIFIED | Offline repair simulation did not exercise adaptation | Loop ext4 adaptation and update-grub rollback 15/15. Real Ubuntu boot still open. |
 | P1-3 | VIRTUALLY_VERIFIED | No virtual tests for Xray bad config, Tailscale wait, network failure | Xray/Rescue/Restored/Tailscale suite 17/17, mock only. Real network still open. |
 | P1-4 | OPEN | Real hardware checks not performed | User must run on target hardware; reports remain unverified until then. |
-| BUILD | PASS | Run `42615204317` success, artifact ID `13672831707` | ISO SHA256 and reports extracted; artifact expires 2026-11-12 12:20:59 UTC. |
+| BUILD | PASS | Run `42618901559` success, artifact ID `13675072020` | ISO SHA256 and reports extracted; artifact expires 2026-11-12 12:48:02 UTC. |
+| REPRO | OPEN | Two cloud builds of the same code tree produced the same ISO size but different SHA256 (`5daf...` vs `8c8f...`) | Byte-for-byte reproducibility not claimed; document and investigate before treating double-build as a release gate. |
 | DELIVERY | PENDING_USER | Final real-world write/boot/migration and final guide review | User downloads artifact, re-hashes ISO, writes TF card, performs physical checks. |
 
 ## Hard boundaries

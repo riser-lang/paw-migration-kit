@@ -13,7 +13,7 @@
 
 ## 本轮新增证据的处理
 
-- 最终 Run `42615204317` 的测试报告、软件清单、构建来源和 ISO SHA256 已放入 `reports/evidence-v2.7/`。
+- 最终 Run `42618901559` 的测试报告、软件清单、构建来源和 ISO SHA256 已放入 `reports/evidence-v2.7/`。
 - 原始 `live-build.log` 和完整 `software-packages.lock` **没有放入仓库**：前者包含 Debian 镜像解析出的公网 IPv4，后者包含会被正则误判为 IPv4 的版本号。它们仍保留在 Actions Artifact 中。
 - `reports/evidence-v2.7/` 中的文件已通过当前文件安全扫描。
 - 没有把任何生产服务器地址、真实根 UUID、密钥或授权信息写入报告。

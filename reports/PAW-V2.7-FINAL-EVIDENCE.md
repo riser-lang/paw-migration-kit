@@ -2,31 +2,40 @@
 
 记录时间：2026-11-09 UTC
 分支：`fix/v2.6.2-final-readiness`
-最终代码提交：`338b884c6024a02f459d5a2c0d1263cf93455185`
+最终代码提交：`f18202b714cd2431733ff54e132c3083a4197aca`
 Draft PR：<https://github.com/riser-lang/paw-migration-kit/pull/2>
 
 ## GitHub Actions
 
-- Run ID：`42615204317`
-- Run URL：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42615204317>
+- Run ID：`42618901559`
+- Run URL：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42618901559>
 - 结论：success
-- 开始：2026-11-09 12:13:26 UTC
-- 完成：2026-11-09 12:21:10 UTC
+- 开始：2026-11-09 12:39:55 UTC
+- 完成：2026-11-09 12:48:12 UTC
 - Runner：`ubuntu-24.04`
-- Artifact ID：`13672831707`
+- Artifact ID：`13675072020`
 - Artifact：`paw-live-build-test-results`
-- Artifact 大小：938,778,035 bytes
-- Artifact 过期：2026-11-12 12:20:59 UTC
-- Artifact 下载：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42615204317/artifacts/13672831707>
+- Artifact 大小：938,778,039 bytes
+- Artifact 过期：2026-11-12 12:48:02 UTC
+- Artifact 下载：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42618901559>
 
 ## ISO
 
 - 文件名：`paw-live-amd64.iso`
 - ISO 字节数（ZIP 中央目录）：938,475,520 bytes
 - SHA256（构建步骤生成并随产物上传）：
-  `5daf4c0b7af05258c7e90d8c84ba5e474b2ba8215a2cc75781c5374e4c15a4b8`
+  `8c8ffedd3a6eb84c56f1da84b3ee3a79df10b8e1e987099ad88d398e6854c4a7`
 - 校验文件：`reports/evidence-v2.7/paw-live-amd64.iso.sha256`
 - 说明：本机受 GitHub→Azure 产物下载带宽限制，未在云端工作站重新整盘下载并二次计算 ISO 哈希；SHA256 来自同一构建步骤对 ISO 的计算，下载后仍应再核对一次。
+
+## 双构建可复现性
+
+同一代码树的两次构建：
+
+- Run `42615204317`：ISO SHA256 `5daf4c0b7af05258c7e90d8c84ba5e474b2ba8215a2cc75781c5374e4c15a4b8`
+- Run `42618901559`：ISO SHA256 `8c8ffedd3a6eb84c56f1da84b3ee3a79df10b8e1e987099ad88d398e6854c4a7`
+
+两次 ISO 字节数相同（938,475,520），但 SHA256 不同。**逐字节可复现性仍未证明**，不得声称双构建一致。交付使用最新的 Run `42618901559`。
 
 ## 虚拟测试结果
 

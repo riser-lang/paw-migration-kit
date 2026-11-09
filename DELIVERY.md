@@ -2,17 +2,17 @@
 
 交付时间：2026-11-09 UTC
 分支：`fix/v2.6.2-final-readiness`
-最终云端测试提交：`338b884c6024a02f459d5a2c0d1263cf93455185`
+最终云端测试提交：`f18202b714cd2431733ff54e132c3083a4197aca`
 PR #2：<https://github.com/riser-lang/paw-migration-kit/pull/2>（Draft）
 
 ## 1. 最终构建
 
-- Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42615204317>
+- Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42618901559>
 - 结论：success
-- Artifact ID：`13672831707`
+- Artifact ID：`13675072020`
 - Artifact 名称：`paw-live-build-test-results`
-- Artifact 大小：938,778,035 bytes
-- 过期时间：2026-11-12 12:20:59 UTC
+- Artifact 大小：938,778,039 bytes
+- 过期时间：2026-11-12 12:48:02 UTC
 - 下载入口：打开 Actions Run 页面，在页面底部 Artifacts 区域下载；GitHub 需要登录且有仓库读权限。
 
 ## 2. ISO
@@ -20,7 +20,7 @@ PR #2：<https://github.com/riser-lang/paw-migration-kit/pull/2>（Draft）
 - 文件：`paw-live-amd64.iso`
 - 字节数：938,475,520
 - SHA256：
-  `5daf4c0b7af05258c7e90d8c84ba5e474b2ba8215a2cc75781c5374e4c15a4b8`
+  `8c8ffedd3a6eb84c56f1da84b3ee3a79df10b8e1e987099ad88d398e6854c4a7`
 - 校验文件副本：`reports/evidence-v2.7/paw-live-amd64.iso.sha256`
 
 下载后请在 Windows 重新计算并核对：
@@ -51,7 +51,7 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 
 | 层级 | 状态 | 证据 |
 |---|---|---|
-| 云端构建 | PASS | Run `42615204317` |
+| 云端构建 | PASS | Run `42618901559` |
 | ISO SHA256 | PASS（构建生成） | sidecar `5daf...` |
 | QEMU SeaBIOS/TCG 虚拟启动 | PASS（fail-closed） | `qemu-smoke-report.txt` |
 | PAWDATA 虚拟介质 | 12/12 PASS | `pawdata-virtual-test-report.txt` |

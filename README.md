@@ -8,7 +8,7 @@
 - Draft PR：#2
 - 基线：v2.6.1 `0128110`
 - 构建运行：GitHub Actions → `PAW live build and isolated tests` → Run workflow
-- 最终云端成功运行：`42615204317`（2026-11-09 UTC）
+- 最终云端成功运行：`42618901559`（2026-11-09 UTC）
 - 最终证据：`reports/PAW-V2.7-FINAL-EVIDENCE.md`
 - 交付说明：`DELIVERY.md`
 - 产物保留：3 天
