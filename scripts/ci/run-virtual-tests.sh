@@ -112,8 +112,10 @@ pass 'Re-run to fresh verified virtual target clears incomplete state'
 small="$root/tests/virtual/ci-too-small.img"
 truncate -s 4M "$small"
 export PAW_SIMULATION=1
+small_before="$(sha256sum "$small" | awk '{print $1}')"
 expect_fail 'Destination too small' "$root/scripts/paw-stream-clone.sh" "$source_file" "$small"
-[[ -f "$PAW_REPORT_DIR/CLONE-INCOMPLETE" ]] && pass 'Too-small target remains marked incomplete' || { echo 'FAIL small-disk marker missing' >>"$report"; failed=$((failed+1)); }
+small_after="$(sha256sum "$small" | awk '{print $1}')"
+[[ "$small_before" == "$small_after" ]] && pass 'Too-small target stayed byte-identical before writing' || { echo 'FAIL too-small target changed' >>"$report"; failed=$((failed+1)); }
 rm -f "$PAW_REPORT_DIR/CLONE-INCOMPLETE"
 expect_fail 'Target image absent' "$root/scripts/paw-stream-clone.sh" "$source_file" "$root/tests/virtual/missing-target.img"
 export PAW_SIMULATION=0

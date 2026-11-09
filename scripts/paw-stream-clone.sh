@@ -6,7 +6,11 @@ require_sim_or_enrollment; for c in zstd pv dd; do need "$c"; done
 if [[ ${PAW_SIMULATION:-0} == 1 ]]; then [[ -f "$src" && -f "$dst" ]] || die 'Simulation requires regular image files.'; assert_sim_files "$src" "$dst"; else [[ -b "$src" && -b "$dst" ]] || die 'Real clone requires block devices.'; fi
 [[ "$src" != "$dst" ]] || die 'Source and target are identical.'
 [[ ${PAW_SIMULATION:-0} == 1 ]] || assert_unmounted "$dst"
-if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
+if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
+  source_bytes="$(stat -c %s "$src")"; target_bytes="$(stat -c %s "$dst")"
+  [[ "$source_bytes" =~ ^[0-9]+$ && "$target_bytes" =~ ^[0-9]+$ ]] || die 'Could not validate simulation source/target sizes.'
+  ((target_bytes >= source_bytes)) || die 'Simulation target image is smaller than source image.'
+else
   expected="$(sed -n 's/.*"serial"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PAW_CONFIG_DIR/target-ssd.json")"
   expected_bytes="$(sed -n 's/.*"capacity_bytes"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$PAW_CONFIG_DIR/target-ssd.json")"
   actual="$(lsblk -dn -o SERIAL "$dst" | xargs)"; actual_bytes="$(lsblk -dnbo SIZE "$dst" | xargs)"
