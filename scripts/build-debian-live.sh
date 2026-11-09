@@ -11,6 +11,7 @@ cp "$src/configs/live-build/archives/debian-security.list.chroot" "$src/configs/
 cp -a /usr/share/live/build/bootloaders/isolinux/. "$work/config/bootloaders/isolinux/"
 cp "$src/configs/live-build/bootloaders/isolinux/isolinux.cfg" "$work/config/bootloaders/isolinux/isolinux.cfg"
 cp "$src/configs/live-build/bootloaders/isolinux/memtest.cfg" "$work/config/bootloaders/isolinux/memtest.cfg"
+install -D -m 0644 "$src/configs/live-build/bootloaders/isolinux/memtest.cfg" "$work/config/includes.binary/isolinux/memtest.cfg"
 [[ -s /boot/memtest86+x64.bin ]] || { echo 'Memtest86+ BIOS binary is required for the independent ISOLINUX boot entry.' >&2; exit 2; }
 install -D -m 0644 /boot/memtest86+x64.bin "$work/config/includes.binary/boot/memtest86+x64.bin"
 if [[ -s /boot/memtest86+x64.efi ]]; then install -D -m 0644 /boot/memtest86+x64.efi "$work/config/includes.binary/EFI/BOOT/memtest86+x64.efi"; fi
