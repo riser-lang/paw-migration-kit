@@ -26,8 +26,6 @@ mount_root=/mnt/paw-migration-cloned-root
 ! mountpoint -q "$mount_root" || die 'Repair mount path is already in use.'
 backup="$PAW_STATE_DIR/backups/offline-repair-$(date -u +%Y%m%dT%H%M%SZ)"
 install -d -m 0700 "$backup" "$mount_root"
-modules_dir_existed=0
-[[ -d "$mount_root/etc/initramfs-tools" ]] && modules_dir_existed=1
 
 set +e
 e2fsck -f -n "$dev"
@@ -36,6 +34,8 @@ set -e
 ((fsck_rc == 0)) || die 'Read-only e2fsck found inconsistencies; automatic repair is blocked to preserve reversibility.'
 mount -o rw "$dev" "$mount_root"
 mounted=1
+modules_dir_existed=0
+[[ -d "$mount_root/etc/initramfs-tools" ]] && modules_dir_existed=1
 rollback(){
   rc=$?
   if ((rc != 0)) && [[ ${mounted:-0} == 1 ]]; then

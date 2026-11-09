@@ -131,7 +131,7 @@ else
   pass 'Injected update-grub failure stopped repair'
 fi
 mount "$part2" "$work/root-b"; mounts+=("$work/root-b")
-grep -q '50-cloud-init.yaml' "$(ls "$work/root-b/etc/netplan")" && pass 'Rollback restored original netplan file' || fail 'Rollback did not restore netplan'
+[[ -f "$work/root-b/etc/netplan/50-cloud-init.yaml" ]] && pass 'Rollback restored original netplan file' || fail 'Rollback did not restore netplan'
 [[ "$(cat "$work/root-b/etc/machine-id")" == "11111111111111111111111111111111" ]] && pass 'Rollback restored original machine-id' || fail 'Rollback did not restore machine-id'
 [[ "$(sha256sum "$work/root-b/etc/ssh/ssh_host_ed25519_key" | awk '{print $1}')" == "$host_before_b" ]] && pass 'Rollback restored original SSH host key' || fail 'Rollback did not restore SSH host key'
 grep -q 'oldmodule' "$work/root-b/etc/initramfs-tools/modules" && pass 'Rollback restored initramfs module list' || fail 'Rollback did not restore initramfs modules'
