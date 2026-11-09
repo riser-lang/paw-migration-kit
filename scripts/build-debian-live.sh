@@ -4,7 +4,7 @@ src="$(cd "$(dirname "$0")/.." && pwd)"
 work="${PAW_BUILD_WORK:-$HOME/paw-live-build}"
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'live-build requires root in the Linux build environment; this script will not sudo or elevate.' >&2; exit 2; }
 command -v lb >/dev/null 2>&1 || { echo 'Install Debian live-build in the approved Linux build environment first.' >&2; exit 2; }
-mkdir -p "$work/config/auto" "$work/config/package-lists" "$work/config/includes.chroot/opt/paw-migration" "$work/config/includes.chroot/opt/paw-migration/configs" "$work/config/includes.chroot/etc/systemd/system" "$work/config/hooks/live" "$work/config/includes.chroot/etc/systemd/network" "$work/config/includes.chroot/etc"
+mkdir -p "$work/config/auto" "$work/config/package-lists" "$work/config/includes.chroot/opt/paw-migration" "$work/config/includes.chroot/opt/paw-migration/configs" "$work/config/includes.chroot/etc/systemd/system" "$work/config/hooks/live" "$work/config/includes.chroot/etc/systemd/network" "$work/config/includes.chroot/etc/default" "$work/config/includes.chroot/etc"
 cp "$src/configs/live-build/auto/config" "$work/config/auto/config"
 cp "$src/configs/live-build/package-lists/paw.list.chroot" "$work/config/package-lists/"
 mkdir -p "$work/config/includes.chroot/opt/paw-migration/scripts"
