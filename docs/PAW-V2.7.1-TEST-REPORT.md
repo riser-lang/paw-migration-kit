@@ -3,7 +3,7 @@
 执行日期：2026-11-10（本地）
 分支：`fix/v2.6.2-final-readiness`
 基线：`825ac38c7ec86ec667b17e33294aa78561eb2b1c`
-本段提交：`b141e74`、`e5aebad`、`986b3ef`（以最终 `git log` 为准）
+本段关键提交：`b141e74`、`e5aebad`、`986b3ef`、`48583cf`（最终以 `git log` 为准）
 PR #2：保持 Draft，未合并。
 
 ## 1. 范围与执行方式
@@ -100,6 +100,8 @@ PAW_ARTIFACT_DIR="$PWD/artifacts" tests/qemu/run-tty-qemu-tests.sh
 ```
 
 环境：QEMU 8.2.2 TCG，`-machine pc`，1 GiB，2 vCPU，`-vga std`，
+测试盘构建自已提交 `986b3ef`；之后的 `48583cf` 只修正非 simulation 分支的长度展开和
+安全检查字面量，QEMU 用例走 simulation，不经过该修正分支。
 Debian 13 一次性 ext4 测试盘（loop 镜像内再建 512 MiB GPT 虚拟盘）。
 不是最终 PAW ISO，也不是真实 ASUS 主板。
 
@@ -125,6 +127,8 @@ Debian 13 一次性 ext4 测试盘（loop 镜像内再建 512 MiB GPT 虚拟盘�
   `data-init.json` / `console-menu.json`，记录解析后的实际 tty、`menu_tty`、
   `input_tty`、每个阶段 `/proc/*/fd` 中指向 tty1 的非辅助进程 PID/comm 与
   `max_holders`。三例 `max_holders` 均为 1。
+
+本机证据副本：`~/paw-segment1-evidence/artifacts/`（不提交，避免二进制/日志进入仓库）。
 
 产物（本机 `artifacts/qemu-tty/`）：
 
