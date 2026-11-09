@@ -30,10 +30,12 @@ media_loop="$(losetup --find --show -P "$media")"; loops+=("$media_loop")
 mount_dir="$work/data-mount"; mkdir -p "$mount_dir"; export PAW_MOUNTPOINT_OVERRIDE="$mount_dir"
 data_dev=''
 for _ in $(seq 1 30); do [[ -b "${media_loop}p1" || -b "${media_loop}1" ]] && break; sleep 1; done
-if "$root/scripts/paw-prepare-data-partition.sh" "$media_loop" >/dev/null 2>&1; then
+prepare_log="$work/prepare-data-partition.log"
+if "$root/scripts/paw-prepare-data-partition.sh" "$media_loop" >"$prepare_log" 2>&1; then
   while IFS= read -r child; do [[ "$child" == "$media_loop" ]] && continue; [[ "$(blkid -s LABEL -o value "$child" 2>/dev/null || true)" == PAWDATA ]] && data_dev="$child"; done < <(lsblk -nrpo NAME "$media_loop")
   [[ -n "$data_dev" && "$(blkid -s TYPE -o value "$data_dev")" == ext4 ]] && pass 'ISO hybrid media gained a labeled ext4 PAWDATA partition' || fail 'PAWDATA label is visible'
 else
+  cat "$prepare_log"
   fail 'ISO hybrid layout accepted an appended PAWDATA partition'
 fi
 mountpoint -q "$mount_dir" && mounts+=("$mount_dir")
