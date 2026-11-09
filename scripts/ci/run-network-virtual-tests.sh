@@ -30,6 +30,7 @@ case "$1" in
   *) exit 0 ;;
 esac
 MOCKSYSTEMCTL
+mock_tailscale_ip="$(printf '%s.%s.%s.%s' 100 64 0 1)"
 cat >"$mock/tailscale" <<MOCKTAILSCALE
 #!/usr/bin/env bash
 case "\$1" in
@@ -48,7 +49,6 @@ exit 0
 MOCKXRAY
 chmod 0755 "$mock/curl" "$mock/systemctl" "$mock/tailscale" "$mock/xray"
 export PAW_XRAY_BIN="$mock/xray"
-mock_tailscale_ip="$(printf '%s.%s.%s.%s' 100 64 0 1)"
 
 # Xray config generator rejects malformed input and keeps the public key only.
 test_uuid="$(python3 -c 'import uuid; print(uuid.uuid4())')"
