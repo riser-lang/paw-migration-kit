@@ -9,3 +9,5 @@
 **/target-ssd.json
 **/xray-client.json
 **/tf-card.json
+__pycache__/
+*.py[cod]

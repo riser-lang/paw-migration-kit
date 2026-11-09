@@ -4,6 +4,9 @@ lb config noauto \
   --mode debian \
   --distribution trixie \
   --architectures amd64 \
+  --mirror-bootstrap 'https://snapshot.debian.org/archive/debian/20261101T000000Z' \
+  --mirror-chroot 'https://snapshot.debian.org/archive/debian/20261101T000000Z' \
+  --mirror-binary 'https://snapshot.debian.org/archive/debian/20261101T000000Z' \
   --archive-areas 'main non-free-firmware' \
   --security false \
   --initsystem systemd \

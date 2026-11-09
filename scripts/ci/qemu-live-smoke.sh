@@ -7,6 +7,11 @@ tmp="${RUNNER_TEMP:-/tmp}/paw-qemu-smoke"
 mkdir -p "$out" "$tmp"
 serial="$tmp/serial.log"
 qemu="${QEMU_BIN:-qemu-system-x86_64}"
+xorriso -indev "$iso" -report_system_area plain >"$out/iso-system-area.txt" 2>&1
+grep -Eiq 'isohybrid|isohdpfx|isohybrid.*MBR|MBR.*isohybrid' "$out/iso-system-area.txt" || {
+  echo 'ISO system-area report does not identify an isohybrid MBR.' >"$out/qemu-smoke-report.txt"
+  exit 1
+}
 
 mountpoint="$tmp/iso"
 mkdir -p "$mountpoint"
@@ -14,6 +19,9 @@ mount -o loop,ro "$iso" "$mountpoint"
 test -s "$mountpoint/live/vmlinuz"
 test -s "$mountpoint/live/initrd.img"
 grep -Eiq '^timeout[[:space:]]+[1-9][0-9]*$' "$mountpoint/isolinux/isolinux.cfg"
+grep -Eiq '^include[[:space:]]+memtest\.cfg$' "$mountpoint/isolinux/isolinux.cfg"
+grep -Eiq '^label[[:space:]]+memtest86$' "$mountpoint/isolinux/memtest.cfg"
+test -s "$mountpoint/boot/memtest86+x64.bin"
 unsquashfs -cat "$mountpoint/live/filesystem.squashfs" opt/paw-migration/scripts/paw-hardware-preflight.sh >/dev/null
 grep -q 'AUTOSTART_GATE=' "$root/scripts/paw-live-controller.sh"
 umount "$mountpoint"
@@ -63,6 +71,8 @@ gate="$(grep -Eo 'AUTOSTART_GATE=(READY_FOR_OPERATOR|BLOCKED) clone_started=fals
 {
   echo 'QEMU smoke test: PASS'
   echo 'Firmware: SeaBIOS (x86_64 PC machine)'
+  echo 'ISO layout: xorriso reported an isohybrid MBR; suitable for whole-device imaging.'
+  echo 'Memtest86+: independent ISOLINUX entry and BIOS binary are present.'
   echo 'Acceleration: TCG; KVM not used'
   echo 'Live ISO booted and systemd readiness gate ran.'
   echo 'Hardware-preflight entry is present in the built filesystem.'
