@@ -64,7 +64,7 @@ def validate_psf2(path: Path) -> None:
         blocked(f"字体不是 PSF2 v0：{path}")
     if (headersize, length, charsize, height, width) != (32, 512, 32, 16, 16):
         blocked(
-            "字体几何不符合 fbcon 16x16/512 槽："
+            "字体几何不符合 fbcon 16x16/512 个字形："
             f"headersize={headersize} length={length} charsize={charsize} "
             f"height={height} width={width}"
         )
