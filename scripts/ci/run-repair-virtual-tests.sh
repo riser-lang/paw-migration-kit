@@ -8,7 +8,9 @@ report="$out/repair-virtual-test-report.txt"
 passed=0; failed=0
 loops=(); mounts=()
 cleanup(){
-  for m in "${mounts[@]}"; do umount "$m" 2>/dev/null || true; done
+  # Unmount in reverse registration order so nested/bind mounts are released first.
+  local i
+  for ((i=${#mounts[@]}-1; i>=0; i--)); do umount "${mounts[$i]}" 2>/dev/null || true; done
   for l in "${loops[@]}"; do losetup -d "$l" 2>/dev/null || true; done
   rm -rf "$work"
   rm -f "$root/tests/virtual/repair-root.img" "$root/tests/virtual/repair-rollback.img"
@@ -190,6 +192,61 @@ PY
     fi
     umount "$grub_root"; mounts=()
   fi
+fi
+
+# The production path installs GRUB from inside the repaired root ("chroot
+# $mount_root grub-install ..."), which the host-side case above does not exercise.
+# Re-create that shape on loop: fixture root with /boot and a minimal grub.cfg, host
+# binaries and GRUB modules supplied through read-only bind mounts (a CI stand-in for
+# the packages a real target would already have), then run the same command form.
+chroot_img="$work/grub-chroot.img"
+truncate -s 160M "$chroot_img"
+printf 'label: gpt\n2048,2048\n4096,260000\n' | sfdisk "$chroot_img" >/dev/null
+sgdisk -t 1:ef02 -c 1:'BIOS boot' -c 2:'paw root' "$chroot_img" >/dev/null
+chroot_loop="$(losetup --find --show -P "$chroot_img")"; loops+=("$chroot_loop")
+chroot_part="${chroot_loop}p2"
+for _ in $(seq 1 20); do [[ -b "$chroot_part" ]] && break; sleep 1; done
+if [[ ! -b "$chroot_part" ]]; then
+  fail 'Chroot grub-install fixture partitions absent'
+else
+  mkfs.ext4 -F -q "$chroot_part"
+  chroot_root="$work/grub-chroot-root"; mkdir -p "$chroot_root"
+  mount "$chroot_part" "$chroot_root"; mounts+=("$chroot_root")
+  mkdir -p "$chroot_root"/{boot/grub,etc,tmp,dev,proc,sys,usr,sbin,bin,lib,lib64,var/lib}
+  printf 'set default=0\n' >"$chroot_root/boot/grub/grub.cfg"
+  binds_ok=1
+  for d in dev proc sys usr sbin bin lib lib64; do
+    if mount --bind -o ro "/$d" "$chroot_root/$d" 2>/dev/null || mount --bind "/$d" "$chroot_root/$d"; then
+      mounts+=("$chroot_root/$d")
+    else
+      binds_ok=0
+    fi
+  done
+  if ((binds_ok == 0)); then
+    fail 'Chroot grub-install bind mounts available'
+  else
+    if chroot "$chroot_root" grub-install --target=i386-pc --recheck "$chroot_loop" >"$work/grub-chroot.log" 2>&1; then
+      pass 'Chroot grub-install succeeded on a loop GPT disk'
+    else
+      cat "$work/grub-chroot.log" >>"$report"; fail 'Chroot grub-install succeeded on a loop GPT disk'
+    fi
+    [[ -s "$chroot_root/boot/grub/i386-pc/normal.mod" ]] && pass 'Chroot grub-install copied i386-pc modules into the fixture boot directory' || fail 'Chroot grub-install modules missing'
+    if python3 - "$chroot_loop" <<'PY'
+import sys
+with open(sys.argv[1], 'rb') as handle:
+    mbr = handle.read(512)
+assert mbr[510:512] == b'\x55\xaa', 'MBR signature missing'
+assert any(mbr[:440]), 'MBR boot code area is all zero'
+PY
+    then
+      pass 'Chroot grub-install wrote MBR boot code with a valid 0x55AA signature'
+    else
+      fail 'Chroot grub-install did not write MBR boot code'
+    fi
+  fi
+  for ((i=${#mounts[@]}-1; i>=0; i--)); do umount "${mounts[$i]}" 2>/dev/null || true; done
+  mounts=()
+  losetup -d "$chroot_loop" 2>/dev/null || true
 fi
 
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
