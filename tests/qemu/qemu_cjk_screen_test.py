@@ -364,13 +364,16 @@ def main() -> int:
         "PAW_QEMU_LIB", os.path.expanduser("~/paw-qemu/sysroot/usr/lib/x86_64-linux-gnu")))
     ap.add_argument("--qemu-modules", default=os.environ.get(
         "PAW_QEMU_MODULES", os.path.expanduser("~/paw-qemu/sysroot/usr/lib/x86_64-linux-gnu/qemu")))
-    ap.add_argument("--qemu-data", default=os.environ.get(
-        "PAW_QEMU_DATA", os.path.expanduser("~/paw-qemu/qemu-data")))
+    default_qemu_data = os.environ.get("PAW_QEMU_DATA")
+    if default_qemu_data is None:
+        candidate = os.path.expanduser("~/paw-qemu/qemu-data")
+        default_qemu_data = candidate if os.path.isdir(candidate) else ""
+    ap.add_argument("--qemu-data", default=default_qemu_data)
     args = ap.parse_args()
     if not os.path.exists(args.qemu):
         args.qemu = shutil.which("qemu-system-x86_64") or args.qemu
-    if not os.path.isdir(args.qemu_data):
-        args.qemu_data = "/usr/share/qemu"
+    if args.qemu_data and not os.path.isdir(args.qemu_data):
+        args.qemu_data = ""
     font = Psffont(args.font)
     say(font.width == 16 and font.height == 16, "font under test is 16x16",
         f"{font.width}x{font.height} chars={font.charcount}")

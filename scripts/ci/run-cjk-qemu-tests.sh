@@ -66,7 +66,8 @@ run_case(){
   set +e
   python3 "$root/tests/qemu/qemu_cjk_screen_test.py" \
     --case "$case" --image "$image" --kernel "$kernel" --initrd "$initrd" \
-    --font "$font" --out "$out/qemu-cjk" --timeout "$timeout" >"$log" 2>&1
+    --font "$font" --out "$out/qemu-cjk" --timeout "$timeout" \
+    --qemu-lib "" --qemu-modules "" --qemu-data "${PAW_QEMU_DATA:-}" >"$log" 2>&1
   local rc=$?
   set -e
   cat "$log" >>"$report"
