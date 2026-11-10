@@ -1,0 +1,21 @@
+PAW3_CHAIN_BEGIN src=/dev/vdb dst=/dev/vdc media=/dev/sda media_serial=PAW-MEDIA-123456
+boot_id=<uuid-redacted> kernel=6.12.113+deb13-amd64
+PAW3_STEP=live_boot STATUS=PASS kernel=6.12.113+deb13-amd64 root=/dev/vda2
+PAW3_STEP=evidence_transport STATUS=PASS 9p hostshare mounted
+PAW3_STEP=console_font STATUS=PASS mode=fbcon schema=paw.console-font.v2 tty=/dev/tty1
+PAW3_STEP=rescue_sshd STATUS=PASS real OpenSSH server on 127.0.0.1:2222; source disk is local loopback, not a public network path
+PAW3_STEP=rescue_key STATUS=PASS pinned_host_fingerprint=SHA256:aiV0XycDIf4mZI7m9AALdx+seHEQpm9XCH7mdSOahXo key_is_ram_only=true
+PAW3_STEP=rescue_ssh STATUS=PASS authenticated root SSH over 127.0.0.1:2222; transport_class=loopback_not_public
+PAW3_STEP=source_identity_negative STATUS=PASS bogus UUID stopped with no source registration; fail-closed
+PAW3_STEP=source_identity STATUS=PASS root_uuid=<uuid-redacted> composite=2401dada1c0bd2e3b1acd35cf2c880778f2849548a669dd3a81d4917e71a992a
+PAW3_PROMPT=pawdata_serial_suffix
+PAW3_STEP=pawdata STATUS=PASS disk=/dev/sda serial=PAW-MEDIA-123456
+PAW3_STEP=target_enrollment STATUS=PASS device=/dev/vdc serial=PAW-DST-123456 capacity=257698037760
+PAW3_STEP=memtest STATUS=PASS operator attestation recorded; trust=operator_attestation_not_cryptographic
+PAW3_STEP=hardware STATUS=PASS virtual probe adapter PASS; physical SMART/thermal remain OPEN
+PAW3_STEP=network STATUS=WARN network bootstrap exit=2 (local-link only; chain gates use source status)
+PAW3_STEP=readiness STATUS=PASS paw-live-controller.sh READY_FOR_OPERATOR
+PAW3_STEP=mixed_stream STATUS=PASS source=restored=268435456 bytes; independent SHA256 PASS; payload=random+zeros+text
+PAW3_STEP=ssh_interrupt STATUS=PASS real SSH stream killed mid-flight; exit=1; CLONE-INCOMPLETE retained
+PAW3_PROMPT=final_wrong_serial
+PAW3_STEP=final_authorization_wrong STATUS=PASS exit=1 no authorization; target first 1 MiB unchanged

@@ -14,7 +14,11 @@ if [[ $status == PASS ]]; then
   "$PAW_ROOT/scripts/paw-ssd-read-scan.sh" "$dev" || { status=FAIL; reasons+=('read-only surface scan failed'); }
 fi
 if command -v dmesg >/dev/null 2>&1; then
-  dmesg | grep -Eai 'ata[0-9].*(reset|I/O error|timeout|link is slow|failed command)|nvme.*(reset|I/O|timeout)|I/O error|blk_update_request.*timeout|device reset' >"$PAW_REPORT_DIR/storage-kernel-errors.txt" || true
+  # "Power-on or device reset occurred" is the normal sd(4) spin-up notice for
+  # a disk that was just attached; it is not an I/O failure.  Keep every other
+  # reset/timeout/error pattern fail-closed.
+  dmesg | grep -Eai 'ata[0-9].*(reset|I/O error|timeout|link is slow|failed command)|nvme.*(reset|I/O|timeout)|I/O error|blk_update_request.*timeout|device reset' \
+    | grep -Ev 'Power-on or device reset occurred' >"$PAW_REPORT_DIR/storage-kernel-errors.txt" || true
   [[ ! -s "$PAW_REPORT_DIR/storage-kernel-errors.txt" ]] || { [[ $status == FAIL ]] || status=WARN; reasons+=('Storage reset/I/O timeout/error found; inspect hardware'); }
 else status=WARN; reasons+=('dmesg unavailable for SATA review'); fi
 

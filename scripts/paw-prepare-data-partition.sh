@@ -90,7 +90,7 @@ print(start,size)
 PY
       ) || die 'Could not validate the hybrid MBR layout or append space.'
       [[ "$start" =~ ^[0-9]+$ && "$size" =~ ^[0-9]+$ ]] || die 'Calculated PAWDATA MBR extent is invalid.'
-      printf '%s,%s,83\n' "$start" "$size" | sfdisk --append "$disk" >"$PAW_LOG_DIR/media-partition-append.txt"
+      printf '%s,%s,83\n' "$start" "$size" | sfdisk --no-reread --append "$disk" >"$PAW_LOG_DIR/media-partition-append.txt"
       read -r existing part_number < <(python3 - "$disk" "$start" "$size" <<'PY'
 import json,re,subprocess,sys
 disk,start,size=sys.argv[1],int(sys.argv[2]),int(sys.argv[3])

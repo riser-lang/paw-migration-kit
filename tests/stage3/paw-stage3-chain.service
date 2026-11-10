@@ -1,0 +1,15 @@
+[Unit]
+Description=PAW Stage 3 disposable QEMU integration chain
+After=paw-console.service
+ConditionPathExists=!/run/paw3-done
+
+[Service]
+Type=oneshot
+ExecStartPre=-/bin/systemctl stop paw-console.service
+ExecStart=/opt/paw-migration/tests/stage3/guest-chain.sh
+TimeoutStartSec=0
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

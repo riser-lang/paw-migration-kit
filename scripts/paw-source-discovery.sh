@@ -34,7 +34,8 @@ if [[ -z "$expected_uuid" ]]; then
 fi
 [[ "$expected_uuid" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || die 'Expected root UUID is malformed.'
 [[ -r /run/paw-network/rescue-endpoint.json && -s /run/paw-network/known_hosts && -s /run/paw-network/rescue_ed25519 ]] || die 'RAM-only endpoint, pinned host key, or temporary SSH key missing.'
-[[ "$(wc -l </run/paw-network/known_hosts)" -eq 1 ]] || die 'Rescue known_hosts must contain exactly one pinned host key.'
+key_lines="$(grep -vcE '^[[:space:]]*(#|$)' /run/paw-network/known_hosts || true)"
+[[ "$key_lines" -eq 1 ]] || die 'Rescue known_hosts must contain exactly one pinned host key.'
 host_key_fp="$(ssh-keygen -lf /run/paw-network/known_hosts -E sha256 | awk 'NR==1 {print $2}')"
 [[ "$host_key_fp" == SHA256:* ]] || die 'Could not derive the pinned Rescue host-key fingerprint.'
 

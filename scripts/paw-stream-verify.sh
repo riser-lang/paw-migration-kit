@@ -47,7 +47,7 @@ transfer.update({"status":"PASS","sha256":digest,"independent_sha256_verified":T
 with open(transfer_path,"w",encoding="utf-8") as handle:
     json.dump(transfer,handle,indent=2)
 with open(verify_path,"w",encoding="utf-8") as handle:
-    json.dump({"status":"PASS","sha256":digest,"bytes_verified":int(size),"verified_at":__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()},handle,indent=2)
+    json.dump({"status":"PASS","sha256":digest,"bytes_verified":int(size),"independent_sha256_verified":True,"verified_at":__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()},handle,indent=2)
 PY
 rm -f "$PAW_REPORT_DIR/CLONE-INCOMPLETE"
 log INFO 'Independent SHA256 verification passed; incomplete marker cleared.'

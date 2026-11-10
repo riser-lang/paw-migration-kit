@@ -17,7 +17,7 @@ if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
 else
   assert_registered_target_device "$dev"; assert_authorization_for_target "$dev"
   [[ -r "$PAW_REPORT_DIR/stream-verify.json" ]] || die 'Independent SHA256 verification is required before repair.'
-  grep -q '"status":"PASS"' "$PAW_REPORT_DIR/stream-verify.json" || die 'Clone verification is not PASS.'
+  grep -q '"status"[[:space:]]*:[[:space:]]*"PASS"' "$PAW_REPORT_DIR/stream-verify.json" || die 'Clone verification is not PASS.'
   [[ "$(lsblk -dn -o FSTYPE "$dev" | xargs)" == ext4 ]] || die 'Cloned root partition is not ext4.'
 fi
 for c in mount umount mountpoint tar systemd-machine-id-setup ssh-keygen find; do need "$c"; done
@@ -34,7 +34,28 @@ set -e
 ((fsck_rc == 0)) || die 'Read-only e2fsck found inconsistencies; automatic repair is blocked to preserve reversibility.'
 mount -o rw "$dev" "$mount_root"
 mounted=1
+boot_mounted=0
 modules_dir_existed=0
+# Ubuntu/Debian cloud images use a separate XBOOTLDR-style ext4 partition
+# (GPT type EA00) mounted at /boot.  The root partition then has an empty
+# /boot, so GRUB config and kernels are on that sibling partition.  Refusing
+# to repair such a target would strand a perfectly valid whole-disk clone.
+if [[ ! -s "$mount_root/boot/grub/grub.cfg" ]]; then
+  boot_part=''
+  while read -r cand fstype; do
+    [[ -n "$cand" && "$cand" != "$dev" ]] || continue
+    [[ "$fstype" == ext4 ]] || continue
+    mkdir -p "$mount_root/boot"
+    if mount -o rw "$cand" "$mount_root/boot" 2>/dev/null; then
+      if [[ -s "$mount_root/boot/grub/grub.cfg" ]]; then
+        boot_part="$cand"; boot_mounted=1; break
+      fi
+      umount "$mount_root/boot" 2>/dev/null || true
+    fi
+  done < <(lsblk -nrpo NAME,FSTYPE "$disk")
+  [[ -n "$boot_part" ]] || die 'Existing GRUB config was not found on the cloned root or its separate /boot partition; refusing to claim boot repair.'
+  log INFO "Mounted separate boot partition $boot_part at the cloned /boot."
+fi
 [[ -d "$mount_root/etc/initramfs-tools" ]] && modules_dir_existed=1
 rollback(){
   rc=$?
@@ -48,10 +69,12 @@ rollback(){
       tar --acls --xattrs -xpf "$backup/target-configs.before.tar" -C "$mount_root" || true
       if [[ ${modules_dir_existed:-1} == 0 ]]; then rm -rf "$mount_root/etc/initramfs-tools"; fi
     fi
+    if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot" 2>/dev/null || true; fi
     umount "$mount_root" 2>/dev/null
     e2fsck -f -p "$dev" || true
     set -e
   fi
+  if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot" 2>/dev/null || true; fi
   if [[ ${mounted:-0} == 1 ]]; then umount "$mount_root" || true; fi
   if ((rc != 0)); then log ERROR "offline adaptation failed; the backup is retained at $backup"; fi
   exit "$rc"
@@ -122,6 +145,10 @@ done
 
 binds=1
 for item in dev proc sys; do mount --rbind "/$item" "$mount_root/$item"; mount --make-rslave "$mount_root/$item"; done
+# Rebuild libkmod indexes after adding modules; update-initramfs/dracut uses
+# modules.dep.bin, not the text modules.dep, so an injected module is otherwise
+# reported as missing even though the .ko file exists.
+chroot "$mount_root" sh -c 'for k in /lib/modules/*; do [ -d "$k" ] && depmod -a "$(basename "$k")"; done'
 chroot "$mount_root" update-initramfs -u -k all
 if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
   grub_install_result='simulation_skipped'
@@ -133,6 +160,7 @@ chroot "$mount_root" update-grub
 for item in sys proc dev; do umount -R "$mount_root/$item"; done
 binds=0
 sync
+if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot"; boot_mounted=0; fi
 umount "$mount_root"; mounted=0
 trap - EXIT
 python3 - "$PAW_REPORT_DIR/offline-repair.json" "$backup" "$grub_install_result" "${PAW_SIMULATION:-0}" <<'PY'

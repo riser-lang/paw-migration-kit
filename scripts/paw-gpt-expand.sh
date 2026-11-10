@@ -26,8 +26,21 @@ sfdisk --dump "$disk" >"$table"
 chmod 0600 "$table"
 sgdisk --move-second-header "$disk"
 growpart "$disk" "$n"
-e2fsck -f -p "$part" || rc=$?
-rc="${rc:-0}"
+# udev workers and partition-table probes can briefly hold the resized node;
+# e2fsck opens it O_EXCL and reports "is in use" until those probes finish.
+command -v udevadm >/dev/null 2>&1 && udevadm settle --timeout=30 || true
+rc=0
+for attempt in $(seq 1 10); do
+  mounted_now="$(lsblk -nrpo MOUNTPOINT "$part" 2>/dev/null | sed '/^$/d' | paste -sd, -)"
+  if [[ -n "$mounted_now" ]]; then
+    log WARN "Target root was mounted after partition growth at: $mounted_now; unmounting it before the mandatory filesystem check."
+    while IFS= read -r mnt; do [[ -n "$mnt" ]] && umount "$mnt" || die "Could not unmount $mnt after growth."; done < <(lsblk -nrpo MOUNTPOINT "$part" 2>/dev/null | sed '/^$/d')
+  fi
+  if e2fsck -f -p "$part"; then rc=0; break; fi
+  rc=$?
+  ((rc == 1)) && break
+  sleep 1
+done
 ((rc == 0 || rc == 1)) || die 'Filesystem check after partition growth failed; no resize2fs was run.'
 resize2fs "$part"
 unset rc
