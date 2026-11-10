@@ -137,6 +137,61 @@ mount "$part2" "$work/root-b"; mounts+=("$work/root-b")
 grep -q 'oldmodule' "$work/root-b/etc/initramfs-tools/modules" && pass 'Rollback restored initramfs module list' || fail 'Rollback did not restore initramfs modules'
 umount "$work/root-b"; mounts=()
 
+# "GRUB repair" had only simulated evidence: the repair fixture replaces grub-install
+# with a compiled stub, so the real binary was never exercised on a loop disk.  Prove
+# here that the real grub-install can install a BIOS boot loader on a loop GPT disk
+# (BIOS boot partition + ext4 root), written by the host binary with --boot-directory
+# instead of a chroot, then check the artefacts it must leave behind.
+if ! command -v grub-install >/dev/null; then
+  fail 'Real grub-install is not installed in CI'
+else
+  grub_fixture="$work/grub-real.img"
+  truncate -s 96M "$grub_fixture"
+  printf 'label: gpt\n2048,2048\n4096,150000\n' | sfdisk "$grub_fixture" >/dev/null
+  sgdisk -t 1:ef02 -c 1:'BIOS boot' -c 2:'paw root' "$grub_fixture" >/dev/null
+  grub_loop="$(losetup --find --show -P "$grub_fixture")"; loops+=("$grub_loop")
+  grub_part="${grub_loop}p2"
+  for _ in $(seq 1 20); do [[ -b "$grub_part" ]] && break; sleep 1; done
+  if [[ ! -b "$grub_part" ]]; then
+    fail 'Real grub-install fixture partitions absent'
+  else
+    mkfs.ext4 -F -q "$grub_part"
+    grub_root="$work/grub-root"; mkdir -p "$grub_root"
+    mount "$grub_part" "$grub_root"; mounts+=("$grub_root")
+    mkdir -p "$grub_root/boot/grub"
+    if grub-install --target=i386-pc --boot-directory="$grub_root/boot" --recheck "$grub_loop" >"$work/grub-install.log" 2>&1; then
+      pass 'Real grub-install succeeded on a loop GPT disk'
+    else
+      cat "$work/grub-install.log" >>"$report"; fail 'Real grub-install succeeded on a loop GPT disk'
+    fi
+    [[ -s "$grub_root/boot/grub/i386-pc/normal.mod" ]] && pass 'GRUB i386-pc modules were copied into the boot directory' || fail 'GRUB i386-pc modules missing'
+    if python3 - "$grub_loop" <<'PY'
+import sys
+with open(sys.argv[1], 'rb') as handle:
+    mbr = handle.read(512)
+assert mbr[510:512] == b'\x55\xaa', 'MBR signature missing'
+assert any(mbr[:440]), 'MBR boot code area is all zero'
+PY
+    then
+      pass 'MBR boot code was written with a valid 0x55AA signature'
+    else
+      fail 'MBR boot code was not written'
+    fi
+    if python3 - "${grub_loop}p1" <<'PY'
+import sys
+with open(sys.argv[1], 'rb') as handle:
+    core = handle.read(1024)
+assert any(core), 'BIOS boot partition has no embedded core image'
+PY
+    then
+      pass 'GRUB core image was embedded in the BIOS boot partition'
+    else
+      fail 'GRUB core image was not embedded'
+    fi
+    umount "$grub_root"; mounts=()
+  fi
+fi
+
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 cat "$report"
 ((failed == 0))
