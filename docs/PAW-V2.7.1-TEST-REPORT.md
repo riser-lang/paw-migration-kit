@@ -181,10 +181,10 @@ PAW_ARTIFACT_DIR=$PWD/artifacts scripts/ci/run-tty-virtual-tests.sh
 全部步骤 success）
 URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796
 
-最新全绿验证运行：**Run ID `42857316370`**（HEAD `adb3e16`，仅改 CI/工作流与交付自检脚本）
+最新全绿验证运行：**Run ID `42873432670`**（HEAD `ac0813e`，仅改 CI/工作流与交付自检脚本）
 — 修复套件 28 项，且 CI 首次把 `scripts/verify-delivery.ps1` 纳入 PowerShell 语法门禁
 （`PowerShell parse PASS (2 files)`）。
-URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42857316370
+URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42873432670
 该 Run 同时上传 `paw-test-reports`（18 KB 文本报告），使证据核对不必再下载 1 GB。
 
 > 说明：本轮新增 CJK 步骤后，第一次运行（`42741425053`）用于发现 CI 环境差异；
@@ -196,7 +196,7 @@ CI 实际计数（Run `42804949796`，HEAD `bf1a705`）：
 
 | 套件 | 实际结果 |
 |---|---|
-| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 903 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
+| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 1041 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
 | Debian 签名 / Xray / Tailscale | PASS。Debian Live `13.7.0-amd64-standard`：分离签名 PASS（Debian CD key `DF9B9C49EAA9298432589D76DA87E80D6294BE9B`）、manifest hash PASS、SHA256 `040a44f3…c14e17ec`；Tailscale 1.104.5（签名 stable 仓库）；Xray v26.3.27，archive SHA2-256 `23cd9af9…`；二进制 SHA256 记录在 `software-manifest.txt` |
 | ISO 构建 / SeaBIOS+TCG | PASS。ISO `953,155,584` bytes，SHA256 `d9fe2879…fb95a4476`；`System area summary: MBR isohybrid cyl-align-on GPT APM`；QEMU SeaBIOS + TCG（未用 KVM）启动到 readiness gate，按缺失实机条件保持 `BLOCKED`，`clone_started=false` |
 | PAWDATA 12 项 | `Summary: 12 passed, 0 failed` |
@@ -290,7 +290,7 @@ paw_tty_read/paw_tty_read_secret`，带 300 秒输入超时与 ASCII 屏幕标�
 
 - 下载方式：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理卡住），
   改用 GitHub API artifact zip 端点 + `curl --proxy` 后完成。
-- 十次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
+- 十一次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
   使用同一 Run 的侧车文件。
 
 ### 10.4 中文授权面板的像素级证据（新增，第五例）

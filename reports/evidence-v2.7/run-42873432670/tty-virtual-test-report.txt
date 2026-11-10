@@ -1,0 +1,77 @@
+PAW tty1 binding and single-owner virtual tests
+Executed: 2026-11-10T18:40:47Z
+PASS B1 paw-data-init TTYPath=/dev/tty1
+PASS B5 paw-console TTYPath=/dev/tty1
+PASS B1 两个交互单元都使用控制终端 stdin
+PASS B6 paw-data-init 显式压制 getty@tty1
+PASS B6 paw-console 显式压制 getty@tty1
+PASS B6 paw-data-init 排在 paw-console 之前
+PASS B6 paw-console 排在 paw-data-init 之后
+PASS B6 getty 停止顺序被显式约束
+PASS B6 除 data-init/console 外没有其它单元声明 TTYPath
+PASS B6 没有单元再把交互终端指向 /dev/console
+PASS B6 paw-tailscale-join 不再占用 tty1
+PASS B1 tty 库默认 /dev/tty1
+PASS B1 交互读写使用同一个显式 fd
+PASS B4 输入超时走同一个交互 fd
+PASS B4 交互 fd 默认是 3（显式打开的设备）
+PASS B1 ASCII 屏幕标记存在：PAW-TTY1-MENU
+PASS B1 ASCII 屏幕标记存在：PAW-TTY1-PROMPT
+PASS B1 ASCII 屏幕标记存在：PAW-TTY1-INPUT-OK
+PASS B1 ASCII 屏幕标记存在：PAW-TTY1-INPUT-BAD
+PASS B1 ASCII 屏幕标记存在：PAW-TTY1-INPUT-TIMEOUT
+PASS B1 ASCII 屏幕标记存在：PAW-MENU-TTY1
+PASS B5 PAWDATA 面板与序列号输入共用同一实现
+PASS B5 PAWDATA 面板阶段写入 tty 状态
+PASS B5 中文控制台菜单写入 tty 状态
+PASS B5 交互脚本不再使用隐式 stdin 提示
+PASS B1 交互脚本不引用 /dev/console
+PASS B1 串口/journal 仍保留诊断日志
+PASS B6 Tailscale 登录链接改为报告文件，不抢终端
+PASS B5 已确认的序列号末六位复用给分区助手，避免第二次隐式提示
+PASS B5 分区助手支持复用 tty1 已确认值
+PASS B7 中文字体服务排在 PAWDATA/菜单之前
+PASS B7 字体服务不声明 TTYPath，不抢占交互终端
+PASS B7 fbcon 16x16 主字体与 vgacon 8x16 回退均存在
+PASS B7 使用 setfont 在 tty1 上加载字体
+PASS B7 ISO 包列表包含 kbd 与 unifont
+PASS B7 ISO 构建生成 CJK 字体
+PASS B7 ISO 构建复制全部运行时 Python 助手（含原子写）
+PASS B7 原子写脚本进入 ISO 的路径已覆盖
+PASS B5b 全部 tty1 操作员脚本不再使用隐式 stdin 提示
+PASS B5b 操作员脚本统一使用可回退的 tty1 绑定
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-FINAL-PANEL
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-FINAL-PROMPT
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-FINAL-OK
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-FINAL-BAD
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-FINAL-TIMEOUT
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-MEMTEST-OK
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-MEMTEST-TIMEOUT
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-RESCUE-OK
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-TARGET-OK
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-NETPHASE-OK
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-SOURCE-PANEL
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-SOURCE-PROMPT
+PASS B5b ASCII 屏幕标记存在：PAW-TTY1-SOURCE-TIMEOUT
+PASS B5b tty 库提供显式回退绑定，并标记为非实机路径
+PASS B5b PAWDATA 仍使用严格 tty1 绑定，不回退
+Static tty assertions: 55 passed, 0 failed
+PAW tty helper pty interaction tests
+PASS B2 正确序列号末六位被接受
+PASS B2 写入 INPUT-OK 状态标记
+PASS B2 状态文件记录实际输出 tty 为注入的 pty
+PASS B5 中文面板与序列号输入使用同一终端
+PASS B6 交互期间该终端只有一个非辅助进程持有者
+PASS B1 面板与提示 ASCII 标记出现在终端输出
+PASS B3 错误序列号被拒绝
+PASS B3 写入 INPUT-BAD 状态标记
+PASS B3 输出中文错误原因
+PASS B3 拒绝路径仍只有一个终端持有者
+PASS B4 无输入超时后安全停止
+PASS B4 写入 INPUT-TIMEOUT 状态标记
+PASS B4 输出中文安全停止说明
+PASS B4b 输入流提前关闭时安全停止
+PASS B4b 写入 ABORTED/TIMEOUT 状态标记
+Summary: 15 passed, 0 failed
+PASS B2/B3/B4/B5/B6 pty 真实交互测试全部通过
+Summary: 56 passed, 0 failed, 0 blocked

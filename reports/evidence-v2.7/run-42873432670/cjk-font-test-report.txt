@@ -1,0 +1,10 @@
+PAW CJK console font validation
+Executed: 2026-11-10T18:22:12Z
+Font: /home/runner/work/_temp/paw-live-build/chroot/opt/paw-migration/fonts/paw-cjk-16x16.psf
+Fallback: /home/runner/work/_temp/paw-live-build/chroot/opt/paw-migration/fonts/paw-cjk-8x16.psf
+Unifont: /home/runner/work/_temp/paw-live-build/chroot/usr/share/unifont/unifont.hex (1:15.1.01-1)
+PASS PSF2 16x16 512 glyphs, 489 Unicode mappings, space slot 32
+PASS every non-ASCII runtime character is covered (393 unique)
+PASS fallback PSF1 8x16 512 glyphs, 8196 bytes
+PASS PSF2/PSF1 headers, space slot, Unicode table and full runtime coverage
+Summary: 1 passed, 0 failed

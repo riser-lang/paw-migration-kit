@@ -8,7 +8,7 @@
 - Draft PR：#2
 - 基线：v2.6.1 `0128110`
 - 构建运行：GitHub Actions → `PAW live build and isolated tests` → Run workflow
-- 最终云端成功运行：`42857316370`（2026-11-10 UTC，全部步骤通过，含 5 例 QEMU 中文用例、两种形态的真实 grub-install、修复盘的 QEMU 启动链验证，以及交付包自检脚本的 CI 校验）
+- 最终云端成功运行：`42873432670`（2026-11-10 UTC，全部步骤通过，含 5 例 QEMU 中文用例、两种形态的真实 grub-install、修复盘的 QEMU 启动链验证，以及交付包自检脚本的 CI 校验）
 - 证据小包：`paw-test-reports`（文本报告 + 截屏，不再需要为看报告下载 1 GB）
 - 现场对照：`reports/PAW-SCREEN-EXPECTATIONS-ZH.md`（每屏应出现的原文），截图在交付包 `screens/`
 - 交付 ISO 来源运行：`42804949796`（产品 HEAD `bf1a705`；此后仅测试脚本变更，产品载荷相同）

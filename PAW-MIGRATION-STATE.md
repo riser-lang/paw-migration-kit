@@ -7,7 +7,7 @@ Two heads matter, and neither is `main`:
 
 - **Product head / delivery ISO**: `bf1a705` — every production script inside the
   delivered ISO comes from this commit.
-- **Latest verification head**: `adb3e16` — adds CI suites (real `grub-install`
+- **Latest verification head**: `ac0813e` — adds CI suites (real `grub-install`
   host-side and in chroot, a QEMU boot of a repaired disk), a text-only evidence
   artifact, and the delivery self-check script. No production script or ISO input
   changed.
@@ -19,7 +19,7 @@ PR #2 is a Draft and is not merged; PR #1 was not touched.
 
 The delivered ISO, its SHA256 and all runtime test counts come from Run
 `42804949796` on product head `bf1a705`. Runs `42810087226` (`d640712`), `42816492016` (`b4bfd84`), `42838392058` (`daef72f`)
-`42845816766` (`e4ec96c`) and `42857316370` (`adb3e16`) re-ran the whole matrix with the new GRUB suites and are green too; they rebuilt the
+`42845816766` (`e4ec96c`) and `42873432670` (`ac0813e`) re-ran the whole matrix with the new GRUB suites and are green too; they rebuilt the
 ISO from an identical product payload, which is why they report the same byte size and
 different SHA256 values (builds are not byte-reproducible).
 
@@ -118,11 +118,11 @@ boots to a login prompt.
 - Delivery run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
   (product head `bf1a705`, success)
 - Verification run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42810087226>
-  (`adb3e16`, success, repair suite 28/28)
+  (`ac0813e`, success, repair suite 28/28)
 - Delivery artifact: `13760370816`, `paw-live-build-test-results`, 1,030,665,391 bytes,
   expires 2026-11-13 11:27:18 UTC
-- Verification artifacts (run 18): `13785706107` `paw-test-reports` 567,106 bytes, and
-  `13784094644` `paw-live-build-test-results` 1,030,665,603 bytes, expires 2026-11-13 17:09:31 UTC
+- Verification artifacts (run 18): `13791479365` `paw-test-reports` 567,751 bytes, and
+  `13791803997` `paw-live-build-test-results` 1,030,667,292 bytes, expires 2026-11-13 18:40:56 UTC
 - ISO: `paw-live-amd64.iso`, 953,155,584 bytes
 - ISO SHA256: `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
 - ISO layout: `MBR isohybrid cyl-align-on GPT APM`
@@ -131,7 +131,7 @@ boots to a login prompt.
   CJK font 1, QEMU CJK 5 cases / 96 assertions — all 0 failed.
 - Static: ShellCheck `--severity=error` clean, `bash -n` clean, Python compile PASS,
   PowerShell parse PASS, JSON/YAML/unit structure PASS, `PUBLIC-SAFETY=PASS`,
-  `PUBLIC-HISTORY=PASS` (903 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
+  `PUBLIC-HISTORY=PASS` (1041 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
 - QEMU SeaBIOS + TCG (no KVM): boot reached the readiness gate, readiness
   `BLOCKED`, `clone_started=false`.
 
@@ -175,6 +175,21 @@ boots to a login prompt.
 These remain open until the user performs them on hardware. No production VPS was
 accessed; no physical disk or TF card was written.
 
+## ISO payload verification
+
+`scripts/ci/verify-iso-payload.sh` answers "was the shipped ISO really built from this
+tree?" — until run `42873432670` that was only implied by the build log. The step
+extracts `/live/filesystem.squashfs` from the ISO and compares each payload file with
+the repository: 31 `paw-*.sh`, 4 `paw-*.py`, the staged boot binaries, three config
+templates, the env template, nine systemd units, the mount unit, the network config
+and `isolinux/memtest.cfg`. It also fails when the ISO carries `paw-*` scripts that the
+repository does not, and checks the generated font's PSF2 magic.
+
+Result on run `42873432670`: `Summary: 54 passed, 0 failed`. Getting there needed three
+fixes, all recorded: missing exec bit (exit 126), `unsquashfs` needing root for device
+nodes (exit 2), and GNU `sha256sum` prefixing its output with a backslash for the mount
+unit name.
+
 ## Delivery package self-check
 
 `scripts/verify-delivery.ps1` (Windows PowerShell 5.1, because the host has no `pwsh`)
@@ -191,9 +206,9 @@ actions that touch only the TF card, then the decisions that need the user.
 ## Screenshot reference for on-site work
 
 `reports/PAW-SCREEN-EXPECTATIONS-ZH.md` lists the exact strings each panel must show,
-copied from the decoded screens of run `42857316370` (the CJK suite renders the panels
+copied from the decoded screens of run `42873432670` (the CJK suite renders the panels
 under QEMU and matches the PSF glyphs). The 25 decoded screens are stored in
-`reports/evidence-v2.7/run-42857316370/decoded-screens/`; the five rendered PNGs live
+`reports/evidence-v2.7/run-42873432670/decoded-screens/`; the five rendered PNGs live
 only in the delivery folder (`screens/`), because the public-safety gate refuses binary
 payloads in the repository.
 

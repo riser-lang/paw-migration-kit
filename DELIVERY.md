@@ -11,7 +11,7 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 
 - Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
 - 结论：success（全部步骤通过，含 5 例 QEMU 中文用例）
-- 最新全绿验证运行：`42857316370`（HEAD `adb3e16`，仅改 CI/工作流与交付自检脚本；ISO 载荷与交付件相同）
+- 最新全绿验证运行：`42873432670`（HEAD `ac0813e`，仅改 CI/工作流与交付自检脚本；ISO 载荷与交付件相同）
 - Artifact ID：`13760370816`
 - Artifact 名称：`paw-live-build-test-results`
 - Artifact 大小：1,030,665,391 bytes
