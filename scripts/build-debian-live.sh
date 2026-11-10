@@ -20,9 +20,12 @@ mkdir -p "$work/config/includes.chroot/opt/paw-migration/scripts"
 cp "$src"/scripts/paw-*.sh "$work/config/includes.chroot/opt/paw-migration/scripts/"
 cp "$src/scripts/paw-count-bytes.py" "$work/config/includes.chroot/opt/paw-migration/scripts/"
 cp "$src/scripts/paw-xray-client-configure.py" "$work/config/includes.chroot/opt/paw-migration/scripts/"
+cp "$src/scripts/paw-build-cjk-font.py" "$work/config/includes.chroot/opt/paw-migration/scripts/"
+chmod 0755 "$work/config/includes.chroot/opt/paw-migration/scripts/"*.sh \
+  "$work/config/includes.chroot/opt/paw-migration/scripts/"*.py
 cp -a "$src/boot/bin" "$work/config/includes.chroot/opt/paw-migration/"
 cp "$src/configs/source.template.json" "$src/configs/target-ssd.template.json" "$src/configs/xray-client.template.json" "$work/config/includes.chroot/opt/paw-migration/configs/"
-cp "$src/boot/paw-preflight.service" "$src/boot/paw-data-init.service" "$src/boot/paw-console.service" "$src/boot/paw-network-bootstrap.service" "$src/boot/paw-xray-client.service" "$src/boot/paw-tailscale-join.service" "$work/config/includes.chroot/etc/systemd/system/"
+cp "$src/boot/paw-preflight.service" "$src/boot/paw-data-init.service" "$src/boot/paw-console.service" "$src/boot/paw-console-font.service" "$src/boot/paw-network-bootstrap.service" "$src/boot/paw-xray-client.service" "$src/boot/paw-tailscale-join.service" "$work/config/includes.chroot/etc/systemd/system/"
 cp "$src/boot/20-wired.network" "$work/config/includes.chroot/etc/systemd/network/20-wired.network"
 cp "$src/configs/paw-migration.env.template" "$work/config/includes.chroot/etc/paw-migration.env"
 cp "$src/boot/paw-data.mount" "$work/config/includes.chroot/etc/systemd/system/var-lib-paw\\x2dmigration.mount"
@@ -42,6 +45,7 @@ ln -sf ../tailscaled.service /etc/systemd/system/multi-user.target.wants/tailsca
 ln -sf ../paw-data-init.service /etc/systemd/system/multi-user.target.wants/paw-data-init.service
 ln -sf ../paw-preflight.service /etc/systemd/system/multi-user.target.wants/paw-preflight.service
 ln -sf ../paw-console.service /etc/systemd/system/multi-user.target.wants/paw-console.service
+ln -sf ../paw-console-font.service /etc/systemd/system/multi-user.target.wants/paw-console-font.service
 ln -sf ../paw-network-bootstrap.service /etc/systemd/system/multi-user.target.wants/paw-network-bootstrap.service
 ln -sf ../var-lib-paw\\x2dmigration.mount /etc/systemd/system/local-fs.target.wants/var-lib-paw\\x2dmigration.mount
 ln -sf /lib/systemd/system/systemd-networkd.service /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
@@ -51,6 +55,21 @@ rm -f /etc/systemd/system/multi-user.target.wants/ssh.service /etc/systemd/syste
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 HOOK
 chmod 0755 "$work/config/hooks/live/0500-paw-services.hook.chroot"
+cat >"$work/config/hooks/live/0550-paw-console-font.hook.chroot" <<'HOOK'
+#!/bin/sh
+set -eu
+install -d -m 0755 /opt/paw-migration/fonts
+/usr/bin/python3 /opt/paw-migration/scripts/paw-build-cjk-font.py \
+  --unifont /usr/share/unifont/unifont.hex \
+  --scan /opt/paw-migration/scripts \
+  --out /opt/paw-migration/fonts/paw-cjk-16x16.psf \
+  --fallback-out /opt/paw-migration/fonts/paw-cjk-8x16.psf \
+  --manifest /opt/paw-migration/fonts/paw-cjk-font.json \
+  --unifont-version "$(dpkg-query -W -f='${Version}' unifont)"
+chmod 0644 /opt/paw-migration/fonts/paw-cjk-16x16.psf \
+  /opt/paw-migration/fonts/paw-cjk-8x16.psf /opt/paw-migration/fonts/paw-cjk-font.json
+HOOK
+chmod 0755 "$work/config/hooks/live/0550-paw-console-font.hook.chroot"
 cat >"$work/config/hooks/live/0600-paw-software-manifest.hook.chroot" <<'HOOK'
 #!/bin/sh
 set -eu

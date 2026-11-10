@@ -51,6 +51,16 @@ grep -q 'login_url' "$root/scripts/paw-tailscale-join.sh" && pass 'B6 Tailscale 
 grep -q 'export PAW_DATA_CONFIRM_SUFFIX' "$root/scripts/paw-data-prepare.sh" && pass 'B5 已确认的序列号末六位复用给分区助手，避免第二次隐式提示' || fail 'B5 分区助手可能再次提示'
 grep -q 'PAW_DATA_CONFIRM_SUFFIX' "$root/scripts/paw-prepare-data-partition.sh" && pass 'B5 分区助手支持复用 tty1 已确认值' || fail 'B5 分区助手未复用确认值'
 
+# B7 Chinese console font: loaded on tty1 before the panel, without a TTYPath
+# owner and without changing the existing read/write fd path.
+font_unit="$root/boot/paw-console-font.service"
+has "$font_unit" '^Before=.*paw-data-init\.service' && has "$font_unit" '^Before=.*paw-console\.service' && pass 'B7 中文字体服务排在 PAWDATA/菜单之前' || fail 'B7 中文字体服务顺序错误'
+! grep -q '^TTYPath=' "$font_unit" && pass 'B7 字体服务不声明 TTYPath，不抢占交互终端' || fail 'B7 字体服务错误声明 TTYPath'
+grep -q 'paw-cjk-16x16\.psf' "$root/scripts/paw-console-font.sh" && grep -q 'paw-cjk-8x16\.psf' "$root/scripts/paw-console-font.sh" && pass 'B7 fbcon 16x16 主字体与 vgacon 8x16 回退均存在' || fail 'B7 字体选择逻辑缺失'
+grep -q 'setfont -C "$tty" "$font"' "$root/scripts/paw-console-font.sh" && pass 'B7 使用 setfont 在 tty1 上加载字体' || fail 'B7 未调用 setfont'
+grep -q '^kbd$' "$root/configs/live-build/package-lists/paw.list.chroot" && grep -q '^unifont$' "$root/configs/live-build/package-lists/paw.list.chroot" && pass 'B7 ISO 包列表包含 kbd 与 unifont' || fail 'B7 ISO 缺 kbd/unifont'
+grep -q 'paw-build-cjk-font.py' "$root/scripts/build-debian-live.sh" && grep -q 'paw-cjk-16x16.psf' "$root/scripts/build-debian-live.sh" && pass 'B7 ISO 构建生成 CJK 字体' || fail 'B7 ISO 构建未生成 CJK 字体'
+
 printf 'Static tty assertions: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 
 set +e

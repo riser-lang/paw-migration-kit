@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: Check out sanitized migration kit
         uses: actions/checkout@v4
@@ -127,11 +127,33 @@ jobs:
           cp boot/custom/build-provenance.txt artifacts/build-provenance.txt
           df -h "$RUNNER_TEMP"
 
+      - name: Validate generated CJK console font
+        shell: bash
+        run: |
+          set -euo pipefail
+          font_dir="$RUNNER_TEMP/paw-live-build/chroot/opt/paw-migration/fonts"
+          unifont="$RUNNER_TEMP/paw-live-build/chroot/usr/share/unifont/unifont.hex"
+          version="$(awk '$1=="unifont"{print $2}' boot/custom/software-packages.lock | head -n1)"
+          PAW_ARTIFACT_DIR="$PWD/artifacts" \
+          PAW_CJK_FONT="$font_dir/paw-cjk-16x16.psf" \
+          PAW_CJK_FALLBACK="$font_dir/paw-cjk-8x16.psf" \
+          PAW_UNIFONT_HEX="$unifont" \
+          PAW_UNIFONT_VERSION="$version" \
+            scripts/ci/run-cjk-font-tests.sh
+
       - name: Boot ISO with SeaBIOS and TCG
         shell: bash
         run: |
           set -euo pipefail
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/qemu-live-smoke.sh "$PWD/boot/custom/paw-live-amd64.iso"
+
+      - name: Run framebuffer CJK tty1 display and keyboard suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" \
+            PAW_CJK_ISO="$PWD/boot/custom/paw-live-amd64.iso" \
+            scripts/ci/run-cjk-qemu-tests.sh
 
       - name: Exercise PAWDATA layout and persistence on virtual media
         shell: bash
@@ -164,6 +186,29 @@ jobs:
           env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-finalize-virtual-tests.sh
           env PAW_ARTIFACT_DIR="$PWD/artifacts" PAW_REQUIRE_PTY=1 scripts/ci/run-tty-virtual-tests.sh
 
+      - name: Summarize real test counts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            artifacts/pawdata-virtual-test-report.txt \
+            artifacts/virtual-fault-injection-report.txt \
+            artifacts/repair-virtual-test-report.txt \
+            artifacts/network-virtual-test-report.txt \
+            artifacts/finalize-virtual-test-report.txt \
+            artifacts/tty-virtual-test-report.txt \
+            artifacts/cjk-font-test-report.txt \
+            artifacts/qemu-cjk-test-report.txt; do
+            if [[ -f "$file" ]]; then
+              echo "===== $file"
+              tail -n 4 "$file"
+            else
+              echo "MISSING $file"
+            fi
+          done | tee artifacts/test-summary.txt
+          echo "Static/syntax, QEMU smoke and ISO build logs are in the retained artifacts."
+
       - name: Upload reviewed build and test outputs (3-day retention)
         if: always()
         uses: actions/upload-artifact@v4
@@ -187,6 +232,10 @@ jobs:
             artifacts/finalize-virtual-test-report.txt
             artifacts/tty-virtual-test-report.txt
             artifacts/pty-tty-test.log
+            artifacts/cjk-font-test-report.txt
+            artifacts/qemu-cjk-test-report.txt
+            artifacts/qemu-cjk-*.log
+            artifacts/qemu-cjk/**
           retention-days: 3
           compression-level: 0
           if-no-files-found: warn

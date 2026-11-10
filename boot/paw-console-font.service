@@ -1,0 +1,18 @@
+[Unit]
+Description=PAW Chinese console font on tty1 (fbcon 16x16, vgacon fallback)
+DefaultDependencies=no
+After=local-fs.target systemd-udev-settle.service systemd-vconsole-setup.service
+Before=paw-data-init.service paw-console.service paw-preflight.service getty@tty1.service
+ConditionPathExists=/dev/tty1
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/paw-migration.env
+Environment=PAW_ROOT=/opt/paw-migration
+ExecStart=/opt/paw-migration/scripts/paw-console-font.sh
+StandardOutput=journal+console
+StandardError=journal+console
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
