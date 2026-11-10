@@ -47,7 +47,8 @@ jobs:
             gdisk cloud-guest-utils e2fsprogs zstd pv smartmontools \
             openssh-client iproute2 iputils-ping dnsutils ethtool \
             pciutils usbutils lshw lm-sensors nvme-cli rsync less \
-            memtest86+ parted util-linux gcc libc6-dev
+            memtest86+ parted util-linux gcc libc6-dev \
+            busybox-static cpio xz-utils
           sudo apt-get clean
           df -h "$RUNNER_TEMP"
 

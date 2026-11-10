@@ -15,19 +15,21 @@ rm -rf "$work"; mkdir -p "$work" "$out"
 printf 'PAW framebuffer CJK tty1 QEMU results\n' >"$report"
 printf 'Executed: %s\nISO: %s\n' "$(date -u +%FT%TZ)" "$iso" >>"$report"
 
-for item in vmlinuz initrd.img filesystem.squashfs; do
+for item in vmlinuz filesystem.squashfs; do
   xorriso -osirrox on -indev "$iso" -extract "/live/$item" "$work/$item" >>"$report" 2>&1
 done
 unsquashfs -q -d "$work/rootfs" "$work/filesystem.squashfs" >>"$report" 2>&1
 : >"$work/rootfs/etc/fstab"
 font="$work/rootfs/opt/paw-migration/fonts/paw-cjk-16x16.psf"
 [[ -s "$font" ]] || { printf 'FAIL ISO does not contain %s\n' "$font" >>"$report"; cat "$report"; exit 1; }
-# Prefer the stock initramfs-tools image from the squashfs: it is the one that
-# actually supports root=/dev/vda without live-boot's boot=live parameters.
+# Build a minimal initramfs from the ISO's own modules.  The live-boot initrd
+# expects boot=live and does not reliably honor root=/dev/vda for this plain
+# ext4 test image; this initrd only mounts /dev/vda, loads bochs DRM and hands
+# over to systemd.
 kernel="$(find "$work/rootfs/boot" -maxdepth 1 -name 'vmlinuz-*' -type f | sort | head -n1)"
-initrd="$(find "$work/rootfs/boot" -maxdepth 1 -name 'initrd.img-*' -type f | sort | head -n1)"
 [[ -s "$kernel" ]] || kernel="$work/vmlinuz"
-[[ -s "$initrd" ]] || initrd="$work/initrd.img"
+initrd="$work/initrd-cjk.img"
+"$root/tests/qemu/build-fbcon-initrd.sh" "$work/rootfs" "$kernel" "$initrd" >>"$report" 2>&1
 printf 'Kernel: %s\nInitrd: %s\n' "$kernel" "$initrd" >>"$report"
 
 size_mb=$(( $(du -sm "$work/rootfs" | cut -f1) + 1024 ))

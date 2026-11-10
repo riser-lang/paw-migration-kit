@@ -73,7 +73,7 @@ class Qemu:
         cmd += [
             "-machine", "pc,accel=tcg", "-m", "2048", "-smp", "2", "-nic", "none",
             "-kernel", args.kernel, "-initrd", args.initrd, "-append", cmdline,
-            "-drive", f"file={args.image},format=raw,if=virtio,cache=none",
+            "-drive", f"file={args.image},format=raw,if=virtio",
             "-vga", "std", "-display", "none",
             "-monitor", f"unix:{self.sock_path},server=on,wait=off",
             "-serial", f"file:{self.serial_path}", "-no-reboot",
