@@ -188,6 +188,15 @@ negative test was run too — one tampered file in a copied folder produced
 The one-page entry point is `docs/PAW-START-HERE-ZH.md`: hash check first, then the three
 actions that touch only the TF card, then the decisions that need the user.
 
+## Screenshot reference for on-site work
+
+`reports/PAW-SCREEN-EXPECTATIONS-ZH.md` lists the exact strings each panel must show,
+copied from the decoded screens of run `42857316370` (the CJK suite renders the panels
+under QEMU and matches the PSF glyphs). The 25 decoded screens are stored in
+`reports/evidence-v2.7/run-42857316370/decoded-screens/`; the five rendered PNGs live
+only in the delivery folder (`screens/`), because the public-safety gate refuses binary
+payloads in the repository.
+
 ## Immediate next steps for the user
 
 1. Use the ISO at `delivery/paw-live-amd64.iso` (or download Artifact `13760370816`

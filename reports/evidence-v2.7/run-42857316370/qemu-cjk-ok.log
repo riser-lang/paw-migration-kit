@@ -1,0 +1,27 @@
+PASS font under test is 16x16
+PASS ok: PAWDATA prompt reached on fbcon
+PASS ok: kernel font service reports fbcon 16x16 load
+PASS ok: framebuffer device is bochs-drm
+PASS ok: framebuffer cells match shipped PSF glyphs
+PASS ok: 中文屏幕显示「PAW 首次启动 · PAWDATA 持久分区初…」
+PASS ok: 中文屏幕显示「只针对当前启动本系统的可移动设备；不会碰其他磁盘…」
+PASS ok: 中文屏幕显示「将只追加一个新的 PAWDATA 分区并格式化该…」
+PASS ok: 中文屏幕显示「请输入该设备序列号最后 6 位以继续：…」
+PASS ok: 中文屏幕显示「序列号：QEMU-123456…」
+PASS ok: correct serial suffix accepted on tty1
+PASS ok-accepted: framebuffer cells match shipped PSF glyphs
+PASS ok-accepted: 中文屏幕显示「输入已确认；开始追加 PAWDATA 分区（仅新…」
+PASS ok: Chinese console menu appeared on the same tty1
+PASS ok-menu: framebuffer cells match shipped PSF glyphs
+PASS ok-menu: 中文屏幕显示「PAW 迁移准备控制台（v2.7）…」
+PASS ok-menu: 中文屏幕显示「登记 Memtest86+ 人工确认结果…」
+PASS ok-menu: 中文屏幕显示「初始化/修复 PAWDATA 持久分区…」
+PASS ok-menu: 中文屏幕显示「最终中文授权并开始迁移…」
+PASS ok: menu keyboard choice 7 opened the report listing
+PASS ok: console menu status records /dev/tty1
+PASS ok: menu choice 7 recorded on tty1
+PASS ok: console menu has exactly one non-helper tty1 holder
+PASS ok: status file records actual output tty /dev/tty1
+PASS ok: PAWDATA panel and serial input share /dev/tty1
+PASS ok: tty1 has exactly one non-helper holder
+Summary: 26 passed, 0 failed

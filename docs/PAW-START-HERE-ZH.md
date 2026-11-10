@@ -32,6 +32,9 @@ powershell -ExecutionPolicy Bypass -File .\verify-delivery.ps1
 
 ## 前 3 件事（今天就能做，不碰生产）
 
+> 每屏应该长什么样都有对照图：`PAW-SCREEN-EXPECTATIONS-ZH.md`（交付包内，含 5 张截屏）。
+> 现场对不上就停，别硬按。
+
 ### 1) 写 TF 卡
 
 用 Rufus，选这个 ISO，**DD 模式**写入。图形步骤见 `TF-CARD-RUFUS-GUIDE.md`。
@@ -92,6 +95,7 @@ powershell -ExecutionPolicy Bypass -File .\verify-delivery.ps1
 | `SHA256SUMS.txt` | 整个交付包每个文件的哈希 |
 | `verify-delivery.ps1` | 一键核对脚本（Windows PowerShell） |
 | `TF-CARD-RUFUS-GUIDE.md` | 写卡图示步骤 |
+| `PAW-SCREEN-EXPECTATIONS-ZH.md` + `screens/` | 5 张 CI 真实渲染截屏 + 逐字应出现的文字 |
 | `PAW-V2.7-HARDWARE-CHECKLIST-ZH.md` | 实机 7 项逐步清单（含预期屏幕文字） |
 | `PAW-V2.7.1-USER-GUIDE-ZH.md` | 使用说明 |
 | `PAW-V2.7-ROLLBACK-ZH.md` | 回滚说明 |
