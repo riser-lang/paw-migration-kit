@@ -131,6 +131,12 @@ jobs:
           cp boot/custom/build-provenance.txt artifacts/build-provenance.txt
           df -h "$RUNNER_TEMP"
 
+      - name: Verify the ISO contains the reviewed payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/verify-iso-payload.sh
+
       - name: Validate generated CJK console font
         shell: bash
         run: |
@@ -205,7 +211,8 @@ jobs:
             artifacts/finalize-virtual-test-report.txt \
             artifacts/tty-virtual-test-report.txt \
             artifacts/cjk-font-test-report.txt \
-            artifacts/qemu-cjk-test-report.txt; do
+            artifacts/qemu-cjk-test-report.txt \
+            artifacts/iso-payload-report.txt; do
             if [[ -f "$file" ]]; then
               echo "===== $file"
               tail -n 4 "$file"
