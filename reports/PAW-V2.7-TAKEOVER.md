@@ -206,6 +206,7 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 | Run `42775846760`（HEAD `c211dc9`） | success | Actions，全部步骤通过 |
 | Run `42778468039`（HEAD `2c2a37d`） | success | Actions，20m37s，全部步骤通过 |
 | Run `42804949796`（HEAD `bf1a705`） | success | Actions，5 例 QEMU 中文用例 + GPT 扩容守卫全绿 |
+| Run `42810087226`（HEAD `d640712`） | success | Actions，新增真实 `grub-install` 用例，修复套件 19/19 |
 | 本机 `bash -n` 全脚本 | PASS，0 语法错误 | Git Bash 5.3.9 实跑 |
 | 本机 TTY 静态断言 | 55 passed / 0 failed | `run-tty-virtual-tests.sh` 实跑 |
 | 本机 PTY | BLOCKED（Windows Python 无 `termios`） | 不作为 PASS |
@@ -227,7 +228,7 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 
 ## 13. 下一轮建议顺序
 
-1. 把 GRUB 修复从 stub 提升为在 loop 上真实执行 `grub-install --target=i386-pc`
-   （CI 已装 `grub-pc-bin`），以关闭“GRUB 修复只有模拟证据”这一项。
-2. 真实硬件阶段：TF 卡写入、主板启动、SSD/内存、Rescue 与正式迁移，全部需要
+1. 真实硬件阶段：TF 卡写入、主板启动、SSD/内存、Rescue 与正式迁移，全部需要
    用户在场并单独授权，按 `docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md` 逐步执行。
+2. 若要进一步关闭“chroot 变体未验证”，需要在真实目标上跑一次离线修复；
+   这只能在实机进行，云端 loop 无法等价替代。

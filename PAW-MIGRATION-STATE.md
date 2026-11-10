@@ -2,19 +2,30 @@
 
 Updated: 2026-11-10 UTC (second takeover round)
 Branch: `fix/v2.6.2-final-readiness`
-Code HEAD covered by the final run: `bf1a705` (Refuse to expand a root partition that
-is not the last one)
-Main HEAD: `0d6aefd` (unchanged; development never restarted from `main`)
-PR: #2 (Draft, not merged); #1 untouched
+
+Two heads matter, and neither is `main`:
+
+- **Product head / delivery ISO**: `bf1a705` — every production script inside the
+  delivered ISO comes from this commit.
+- **Latest verification head**: `d640712` — adds only a CI suite (real `grub-install`
+  on a loop GPT disk). No production script and no ISO input changed.
+
+`main` HEAD stays `0d6aefd`; development never restarted from `main`.
+PR #2 is a Draft and is not merged; PR #1 was not touched.
 
 ## Evidence mapping
 
-The ISO, its SHA256 and every test count in this file come from Run `42804949796`
-on code HEAD `bf1a705`. Any documentation commit after it changes no script,
-workflow or package, so the ISO and test evidence still apply; such a commit is
-checked locally with `scripts/ci/check-public-safety.py` instead of consuming
-another full build, because a rebuild would produce a different ISO hash (the
-build is not byte-reproducible) and would only make the delivered hash ambiguous.
+The delivered ISO, its SHA256 and all runtime test counts come from Run
+`42804949796` on product head `bf1a705`. Run `42810087226` on `d640712` re-ran the
+whole matrix with the new real-`grub-install` suite and is green too; it rebuilt the
+ISO from an identical product payload, which is why it reports the same byte size and
+a different SHA256 (builds are not byte-reproducible).
+
+The delivery ISO is therefore kept from Run `42804949796`: shipping a fresh hash for
+an unchanged payload would only make verification ambiguous. Documentation commits
+after the heads are checked locally with the same scripts CI runs
+(`check-public-safety.py`, `check-public-history.py`, `bash -n`, Python compile, TTY
+static assertions).
 
 ## Phase
 
@@ -40,7 +51,7 @@ inherited stdio is used only when no console is present or input is redirected, 
 logged, and is never recorded as a tty1 session. `paw-data-prepare.sh` keeps the
 strict binding.
 
-The authorization panel now also has pixel-level evidence: QEMU case `final` runs the
+The authorization panel also has pixel-level evidence: QEMU case `final` runs the
 production `paw-final-confirm.sh` twice on tty1 (wrong suffix rejected, correct
 suffix accepted) and matches the screendump against the shipped PSF glyphs
 (25 assertions).
@@ -53,33 +64,52 @@ symptom would have been a cryptic `growpart` failure after `sgdisk
 --move-second-header` had already modified the GPT.
 
 `paw-gpt-expand.sh` now compares the root partition's `lsblk` START offset with the
-highest partition offset on the disk and refuses *before* touching anything, with a
-message that names the collision and states that nothing was changed. The virtual
-suite builds a two-partition GPT loop, expects the refusal, checks both message
-claims, and asserts the `sfdisk` dump is byte-identical afterwards.
+highest partition offset on the disk and refuses *before* touching anything, naming
+the collision and stating that nothing was changed. The virtual suite builds a
+two-partition GPT loop, expects the refusal, checks both message claims, and asserts
+the `sfdisk` dump is byte-identical afterwards.
+
+## Real GRUB install evidence
+
+The offline-repair fixture replaces `grub-install` with a compiled stub, so "GRUB
+repair" only had simulated evidence. The repair suite now additionally builds a loop
+GPT disk with a BIOS boot partition plus an ext4 root and runs the **real**
+`grub-install --target=i386-pc --boot-directory=... /dev/loopN` host-side, asserting:
+exit 0, the `i386-pc` modules copied into the boot directory, MBR boot code with a
+valid `0x55AA` signature, and a non-empty embedded core image in the BIOS boot
+partition.
+
+That proves the real binary installs BIOS GRUB on a GPT loop disk. It does **not**
+prove the chroot variant used by `paw-offline-repair.sh`, which still needs a real
+target.
 
 ## Final cloud evidence
 
-- Run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
-  (HEAD `bf1a705`, success)
-- Artifact ID: `13760370816`, `paw-live-build-test-results`, 1,030,665,391 bytes
-- Artifact expiry: 2026-11-13 11:27:18 UTC
+- Delivery run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
+  (product head `bf1a705`, success)
+- Verification run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42810087226>
+  (`d640712`, success, repair suite 19/19)
+- Delivery artifact: `13760370816`, `paw-live-build-test-results`, 1,030,665,391 bytes,
+  expires 2026-11-13 11:27:18 UTC
+- Verification artifact: `13763731974`, 1,030,666,564 bytes, expires 2026-11-13 12:10:39 UTC
 - ISO: `paw-live-amd64.iso`, 953,155,584 bytes
 - ISO SHA256: `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
 - ISO layout: `MBR isohybrid cyl-align-on GPT APM`
-- Test totals: PAWDATA 12, fault injection 39, offline repair 15, network 17,
-  finalize 36, TTY 56 (static 55 + PTY 15 with the aggregate row), CJK font 1,
-  QEMU CJK 5 cases / 96 assertions — all 0 failed.
+- Test totals (verification run): PAWDATA 12, fault injection 39, offline repair **19**,
+  network 17, finalize 36, TTY 56 (static 55 + PTY 15 with the aggregate row),
+  CJK font 1, QEMU CJK 5 cases / 96 assertions — all 0 failed.
 - Static: ShellCheck `--severity=error` clean, `bash -n` clean, Python compile PASS,
   PowerShell parse PASS, JSON/YAML/unit structure PASS, `PUBLIC-SAFETY=PASS`,
-  `PUBLIC-HISTORY=PASS` (728 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
+  `PUBLIC-HISTORY=PASS` (759 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
 - QEMU SeaBIOS + TCG (no KVM): boot reached the readiness gate, readiness
   `BLOCKED`, `clone_started=false`.
 
 ## Independently verified in this round
 
-- ISO from Run `42804949796` (the delivery artifact) was downloaded and re-hashed:
-  see `reports/evidence-v2.7/iso-identity-run-42804949796.txt`.
+- ISO from Run `42804949796` (the delivery artifact) was downloaded (1,030,665,391
+  bytes) and re-hashed to
+  `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`, matching its
+  sidecar; the delivered copy was re-hashed again after the move.
 - ISO from Run `42795953493` was downloaded (1,030,664,775 bytes) and re-hashed to
   `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`, matching its
   sidecar.
@@ -93,17 +123,11 @@ claims, and asserts the `sfdisk` dump is byte-identical afterwards.
 - Local TTY static assertions: 55 passed / 1 failed, the failure being the PTY case
   that cannot run on Windows (`ModuleNotFoundError: No module named 'termios'`).
 - Local `scripts/ci/check-public-safety.py`: `PUBLIC-SAFETY=PASS`.
-- Local `scripts/ci/check-public-history.py`: `PUBLIC-HISTORY=PASS` on the current
-  branch tip, which contains only documentation and the copied run reports on top of
-  the code HEAD.
+- Local `scripts/ci/check-public-history.py`: `PUBLIC-HISTORY=PASS` on the branch tip.
 - Local Python source compile over `scripts/**/*.py` and `tests/qemu/*.py`: PASS.
-- `scripts/windows-static-check.ps1` was **not** run locally: the workstation has
-  Windows PowerShell 5.1 but no `pwsh`, so that parse check remains CI-only
-  (`PowerShell parse PASS (1 files)` in the run log).
-- Local `scripts/ci/check-public-safety.py` is the exact file CI executes, which is
-  why documentation-only commits after the code HEAD are validated this way instead
-  of spending another full build that would change the ISO hash.
-- Four builds produced the same ISO byte size but different SHA256 values, so
+- `scripts/windows-static-check.ps1` was **not** run locally: the host has Windows
+  PowerShell 5.1 but no `pwsh`, so that parse check remains CI-only.
+- Five builds produced the same ISO byte size but different SHA256 values, so
   byte-for-byte reproducibility is still unproven.
 
 ## Not verified
@@ -114,6 +138,7 @@ claims, and asserts the `sfdisk` dump is byte-identical afterwards.
 - Real Tencent Cloud Rescue Mode SSH.
 - Real full-disk clone and real PAW migration.
 - Physical Memtest86+ run and operator observation.
+- The chroot variant of `grub-install` used by offline repair on a real target.
 - Local PTY execution on the Windows workstation (no `termios`); CI covers it.
 
 These remain open until the user performs them on hardware. No production VPS was
@@ -121,8 +146,8 @@ accessed; no physical disk or TF card was written.
 
 ## Immediate next steps for the user
 
-1. Use the ISO at `delivery/paw-live-amd64.iso` (or download Artifact
-   `13760370816` from Run `42804949796` before 2026-11-13 11:27:18 UTC).
+1. Use the ISO at `delivery/paw-live-amd64.iso` (or download Artifact `13760370816`
+   from Run `42804949796` before 2026-11-13 11:27:18 UTC).
 2. Recompute ISO SHA256 and compare with `d9fe2879…fb95a4476`.
 3. Follow `docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md` step by step; it lists the exact
    screen text each step must show and what to do when it does not.

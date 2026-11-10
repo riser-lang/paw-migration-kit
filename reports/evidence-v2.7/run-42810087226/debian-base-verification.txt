@@ -1,0 +1,6 @@
+Debian Live base verification: PASS
+Image: debian-live-13.7.0-amd64-standard.iso
+Size bytes: 2020130816
+SHA256: 040a44f35186321eb6cdaab52a8a2d06224fe6b77f6fbb9f1861ad89c14e17ec
+Detached signature: PASS (Debian CD key DF9B9C49EAA9298432589D76DA87E80D6294BE9B)
+Manifest hash check: PASS

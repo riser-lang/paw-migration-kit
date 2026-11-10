@@ -32,7 +32,7 @@ PR #2：保持 Draft，未合并。
 | QEMU CJK 显示器/键盘 | **5 cases / 96 assertions / 0 failed** | 见 CI 表 | 真实 QEMU + PSF 字形匹配 |
 | PAWDATA 12 项 | BLOCKED（本机无 root/loop） | 见 CI 表 | CI sudo loop |
 | 克隆/故障注入 39 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
-| 离线修复 15 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
+| 离线修复 19 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
 | 网络 17 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
 | 真实 ASUS 显示器/键盘 | 未执行 | 未执行 | **OPEN** |
 
@@ -177,9 +177,13 @@ PAW_ARTIFACT_DIR=$PWD/artifacts scripts/ci/run-tty-virtual-tests.sh
 ## 7. GitHub Actions 完整回归
 
 工作流：`.github/workflows/build-live-and-test.yml`
-最终成功运行：**Run ID `42804949796`**（HEAD `bf1a705`，2026-11-10T11:08:06Z 触发，
+交付运行：**Run ID `42804949796`**（产品 HEAD `bf1a705`，2026-11-10T11:08:06Z 触发，
 全部步骤 success）
 URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796
+
+最新全绿验证运行：**Run ID `42810087226`**（HEAD `d640712`，仅改 CI 套件：
+真实 `grub-install` 在 loop GPT 盘上安装）— 修复套件因此从 15 项增到 **19 项**。
+URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42810087226
 
 > 说明：本轮新增 CJK 步骤后，第一次运行（`42741425053`）用于发现 CI 环境差异；
 > 新增"中文授权面板"用例后又用 `42784672282` / `42788769956` / `42792565444`
@@ -195,7 +199,7 @@ CI 实际计数（Run `42804949796`，HEAD `bf1a705`）：
 | ISO 构建 / SeaBIOS+TCG | PASS。ISO `953,155,584` bytes，SHA256 `d9fe2879…fb95a4476`；`System area summary: MBR isohybrid cyl-align-on GPT APM`；QEMU SeaBIOS + TCG（未用 KVM）启动到 readiness gate，按缺失实机条件保持 `BLOCKED`，`clone_started=false` |
 | PAWDATA 12 项 | `Summary: 12 passed, 0 failed` |
 | 克隆/故障注入 39 项 | `Summary: 39 passed, 0 failed` |
-| 离线修复 15 项 | `Summary: 15 passed, 0 failed` |
+| 离线修复 19 项 | `Summary: 19 passed, 0 failed` |
 | 网络 17 项 | `Summary: 17 passed, 0 failed` |
 | Finalize 36 项 | `Summary: 36 passed, 0 failed` |
 | TTY 静态 55 项 + PTY | `Static tty assertions: 55 passed, 0 failed`；`Summary: 15 passed, 0 failed`（PTY，`PAW_REQUIRE_PTY=1`）；套件合计 `56 passed, 0 failed, 0 blocked` |
@@ -278,12 +282,13 @@ paw_tty_read/paw_tty_read_secret`，带 300 秒输入超时与 ASCII 屏幕标�
 |---|---|---|---|---|---|
 | `42804949796`（交付件） | `13760370816` | 1,030,665,391 | 953,155,584 | `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476` | 一致 |
 | `42795953493`（对照） | `13754343439` | 1,030,664,775 | 953,155,584 | `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed` | 一致 |
+| `42810087226`（验证运行，未交付） | `13763731974` | 1,030,666,564 | 953,155,584 | `aff7a8075a3347d63ab2de7991b1d1fca78ae6017a7db16adb0b974c4b178d65` | 一致 |
 | `42778468039`（对照） | `13744904698` | 1,009,075,181 | 953,155,584 | `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363` | 一致 |
 | `42747871471`（对照） | `13731684896` | 1,009,073,518 | 953,155,584 | `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d` | 一致 |
 
 - 下载方式：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理卡住），
   改用 GitHub API artifact zip 端点 + `curl --proxy` 后完成。
-- 四次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
+- 五次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
   使用同一 Run 的侧车文件。
 
 ### 10.4 中文授权面板的像素级证据（新增，第五例）
@@ -331,3 +336,24 @@ QEMU 用例 `final`：
 该守卫第一版有一处断言写错（用 `lsblk` 的 START 与 `sfdisk` 字段比较，与守卫本身
 无关），Run `42801453637` 以 38 passed / 1 failed 暴露；改为整表比较后 Run
 `42804949796` 39 passed / 0 failed。
+
+### 10.6 真实 GRUB 安装（本轮新增，Run `42810087226`）
+
+离线修复套件原先在 fixture 里用编译出来的 `grub-install` stub 顶替真实二进制，
+所以"GRUB 修复"只有模拟证据。现在修复套件额外造一块 96 MiB 的 **loop GPT 盘**：
+分区 1 是 BIOS boot（`ef02`，1 MiB），分区 2 是 ext4 根，然后用**真实**二进制
+在宿主机侧执行：
+
+```
+grub-install --target=i386-pc --boot-directory=<挂载点>/boot --recheck /dev/loopN
+```
+
+四项断言（全部 PASS）：
+
+1. `grub-install` 退出码 0；
+2. `boot/grub/i386-pc/normal.mod` 存在（模块真的被拷进去）；
+3. MBR 前 440 字节非零且偏移 510–511 是 `55 AA`（引导代码真的写进了 MBR）；
+4. BIOS boot 分区里有非零的 core.img 内容（真的嵌入成功）。
+
+范围说明：这证明**真实二进制**能在 GPT loop 盘上装 BIOS GRUB；它**不**证明
+`paw-offline-repair.sh` 在真实目标上走的 chroot 变体——那仍需要实机。
