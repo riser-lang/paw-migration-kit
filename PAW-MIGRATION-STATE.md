@@ -159,7 +159,7 @@ boots to a login prompt.
 - Local Python source compile over `scripts/**/*.py` and `tests/qemu/*.py`: PASS.
 - `scripts/windows-static-check.ps1` was **not** run locally: the host has Windows
   PowerShell 5.1 but no `pwsh`, so that parse check remains CI-only.
-- Nine builds produced the same ISO byte size but different SHA256 values, so
+- Twelve builds produced the same ISO byte size but different SHA256 values, so
   byte-for-byte reproducibility is still unproven.
 
 ## Not verified

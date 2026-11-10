@@ -43,7 +43,7 @@ Branch: `fix/v2.6.2-final-readiness`
 - [ ] Two builds of the same code tree produce the same ISO SHA256. Runs
       `42747871471`, `42778468039`, `42795953493`, `42804949796`, `42810087226`,
       `42816492016`, `42838392058`, `42845816766` and `42873432670` produced identical size (953,155,584)
-      but eleven different SHA256 values; byte-for-byte reproducibility remains unproven.
+      but twelve different SHA256 values; byte-for-byte reproducibility remains unproven.
 
 ## B. Virtual boot acceptance
 

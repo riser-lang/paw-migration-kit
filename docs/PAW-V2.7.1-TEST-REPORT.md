@@ -290,7 +290,7 @@ paw_tty_read/paw_tty_read_secret`，带 300 秒输入超时与 ASCII 屏幕标�
 
 - 下载方式：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理卡住），
   改用 GitHub API artifact zip 端点 + `curl --proxy` 后完成。
-- 十一次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
+- 十二次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
   使用同一 Run 的侧车文件。
 
 ### 10.4 中文授权面板的像素级证据（新增，第五例）
