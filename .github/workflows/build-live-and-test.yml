@@ -121,6 +121,9 @@ jobs:
           test -s boot/custom/paw-live-amd64.iso
           xorriso -indev boot/custom/paw-live-amd64.iso -toc >/dev/null
           sha256sum boot/custom/paw-live-amd64.iso > artifacts/paw-live-amd64.iso.sha256
+          stat -c 'iso_bytes=%s' boot/custom/paw-live-amd64.iso > artifacts/iso-identity.txt
+          sha256sum boot/custom/paw-live-amd64.iso >> artifacts/iso-identity.txt
+          cat artifacts/iso-identity.txt
           cp boot/custom/paw-live-amd64.iso artifacts/
           cat configs/live-build/package-lists/paw.list.chroot > artifacts/software-packages.txt
           cat artifacts/software-manifest.txt >> artifacts/software-packages.txt
@@ -220,6 +223,7 @@ jobs:
           path: |
             artifacts/paw-live-amd64.iso
             artifacts/paw-live-amd64.iso.sha256
+            artifacts/iso-identity.txt
             artifacts/debian-base-verification.txt
             artifacts/software-manifest.txt
             artifacts/software-packages.txt

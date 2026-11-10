@@ -14,6 +14,8 @@ PAW_TTY_SESSION_NAME="${PAW_TTY_SESSION_NAME:-}"
 PAW_TTY_SESSION_FILE="${PAW_TTY_SESSION_FILE:-}"
 PAW_TTY_OPEN=0
 PAW_TTY_READ_RC=0
+PAW_TTY_IN_FD=3
+PAW_TTY_FALLBACK=0
 
 paw_tty_open(){
   [[ "$PAW_TTY_TIMEOUT" =~ ^[0-9]+$ ]] && ((PAW_TTY_TIMEOUT >= 1 && PAW_TTY_TIMEOUT <= 3600)) || {
@@ -34,9 +36,38 @@ paw_tty_open(){
   fi
   PAW_TTY_RDEV="$(stat -Lc '%t:%T' "$PAW_TTY_RESOLVED" 2>/dev/null || echo unknown)"
   PAW_TTY_OPEN=1
+  PAW_TTY_IN_FD=3
   PAW_TTY_MARKERS=()
   mkdir -p "$(dirname "$PAW_TTY_SESSION_FILE")"
   paw_tty_record init init 'terminal opened'
+  return 0
+}
+
+# Bind /dev/tty1 when the machine really has a console.  CI runners, pty
+# harnesses and any caller without a character device fall back to the
+# inherited stdin/stdout so the operator code path stays testable.  A fallback
+# is logged, is never recorded as a real tty1 session, and must not be reported
+# as hardware console evidence.
+paw_tty_open_optional(){
+  # An explicit override (QEMU/pty harness) always uses the given terminal.
+  if [[ -n "${PAW_INTERACTIVE_TTY:-}" ]]; then
+    paw_tty_open
+    return $?
+  fi
+  # Real console: the unit provides a character device and at least one of the
+  # inherited streams is that terminal.  Automation that pipes stdin/stdout
+  # keeps reading the pipe instead of stealing the physical console.
+  if [[ -c "$PAW_TTY_DEV" ]] && { [[ -t 0 ]] || [[ -t 1 ]] || [[ -t 2 ]]; }; then
+    paw_tty_open
+    return $?
+  fi
+  PAW_TTY_FALLBACK=1
+  PAW_TTY_IN_FD=0
+  PAW_TTY_OPEN=1
+  PAW_TTY_RESOLVED='(inherited stdin/stdout)'
+  PAW_TTY_RDEV='fallback'
+  exec 3>&1
+  log WARN "交互终端 $PAW_TTY_DEV 不可用或输入被重定向；使用继承的 stdin/stdout（这不是实机 tty1 路径）。"
   return 0
 }
 
@@ -92,6 +123,9 @@ PY
 
 paw_tty_record(){
   local phase="$1" event="$2" detail="${3:-}" marker="${4:-}"
+  # A fallback binding is not a tty1 session; recording it would misrepresent
+  # CI captures as hardware console evidence.
+  ((PAW_TTY_FALLBACK == 0)) || return 0
   local holders; holders="$(paw_tty_holders_json)"
   python3 - "$PAW_TTY_SESSION_FILE" "$PAW_TTY_SESSION_NAME" "$PAW_TTY_DEV" \
     "$PAW_TTY_RESOLVED" "$PAW_TTY_RDEV" "$PAW_TTY_TIMEOUT" "$phase" "$event" "$detail" "$marker" "$holders" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$PAW_TTY_SESSION_FILE"
@@ -138,14 +172,14 @@ paw_tty_read(){
   PAW_TTY_READ_RC=0
   # The `||` form keeps errexit from terminating the caller before it can
   # distinguish a 300s safety timeout from an accepted value.
-  IFS= read -r -t "$PAW_TTY_TIMEOUT" -u 3 "$__var" || PAW_TTY_READ_RC=$?
+  IFS= read -r -t "$PAW_TTY_TIMEOUT" -u "$PAW_TTY_IN_FD" "$__var" || PAW_TTY_READ_RC=$?
   ((PAW_TTY_READ_RC == 0))
 }
 
 paw_tty_read_line(){
   local __var="$1"
   PAW_TTY_READ_RC=0
-  IFS= read -r -u 3 "$__var" || PAW_TTY_READ_RC=$?
+  IFS= read -r -u "$PAW_TTY_IN_FD" "$__var" || PAW_TTY_READ_RC=$?
   ((PAW_TTY_READ_RC == 0))
 }
 

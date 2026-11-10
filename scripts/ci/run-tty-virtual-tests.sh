@@ -37,7 +37,8 @@ done
 
 grep -q 'PAW_INTERACTIVE_TTY:-/dev/tty1' "$root/scripts/paw-tty-lib.sh" && pass 'B1 tty 库默认 /dev/tty1' || fail 'B1 tty 库默认不是 /dev/tty1'
 grep -q 'exec 3<>"\$PAW_TTY_DEV"' "$root/scripts/paw-tty-lib.sh" && pass 'B1 交互读写使用同一个显式 fd' || fail 'B1 未显式打开交互 fd'
-grep -q 'read -r -t "\$PAW_TTY_TIMEOUT" -u 3' "$root/scripts/paw-tty-lib.sh" && pass 'B4 输入超时走同一个 fd3' || fail 'B4 输入超时未绑定 fd3'
+grep -q 'read -r -t "\$PAW_TTY_TIMEOUT" -u "\$PAW_TTY_IN_FD"' "$root/scripts/paw-tty-lib.sh" && pass 'B4 输入超时走同一个交互 fd' || fail 'B4 输入超时未绑定交互 fd'
+grep -q '^PAW_TTY_IN_FD=3$' "$root/scripts/paw-tty-lib.sh" && pass 'B4 交互 fd 默认是 3（显式打开的设备）' || fail 'B4 交互 fd 默认值不是 3'
 for marker in PAW-TTY1-MENU PAW-TTY1-PROMPT PAW-TTY1-INPUT-OK PAW-TTY1-INPUT-BAD PAW-TTY1-INPUT-TIMEOUT PAW-MENU-TTY1; do
   grep -Rqs "$marker" "$root/scripts" && pass "B1 ASCII 屏幕标记存在：$marker" || fail "B1 缺少 ASCII 标记：$marker"
 done
@@ -62,6 +63,34 @@ grep -q '^kbd$' "$root/configs/live-build/package-lists/paw.list.chroot" && grep
 grep -q 'paw-build-cjk-font.py' "$root/scripts/build-debian-live.sh" && grep -q 'paw-cjk-16x16.psf' "$root/scripts/build-debian-live.sh" && pass 'B7 ISO 构建生成 CJK 字体' || fail 'B7 ISO 构建未生成 CJK 字体'
 grep -q 'paw-\*\.py' "$root/scripts/build-debian-live.sh" && pass 'B7 ISO 构建复制全部运行时 Python 助手（含原子写）' || fail 'B7 ISO 构建仍使用手工 Python 文件清单'
 grep -q 'paw-atomic-write.py' "$root/scripts/paw-tty-lib.sh" && grep -q 'paw-\*\.py' "$root/scripts/build-debian-live.sh" && pass 'B7 原子写脚本进入 ISO 的路径已覆盖' || fail 'B7 原子写脚本可能缺失'
+
+# B5b Every operator-facing script reachable from the tty1 menu must use the
+# explicit interactive terminal.  paw-console.service has StandardOutput=journal,
+# so a bare printf panel would reach the journal and never the screen.
+console_scripts=(
+  "$root/scripts/paw-final-confirm.sh"
+  "$root/scripts/paw-memtest-confirm.sh"
+  "$root/scripts/paw-rescue-key-prepare.sh"
+  "$root/scripts/paw-target-discovery.sh"
+  "$root/scripts/paw-network-phase-select.sh"
+)
+implicit=0
+for script in "${console_scripts[@]}"; do
+  if grep -Eq '^[^#]*read -r -p ' "$script"; then implicit=1; fail "B5b 仍使用隐式 stdin 提示：$(basename "$script")"; fi
+done
+((implicit == 0)) && pass 'B5b 全部 tty1 操作员脚本不再使用隐式 stdin 提示'
+unbound=0
+for script in "${console_scripts[@]}"; do
+  [[ -r "$script" ]] || { unbound=1; fail "B5b 脚本缺失：$(basename "$script")"; continue; }
+  grep -q 'paw_tty_open_optional' "$script" || { unbound=1; fail "B5b 未绑定交互终端：$(basename "$script")"; }
+done
+((unbound == 0)) && pass 'B5b 操作员脚本统一使用可回退的 tty1 绑定'
+for marker in PAW-TTY1-FINAL-PANEL PAW-TTY1-FINAL-PROMPT PAW-TTY1-FINAL-OK PAW-TTY1-FINAL-BAD PAW-TTY1-FINAL-TIMEOUT \
+              PAW-TTY1-MEMTEST-OK PAW-TTY1-MEMTEST-TIMEOUT PAW-TTY1-RESCUE-OK PAW-TTY1-TARGET-OK PAW-TTY1-NETPHASE-OK; do
+  grep -Rqs "$marker" "$root/scripts" && pass "B5b ASCII 屏幕标记存在：$marker" || fail "B5b 缺少 ASCII 标记：$marker"
+done
+grep -q 'paw_tty_open_optional' "$root/scripts/paw-tty-lib.sh" && grep -q 'PAW_TTY_FALLBACK' "$root/scripts/paw-tty-lib.sh" && pass 'B5b tty 库提供显式回退绑定，并标记为非实机路径' || fail 'B5b tty 库缺少回退绑定'
+! grep -q "exec 3>&1" "$root/scripts/paw-data-prepare.sh" && pass 'B5b PAWDATA 仍使用严格 tty1 绑定，不回退' || fail 'B5b PAWDATA 不应允许回退绑定'
 
 printf 'Static tty assertions: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 

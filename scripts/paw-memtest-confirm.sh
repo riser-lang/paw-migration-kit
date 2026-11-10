@@ -25,52 +25,100 @@ actual_capacity="$(blockdev --getsize64 "$target_dev")"
 [[ "$actual_serial" == "$target_serial" && "$actual_capacity" == "$target_capacity" ]] || die '目标 SSD 身份已变化；请重新登记目标盘。'
 boot_id="$(cat /proc/sys/kernel/random/boot_id)"
 
-printf '\nPAW 内存检测人工确认\n'
-printf '%s\n' '本界面只登记操作员在 Memtest86+ 独立启动项中亲眼看到的结果。'
-printf '%s\n' '它不是机器自动验证，也不是密码学证明；请不要凭猜测填写。'
-printf '目标 SSD：%s 型号=%s 容量=%s bytes\n' "$target_dev" "${target_model:-未知}" "$target_capacity"
-printf '目标序列号：%s\n' "$target_serial"
-printf '本次 PAW Live 启动 ID：%s\n' "$boot_id"
-printf '%s\n' '请选择：'
-printf '%s\n' '  1) Memtest86+ 已完成至少 1 轮，错误数为 0'
-printf '%s\n' '  2) Memtest86+ 已完成，但出现错误'
-printf '%s\n' '  3) 尚未完成、无法确认或不确定'
-read -r -p '输入 1、2 或 3：' choice
+# The panel must reach the physical console: paw-console.service sends stdout
+# to the journal only, so every operator line goes through the tty1 fd (or the
+# inherited stdio when input is piped by CI).
+# shellcheck source=scripts/paw-tty-lib.sh
+source "$PAW_ROOT/scripts/paw-tty-lib.sh"
+export PAW_TTY_SESSION_NAME=memtest-confirm
+paw_tty_open_optional || die '无法打开交互终端；未写入任何结果。'
+paw_tty_clear
+paw_tty_marker PAW-TTY1-MEMTEST-PANEL
+paw_tty_say 'PAW 内存检测人工确认'
+paw_tty_say '本界面只登记操作员在 Memtest86+ 独立启动项中亲眼看到的结果。'
+paw_tty_say '它不是机器自动验证，也不是密码学证明；请不要凭猜测填写。'
+paw_tty_say "目标 SSD：$target_dev 型号=${target_model:-未知} 容量=$target_capacity bytes"
+paw_tty_say "目标序列号：$target_serial"
+paw_tty_say "本次 PAW Live 启动 ID：$boot_id"
+paw_tty_say '请选择：'
+paw_tty_say '  1) Memtest86+ 已完成至少 1 轮，错误数为 0'
+paw_tty_say '  2) Memtest86+ 已完成，但出现错误'
+paw_tty_say '  3) 尚未完成、无法确认或不确定'
+paw_tty_marker PAW-TTY1-MEMTEST-PROMPT
+paw_tty_prompt '输入 1、2 或 3：'
+choice=''
+if ! paw_tty_read choice; then
+  paw_tty_marker PAW-TTY1-MEMTEST-TIMEOUT
+  paw_tty_say ''
+  paw_tty_say '错误：等待输入超时或输入中断，已安全停止，未写入任何结果。'
+  paw_tty_close
+  exit 2
+fi
 case "$choice" in
   1) attestation_status=OPERATOR_CONFIRMED ;;
   2) attestation_status=FAIL ;;
   3) attestation_status=WARN ;;
-  *) die '选择无效；未写入任何结果。' ;;
+  *)
+    paw_tty_marker PAW-TTY1-MEMTEST-BAD
+    paw_tty_say '错误：选择无效；未写入任何结果。'
+    paw_tty_close
+    die '选择无效；未写入任何结果。' ;;
 esac
 
 if [[ "$attestation_status" != WARN ]]; then
-  read -r -p '完成的测试轮次（正整数）：' passes
-  [[ "$passes" =~ ^[1-9][0-9]*$ ]] || die '轮次必须是正整数；未写入任何结果。'
-  read -r -p 'Memtest86+ 显示的错误数量（非负整数）：' errors
-  [[ "$errors" =~ ^[0-9]+$ ]] || die '错误数量必须是非负整数；未写入任何结果。'
+  paw_tty_prompt '完成的测试轮次（正整数）：'
+  passes=''
+  if ! paw_tty_read passes; then
+    paw_tty_marker PAW-TTY1-MEMTEST-TIMEOUT
+    paw_tty_close
+    die '轮次输入中断；未写入任何结果。'
+  fi
+  [[ "$passes" =~ ^[1-9][0-9]*$ ]] || { paw_tty_close; die '轮次必须是正整数；未写入任何结果。'; }
+  paw_tty_prompt 'Memtest86+ 显示的错误数量（非负整数）：'
+  errors=''
+  if ! paw_tty_read errors; then
+    paw_tty_marker PAW-TTY1-MEMTEST-TIMEOUT
+    paw_tty_close
+    die '错误数量输入中断；未写入任何结果。'
+  fi
+  [[ "$errors" =~ ^[0-9]+$ ]] || { paw_tty_close; die '错误数量必须是非负整数；未写入任何结果。'; }
   if ((errors > 0)); then
     attestation_status=FAIL
-    printf '%s\n' '检测到错误数量大于 0，结果按 FAIL 记录；克隆将被阻断。'
+    paw_tty_say '检测到错误数量大于 0，结果按 FAIL 记录；克隆将被阻断。'
   fi
   if ((passes < 1)); then
     attestation_status=WARN
-    printf '%s\n' '完成轮次小于 1，结果按 WARN 记录；克隆将被阻断。'
+    paw_tty_say '完成轮次小于 1，结果按 WARN 记录；克隆将被阻断。'
   fi
 else
   passes=0
   errors=0
 fi
 
-printf '\n登记摘要：\n'
-printf '  状态：%s\n' "$attestation_status"
-printf '  完成轮次：%s\n' "$passes"
-printf '  错误数量：%s\n' "$errors"
-printf '  目标序列号：%s\n' "$target_serial"
-printf '  启动 ID：%s\n' "$boot_id"
-[[ "$attestation_status" == OPERATOR_CONFIRMED ]] || printf '%s\n' '注意：此状态不会允许进入克隆。'
-read -r -p '确认写入本次人工登记？输入“确认”：' confirmed
-[[ "$confirmed" == '确认' ]] || die '未确认；没有写入结果。'
+paw_tty_say ''
+paw_tty_say '登记摘要：'
+paw_tty_say "  状态：$attestation_status"
+paw_tty_say "  完成轮次：$passes"
+paw_tty_say "  错误数量：$errors"
+paw_tty_say "  目标序列号：$target_serial"
+paw_tty_say "  启动 ID：$boot_id"
+[[ "$attestation_status" == OPERATOR_CONFIRMED ]] || paw_tty_say '注意：此状态不会允许进入克隆。'
+paw_tty_prompt '确认写入本次人工登记？输入“确认”：'
+confirmed=''
+if ! paw_tty_read confirmed; then
+  paw_tty_marker PAW-TTY1-MEMTEST-TIMEOUT
+  paw_tty_close
+  die '确认输入中断；没有写入结果。'
+fi
+if [[ "$confirmed" != '确认' ]]; then
+  paw_tty_marker PAW-TTY1-MEMTEST-BAD
+  paw_tty_say '未确认；没有写入结果。'
+  paw_tty_close
+  die '未确认；没有写入结果。'
+fi
+paw_tty_marker PAW-TTY1-MEMTEST-OK
 unset confirmed
+paw_tty_close
 
 install -d -m 0700 "$PAW_STATE_DIR"
 python3 - "$PAW_STATE_DIR/memtest-attestation.json" "$attestation_status" "$passes" "$errors" "$target_dev" "$target_serial" "$boot_id" <<'PY'

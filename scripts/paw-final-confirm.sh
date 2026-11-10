@@ -49,20 +49,61 @@ PY
 )"
 [[ "$memory_state" == OPERATOR_CONFIRMED || "$memory_state" == PASS ]] || die '最终确认前硬件报告已过期、身份不匹配或内存检测未完成。'
 
-printf '\nPAW 最终迁移授权\n'
-printf '硬件检查：PASS（内存：%s）\n' "$memory_state"
-printf '源系统：Rescue Mode，型号=%s，容量=%s bytes，根分区=%s\n' "${source_model:-未知}" "$source_bytes" "$root_part_no"
-printf '源盘序列号：%s\n' "${source_serial:-不可用（使用组合身份）}"
-printf '源盘组合身份：%s\n' "$source_composite"
-printf '固定 SSH 主机指纹：%s\n' "$source_host_fp"
-printf '目标 SSD：设备=%s，型号=%s，容量=%s bytes\n' "$dst" "${target_model:-未知}" "$target_bytes"
-printf '目标序列号：%s\n' "$target_serial"
-printf '数据来源：固定 SSH 主机指纹的 Rescue Mode 整盘流（远端 zstd，SSH 加密传输，本地解压写入）\n'
-printf '网络：本次启动已验证 Rescue SSH；不依赖旧 Ubuntu 内部的 VLESS/Tailscale 服务。\n'
-printf '数据损失：目标 SSD 的整盘内容将被源盘覆盖，目标盘原有分区和数据会全部丢失。\n'
-printf '恢复：离线修复前会在 PAWDATA 保留配置备份；但不等于可恢复目标盘原有数据。\n'
-read -r -p '如确认覆盖，请输入目标 SSD 序列号最后 6 位：' suffix
-[[ ${#target_serial} -ge 6 && "$suffix" == "${target_serial: -6}" ]] || die '确认值与目标 SSD 序列号不匹配。'
+# paw-console.service runs with StandardOutput=journal, so bare printf would
+# only reach the journal and the data-loss panel would never appear on the
+# physical console.  The whole authorization screen therefore goes through the
+# verified tty1 fd; without a character device it falls back to inherited
+# stdio so CI can still drive the same code path.
+# shellcheck source=scripts/paw-tty-lib.sh
+source "$PAW_ROOT/scripts/paw-tty-lib.sh"
+export PAW_TTY_SESSION_NAME=final-confirm
+paw_tty_open_optional || die '无法打开交互终端；未写入任何授权。'
+paw_tty_clear
+paw_tty_marker PAW-TTY1-FINAL-PANEL
+paw_tty_say 'PAW 最终迁移授权（请完整阅读后再确认）'
+paw_tty_say "硬件检查：PASS（内存验证方式：$memory_state）"
+paw_tty_say "源系统：Rescue Mode，型号=${source_model:-未知}，容量=$source_bytes bytes，根分区=$root_part_no"
+paw_tty_say "源盘序列号：${source_serial:-不可用（使用组合身份）}"
+paw_tty_say "源盘组合身份：$source_composite"
+paw_tty_say "固定 SSH 主机指纹：$source_host_fp"
+paw_tty_say "目标 SSD：设备=$dst，型号=${target_model:-未知}，容量=$target_bytes bytes"
+paw_tty_say "目标序列号：$target_serial"
+paw_tty_say '数据来源：固定 SSH 主机指纹的 Rescue Mode 整盘流（远端 zstd，SSH 加密传输，本地解压写入）'
+paw_tty_say '网络：本次启动已验证 Rescue SSH；不依赖旧 Ubuntu 内部的 VLESS/Tailscale 服务。'
+paw_tty_say '数据损失：目标 SSD 的整盘内容将被源盘覆盖，目标盘原有分区和数据会全部丢失。'
+paw_tty_say '恢复：离线修复前会在 PAWDATA 保留配置备份；但不等于可恢复目标盘原有数据。'
+paw_tty_marker PAW-TTY1-FINAL-PROMPT
+paw_tty_say '如确认覆盖，请输入目标 SSD 序列号最后 6 位：'
+paw_tty_prompt '输入：'
+suffix=''
+if ! paw_tty_read suffix; then
+  if ((PAW_TTY_READ_RC > 128)); then
+    paw_tty_marker PAW-TTY1-FINAL-TIMEOUT
+    paw_tty_say ''
+    paw_tty_say "错误：等待授权输入超过 ${PAW_TTY_TIMEOUT} 秒，已安全停止，没有写入任何数据。"
+    log WARN 'Final authorization input timed out; nothing was written.'
+    paw_tty_close
+    exit 2
+  fi
+  paw_tty_marker PAW-TTY1-FINAL-ABORTED
+  paw_tty_say ''
+  paw_tty_say '错误：未收到完整授权输入，已安全停止，没有写入任何数据。'
+  log WARN 'Final authorization input was aborted; nothing was written.'
+  paw_tty_close
+  exit 2
+fi
+if [[ ${#target_serial} -lt 6 || "$suffix" != "${target_serial: -6}" ]]; then
+  paw_tty_marker PAW-TTY1-FINAL-BAD
+  paw_tty_say ''
+  paw_tty_say '错误：确认值与目标 SSD 序列号不匹配，已安全停止，没有写入任何数据。'
+  log WARN 'Final authorization suffix mismatched; nothing was written.'
+  paw_tty_close
+  exit 1
+fi
+paw_tty_marker PAW-TTY1-FINAL-OK
+paw_tty_say ''
+paw_tty_say '输入已确认；开始整盘覆盖迁移，请不要断电。'
+paw_tty_close
 unset suffix
 
 before_serial="$(lsblk -dn -o SERIAL "$dst" | xargs)"; before_bytes="$(blockdev --getsize64 "$dst")"
