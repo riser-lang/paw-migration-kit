@@ -252,7 +252,9 @@ def run_case(args, font: Psffont) -> None:
                 "final: guest reported a >=6 character synthetic target serial",
                 serial or "(none)")
 
-            decoded, text = qemu.wait_screen("数据损失", 20, font,
+            # Wait for the last panel line, not the middle one: the screenshot
+            # must already contain every line that check_cjk asserts below.
+            decoded, text = qemu.wait_screen("如确认覆盖", 30, font,
                                              os.path.join(out, "screen-final-panel-cjk"))
             expected = [
                 "PAW 最终迁移授权（请完整阅读后再确认）",
