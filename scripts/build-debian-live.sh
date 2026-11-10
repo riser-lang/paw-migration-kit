@@ -18,9 +18,10 @@ if [[ -s /boot/memtest86+x64.efi ]]; then install -D -m 0644 /boot/memtest86+x64
 cp "$src/configs/live-build/package-lists/paw.list.chroot" "$work/config/package-lists/"
 mkdir -p "$work/config/includes.chroot/opt/paw-migration/scripts"
 cp "$src"/scripts/paw-*.sh "$work/config/includes.chroot/opt/paw-migration/scripts/"
-cp "$src/scripts/paw-count-bytes.py" "$work/config/includes.chroot/opt/paw-migration/scripts/"
-cp "$src/scripts/paw-xray-client-configure.py" "$work/config/includes.chroot/opt/paw-migration/scripts/"
-cp "$src/scripts/paw-build-cjk-font.py" "$work/config/includes.chroot/opt/paw-migration/scripts/"
+# Copy every runtime helper, not a hand-maintained subset: the 2.7 atomic
+# writer is required by tty/PAWDATA/finalizer and was missed by an explicit
+# list in an earlier build.
+cp "$src"/scripts/paw-*.py "$work/config/includes.chroot/opt/paw-migration/scripts/"
 chmod 0755 "$work/config/includes.chroot/opt/paw-migration/scripts/"*.sh \
   "$work/config/includes.chroot/opt/paw-migration/scripts/"*.py
 cp -a "$src/boot/bin" "$work/config/includes.chroot/opt/paw-migration/"

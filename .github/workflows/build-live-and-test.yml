@@ -135,6 +135,8 @@ jobs:
           font_dir="$RUNNER_TEMP/paw-live-build/chroot/opt/paw-migration/fonts"
           unifont="$RUNNER_TEMP/paw-live-build/chroot/usr/share/unifont/unifont.hex"
           version="$(awk '$1=="unifont"{print $2}' boot/custom/software-packages.lock | head -n1)"
+          test -s "$RUNNER_TEMP/paw-live-build/chroot/opt/paw-migration/scripts/paw-atomic-write.py"
+          test -s "$RUNNER_TEMP/paw-live-build/chroot/opt/paw-migration/scripts/paw-tty-lib.sh"
           PAW_ARTIFACT_DIR="$PWD/artifacts" \
           PAW_CJK_FONT="$font_dir/paw-cjk-16x16.psf" \
           PAW_CJK_FALLBACK="$font_dir/paw-cjk-8x16.psf" \

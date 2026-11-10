@@ -254,9 +254,10 @@ def run_case(args, font: Psffont) -> None:
             return
         decoded, text = qemu.wait_screen("PAW-TTY1-PROMPT", 210, font, os.path.join(out, "screen-prompt"))
         prompt_ok = "PAW-TTY1-PROMPT" in text
-        say(prompt_ok, f"{args.case}: PAWDATA prompt reached on fbcon", text[-500:])
+        say(prompt_ok, f"{args.case}: PAWDATA prompt reached on fbcon",
+            text[-500:] + "\nSERIAL TAIL:\n" + qemu.serial()[-2000:])
         if not prompt_ok:
-            result["serial_tail"] = qemu.serial()[-4000:]
+            result["serial_tail"] = qemu.serial()[-8000:]
             return
         decoded, text = qemu.wait_screen("请输入该设备序列号最后", 15, font,
                                          os.path.join(out, "screen-prompt-cjk"))

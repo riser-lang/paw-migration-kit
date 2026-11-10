@@ -60,6 +60,8 @@ grep -q 'paw-cjk-16x16\.psf' "$root/scripts/paw-console-font.sh" && grep -q 'paw
 grep -q 'setfont -C "$tty" "$font"' "$root/scripts/paw-console-font.sh" && pass 'B7 使用 setfont 在 tty1 上加载字体' || fail 'B7 未调用 setfont'
 grep -q '^kbd$' "$root/configs/live-build/package-lists/paw.list.chroot" && grep -q '^unifont$' "$root/configs/live-build/package-lists/paw.list.chroot" && pass 'B7 ISO 包列表包含 kbd 与 unifont' || fail 'B7 ISO 缺 kbd/unifont'
 grep -q 'paw-build-cjk-font.py' "$root/scripts/build-debian-live.sh" && grep -q 'paw-cjk-16x16.psf' "$root/scripts/build-debian-live.sh" && pass 'B7 ISO 构建生成 CJK 字体' || fail 'B7 ISO 构建未生成 CJK 字体'
+grep -q 'paw-\*\.py' "$root/scripts/build-debian-live.sh" && pass 'B7 ISO 构建复制全部运行时 Python 助手（含原子写）' || fail 'B7 ISO 构建仍使用手工 Python 文件清单'
+grep -q 'paw-atomic-write.py' "$root/scripts/paw-tty-lib.sh" && grep -q 'paw-\*\.py' "$root/scripts/build-debian-live.sh" && pass 'B7 原子写脚本进入 ISO 的路径已覆盖' || fail 'B7 原子写脚本可能缺失'
 
 printf 'Static tty assertions: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 
