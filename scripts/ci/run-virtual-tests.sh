@@ -301,20 +301,19 @@ notlast_part="${notlast_loop}p1"
 for _ in $(seq 1 20); do [[ -b "$notlast_part" ]] && break; sleep 1; done
 if [[ -b "$notlast_part" ]]; then
   mkfs.ext4 -F "$notlast_part" >/dev/null
-  before_table="$(sfdisk --dump "$notlast_part" 2>/dev/null || true)"
+  before_table="$(sfdisk -d "$notlast_loop")"
   set +e
   out="$("$root/scripts/paw-gpt-expand.sh" "$notlast_loop" "$notlast_part" 2>&1)"; rc=$?
   set -e
   ((rc != 0)) && pass 'Non-last root partition expansion is refused' || { echo 'FAIL non-last root partition expansion was not refused' >>"$report"; failed=$((failed+1)); }
   grep -q 'not the last partition' <<<"$out" && pass 'Refusal explains the later-partition collision' || { echo 'FAIL refusal did not explain the collision' >>"$report"; failed=$((failed+1)); }
   grep -q 'nothing was changed' <<<"$out" && pass 'Refusal states that nothing was changed' || { echo 'FAIL refusal did not state that nothing changed' >>"$report"; failed=$((failed+1)); }
-  after_second_start="$(lsblk -bnr -o START "${notlast_loop}p2" | xargs)"
-  expected_second_start="$(sfdisk -d "$notlast_loop" | awk '$1 ~ /p2$/ {for(i=1;i<=NF;i++) if($i ~ /^start=/) {split($i,a,"="); print a[2]}}')"
-  [[ "$after_second_start" == "$expected_second_start" ]] && pass 'Later partition kept its offset (no GPT surgery)' || { echo 'FAIL later partition offset changed' >>"$report"; failed=$((failed+1)); }
+  after_table="$(sfdisk -d "$notlast_loop")"
+  [[ "$after_table" == "$before_table" ]] && pass 'Partition table unchanged by the refusal' || { echo 'FAIL partition table changed by the refusal' >>"$report"; failed=$((failed+1)); }
 else
   echo 'FAIL non-last GPT loop partition absent' >>"$report"; failed=$((failed+1))
 fi
-unset out rc before_table
+unset out rc before_table after_table
 
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 ((failed == 0))
