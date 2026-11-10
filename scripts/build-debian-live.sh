@@ -92,6 +92,17 @@ for path in /etc/nvme/hostid /var/lib/systemd/random-seed /etc/machine-id /var/l
     echo "repro-cleanup: removed $path"
   fi
 done
+# Deleting the cache files is not enough: something later in the build runs apt again and
+# recreates /var/cache/apt/pkgcache.bin, whose bytes depend on the build-host hash order.
+# Tell apt not to write a cache file at all, so the image cannot contain one.
+install -d -m 0755 /etc/apt/apt.conf.d
+cat >/etc/apt/apt.conf.d/99-paw-no-cache <<'CONF'
+// PAW: keep the image free of build-host package caches (reproducible builds).
+Dir::Cache::pkgcache "";
+Dir::Cache::srcpkgcache "";
+CONF
+chmod 0644 /etc/apt/apt.conf.d/99-paw-no-cache
+echo "repro-cleanup: apt cache files disabled via 99-paw-no-cache"
 exit 0
 HOOK
 chmod 0755 "$work/config/hooks/live/0650-paw-repro-cleanup.hook.chroot"
