@@ -293,7 +293,7 @@ else
 set default=0
 set timeout=1
 menuentry 'paw boot chain test' {
-  linux /boot/vmlinuz boot=live components quiet console=ttyS0,115200n8
+  linux /boot/vmlinuz boot=live components console=ttyS0,115200n8
   initrd /boot/initrd.img
 }
 CFG
@@ -313,6 +313,9 @@ CFG
             -monitor none -no-reboot -boot order=c \
             -drive "file=$chain_img,format=raw,if=ide,index=0" >/dev/null 2>&1
           set -e
+          # `quiet` was removed from the command line: run 42827723019 booted the disk
+          # and reached the initramfs prompt, but quiet suppressed the two lines the
+          # assertions look for, so the case reported a false negative.
           if grep -Eq 'Linux version ' "$chain_log" 2>/dev/null; then
             pass 'GRUB on the repaired disk loaded the kernel'
           else
@@ -329,6 +332,11 @@ CFG
             fail 'Boot chain reached initramfs without a kernel panic'
           else
             pass 'Boot chain reached initramfs without a kernel panic'
+          fi
+          if grep -Eq 'Run /init as init process|\(initramfs\)' "$chain_log" 2>/dev/null; then
+            pass 'Boot from the repaired disk reached the initramfs stage'
+          else
+            fail 'Boot from the repaired disk reached the initramfs stage'
           fi
         fi
         losetup -d "$chain_loop" 2>/dev/null || true
