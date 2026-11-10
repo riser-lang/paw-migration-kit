@@ -323,10 +323,13 @@ CFG
             { echo '--- serial log excerpt ---'; head -40 "$chain_log" 2>/dev/null || echo '(no serial log)'; } >>"$report"
             { echo '--- grub-install log ---'; head -20 "$work/grub-chain-install.log" 2>/dev/null || echo '(no install log)'; } >>"$report"
           fi
-          if grep -Eqi 'Unpacking initramfs' "$chain_log" 2>/dev/null; then
-            pass 'Kernel unpacked the initrd from the repaired disk'
+          # Kernel 6.12 does not necessarily print "Unpacking initramfs"; accept any of
+          # the lines that prove the initrd was actually read and unpacked.
+          if grep -Eqi 'Unpacking initramfs|Freeing initrd memory|Trying to unpack rootfs image' "$chain_log" 2>/dev/null; then
+            pass 'Kernel processed the initrd from the repaired disk'
           else
-            fail 'Kernel unpacked the initrd from the repaired disk'
+            fail 'Kernel processed the initrd from the repaired disk'
+            { echo '--- serial log excerpt ---'; head -40 "$chain_log" 2>/dev/null || echo '(no serial log)'; } >>"$report"
           fi
           if grep -Eqi 'Kernel panic' "$chain_log" 2>/dev/null; then
             fail 'Boot chain reached initramfs without a kernel panic'
