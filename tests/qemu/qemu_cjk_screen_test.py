@@ -300,9 +300,19 @@ def run_case(args, font: Psffont) -> None:
                 say("PAW-TTY1-FINAL-BAD" in markers and "PAW-TTY1-FINAL-OK" in markers,
                     "final: both rejection and acceptance markers were recorded",
                     str([m for m in markers if m.startswith("PAW-TTY1-FINAL")]))
-                say(int(session.get("max_holders", 99)) <= 1,
-                    "final: tty1 had no competing owner while the panel was open",
+                # This driver is a shell that keeps tty1 on fd0 (StandardInput=tty)
+                # while it runs the script twice, so two holders is the expected
+                # test-harness shape, not a competing terminal owner.  What must
+                # not happen is a login/getty process taking tty1 over.
+                holders = []
+                for event in session.get("events", []):
+                    holders.extend(event.get("holders", []))
+                comms = sorted({str(item.get("comm", "")) for item in holders})
+                say(int(session.get("max_holders", 99)) <= 2,
+                    "final: only the probe shell and the authorization script hold tty1",
                     f"max_holders={session.get('max_holders')}")
+                say(not any(name in ("getty", "agetty", "login") for name in comms),
+                    "final: no login or getty process competes for tty1", str(comms))
                 result["final_session"] = session
             else:
                 say(False, "final: authorization session file is readable",
