@@ -7,6 +7,10 @@ on:
         description: "Build twice and characterise the differences (slow, for the REPRO probe)"
         type: boolean
         default: false
+      compare_run_id:
+        description: "Run ID whose paw-live-build-test-results ISO this build must reproduce (drift check)"
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -152,6 +156,28 @@ jobs:
           set -euo pipefail
           # A second build needs the same root privileges as the first one.
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" PAW_PROBE_DEEP=1 scripts/ci/repro-probe.sh
+          sudo chown "$(id -u):$(id -g)" artifacts/iso-repro-report.txt
+
+      - name: Reproducibility probe against a previous run (opt-in)
+        if: inputs.compare_run_id != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Does today's environment reproduce the ISO we already delivered? Download the
+          # reference artifact from the named run and compare it with the build from this job.
+          rm -rf "$RUNNER_TEMP/reference"
+          mkdir -p "$RUNNER_TEMP/reference"
+          gh run download "${{ inputs.compare_run_id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name paw-live-build-test-results \
+            --dir "$RUNNER_TEMP/reference"
+          reference="$(find "$RUNNER_TEMP/reference" -name 'paw-live-amd64.iso' -print -quit)"
+          test -n "$reference"
+          test -s "$reference"
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" PAW_PROBE_DEEP=1 \
+            PAW_PROBE_REFERENCE="$reference" scripts/ci/repro-probe.sh
           sudo chown "$(id -u):$(id -g)" artifacts/iso-repro-report.txt
 
       - name: Validate generated CJK console font

@@ -31,28 +31,43 @@ say "Build work for the second build: $work/build-b"
 
 [[ -s "$iso" ]] || { echo "missing ISO: $iso" >&2; exit 2; }
 
-# --- build A: keep the ISO that the normal job already produced -------------------------
-cp "$iso" "$work/iso-a.iso"
+reference="${PAW_PROBE_REFERENCE:-}"
+
+if [[ -n "$reference" ]]; then
+  # Compare the ISO this job just built against a reference ISO from another run (for
+  # example the delivered one). No second build: the question here is not "does a rebuild
+  # match itself" but "does today's environment produce the delivered bytes".
+  [[ -s "$reference" ]] || { echo "missing reference ISO: $reference" >&2; exit 2; }
+  cp "$reference" "$work/iso-a.iso"
+  cp "$iso" "$work/iso-b.iso"
+  label_a="reference ($reference)"
+  label_b="this build"
+else
+  cp "$iso" "$work/iso-a.iso"
+  label_a="build A (this job)"
+  # --- build B: fresh work directory, same command, same SOURCE_DATE_EPOCH ------------
+  rm -rf "$work/build-b"
+  PAW_BUILD_WORK="$work/build-b" "$root/scripts/build-debian-live.sh" >"$work/build-b.log" 2>&1 || {
+    say ""
+    say "FAIL second build did not complete; see the job log"
+    tail -n 20 "$work/build-b.log" >>"$report"
+    exit 1
+  }
+  cp "$iso" "$work/iso-b.iso"
+  label_b="build B (second build in this job)"
+fi
+
 sha_a="$(sha256sum "$work/iso-a.iso" | cut -d' ' -f1)"
 size_a="$(stat -c %s "$work/iso-a.iso")"
-say ""
-say "== build A"
-say "bytes=$size_a"
-say "sha256=$sha_a"
-
-# --- build B: fresh work directory, same command, same SOURCE_DATE_EPOCH ----------------
-rm -rf "$work/build-b"
-PAW_BUILD_WORK="$work/build-b" "$root/scripts/build-debian-live.sh" >"$work/build-b.log" 2>&1 || {
-  say ""
-  say "FAIL second build did not complete; see the job log"
-  tail -n 20 "$work/build-b.log" >>"$report"
-  exit 1
-}
-cp "$iso" "$work/iso-b.iso"
 sha_b="$(sha256sum "$work/iso-b.iso" | cut -d' ' -f1)"
 size_b="$(stat -c %s "$work/iso-b.iso")"
+
 say ""
-say "== build B"
+say "== side A: $label_a"
+say "bytes=$size_a"
+say "sha256=$sha_a"
+say ""
+say "== side B: $label_b"
 say "bytes=$size_b"
 say "sha256=$sha_b"
 say ""
