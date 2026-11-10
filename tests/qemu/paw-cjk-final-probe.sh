@@ -76,7 +76,8 @@ python3 - "$PAW_CONFIG_DIR/source.json" "$PAW_CONFIG_DIR/target-ssd.json" \
 import json,sys
 source_path,target_path,serial,capacity,device,source_bytes,uuid,composite,host_fp=sys.argv[1:]
 source={"schema":"paw.source.v1","source_mode":"rescue","device_path":"/dev/vdz",
-        "root_partition":"/dev/vdz2","model":"QEMU virtual source","capacity_bytes":int(source_bytes),
+        "root_partition":"/dev/vdz2","partition_number":2,"model":"QEMU virtual source",
+        "capacity_bytes":int(source_bytes),
         "serial":"","root_uuid":uuid,"serial_available":False,"partition_layout":"gpt",
         "composite_identity_sha256":composite,"ssh_host_key_fingerprint":host_fp,
         "identity_strength":"composite_no_serial","ssh_host":"rescue.invalid","ssh_port":22}

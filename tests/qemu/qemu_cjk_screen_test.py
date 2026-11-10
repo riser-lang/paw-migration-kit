@@ -230,24 +230,6 @@ def run_case(args, font: Psffont) -> None:
     result = {"case": args.case, "status": "FAIL", "assertions": RESULTS}
     try:
         if args.case == "final":
-            # The probe announces the synthetic target identity on the serial
-            # console; the panel must show the same value on the framebuffer.
-            serial = ""
-            for _ in range(120):
-                for line in qemu.serial().splitlines():
-                    if "PAW-CJK-FINAL-SETUP" in line:
-                        for field in line.split():
-                            if field.startswith("serial="):
-                                serial = field.split("=", 1)[1]
-                if serial:
-                    break
-                if qemu.proc.poll() is not None:
-                    break
-                time.sleep(0.5)
-            suffix = serial[-6:] if len(serial) >= 6 else ""
-            say(len(suffix) == 6,
-                "final: guest produced a >=6 character synthetic target serial", serial)
-
             decoded, text = qemu.wait_screen("PAW-TTY1-FINAL-PANEL", 300, font,
                                              os.path.join(out, "screen-final-panel"))
             panel_ok = "PAW-TTY1-FINAL-PANEL" in text
@@ -256,6 +238,20 @@ def run_case(args, font: Psffont) -> None:
             if not panel_ok:
                 result["serial_tail"] = qemu.serial()[-8000:]
                 return
+            # The probe announces the synthetic target identity on the serial
+            # console; the panel must show that same runtime value, so the
+            # suffix typed below is derived from what the guest really reports.
+            serial = ""
+            for line in qemu.serial().splitlines():
+                if "PAW-CJK-FINAL-SETUP" in line:
+                    for field in line.split():
+                        if field.startswith("serial="):
+                            serial = field.split("=", 1)[1]
+            suffix = serial[-6:] if len(serial) >= 6 else ""
+            say(len(suffix) == 6,
+                "final: guest reported a >=6 character synthetic target serial",
+                serial or "(none)")
+
             decoded, text = qemu.wait_screen("数据损失", 20, font,
                                              os.path.join(out, "screen-final-panel-cjk"))
             expected = [
