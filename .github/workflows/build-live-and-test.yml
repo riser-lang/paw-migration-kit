@@ -135,7 +135,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/verify-iso-payload.sh
+          # unsquashfs has to create the device nodes inside the extracted rootfs,
+          # which only works as root (the same reason the CJK suite runs under sudo).
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/verify-iso-payload.sh
+          sudo chown "$(id -u):$(id -g)" artifacts/iso-payload-report.txt
 
       - name: Validate generated CJK console font
         shell: bash
