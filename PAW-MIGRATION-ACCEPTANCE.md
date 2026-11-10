@@ -1,20 +1,27 @@
 # PAW Migration Acceptance
 
-Updated: 2026-11-09 UTC
-Cloud-tested commit: `f18202b714cd2431733ff54e132c3083a4197aca`
-Run: `42618901559` — success
+Updated: 2026-11-10 UTC (second takeover round)
+Final green run: `42778468039` — success — HEAD `2c2a37d`
+Branch: `fix/v2.6.2-final-readiness`
 
 ## A. Cloud build acceptance
 
-- [x] Workflow runs on the v2.6.2 branch and completes successfully.
-- [x] Debian Live ISO `paw-live-amd64.iso` is produced (938,475,520 bytes).
-- [x] Build-generated ISO SHA256 sidecar is uploaded: `8c8ffedd3a6eb84c56f1da84b3ee3a79df10b8e1e987099ad88d398e6854c4a7`.
+- [x] Workflow runs on the v2.6.2 branch and completes successfully (`42778468039`).
+- [x] Debian Live ISO `paw-live-amd64.iso` is produced (953,155,584 bytes).
+- [x] Build-generated ISO SHA256 sidecar is uploaded:
+      `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363`.
+- [x] `artifacts/iso-identity.txt` gives ISO byte size and SHA256 directly in the
+      build log, so a delivery check no longer needs the 1 GB artifact download.
 - [x] Debian base signature/hash verification is PASS.
 - [x] Tailscale and Xray provenance/digest checks are PASS.
 - [x] Software package list and build provenance are present.
-- [x] Artifact is retained for 3 days (expires 2026-11-12 12:48:02 UTC).
-- [ ] ISO was independently re-downloaded and re-hashed on the cloud workstation. This was not done because the full artifact transfer was bandwidth-limited; user should re-hash after download.
-- [ ] Two builds of the same code tree produce the same ISO SHA256. Two runs produced the same size but different SHA256; byte-for-byte reproducibility remains unproven.
+- [x] Artifact is retained for 3 days (expires 2026-11-13 08:14:16 UTC).
+- [x] ISO from Run `42747871471` was independently re-downloaded and re-hashed on the
+      workstation: computed `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d`
+      matched the uploaded sidecar exactly.
+- [ ] Two builds of the same code tree produce the same ISO SHA256. Runs
+      `42747871471` and `42778468039` produced identical size (953,155,584) but
+      different SHA256; byte-for-byte reproducibility remains unproven.
 
 ## B. Virtual boot acceptance
 
@@ -47,7 +54,22 @@ Run: `42618901559` — success
 - [x] Offline repair and rollback test passes on a loop ext4 root.
 - [x] First-boot gate rejects incomplete/wrong-target receipts in virtual flow.
 
-Test totals: PAWDATA 12/12; fault injection 35/35; repair/rollback 15/15; network 17/17.
+Test totals (Run `42778468039`): PAWDATA 12/12; fault injection 35/35;
+repair/rollback 15/15; network 17/17; finalize 36/36; TTY 56 (static 55 + PTY,
+0 blocked); CJK font 1/1; QEMU CJK 4 cases / 71 assertions.
+
+## C2. Operator console acceptance
+
+- [x] No operator script reachable from the tty1 menu uses an implicit-stdin prompt.
+- [x] All six operator scripts bind the interactive terminal through one helper.
+- [x] Every panel carries explicit ASCII screen markers
+      (`PAW-TTY1-FINAL-*`, `-MEMTEST-*`, `-TARGET-*`, `-RESCUE-*`, `-NETPHASE-*`,
+      `-SOURCE-*`).
+- [x] Input has a 300 s timeout; timeout and abort paths stop without writing.
+- [x] `paw-data-prepare.sh` keeps the strict tty1 binding and cannot fall back.
+- [x] A fallback binding is not recorded as a real tty1 session.
+- [ ] Chinese panel glyphs for these new panels were not captured by the QEMU CJK
+      suite (it covers the menu and the PAWDATA panel only). Real screen still open.
 
 ## D. Real-world acceptance (still open)
 
@@ -59,12 +81,13 @@ Test totals: PAWDATA 12/12; fault injection 35/35; repair/rollback 15/15; networ
 - [ ] Real PAW Ubuntu first boot and offline adaptation.
 - [ ] Real Tailscale/Xray/Funnel/MCP/PAW acceptance.
 
-These require the user's physical hardware and separate authorization. They must not be marked complete from cloud/virtual results.
+These require the user's physical hardware and separate authorization. They must not
+be marked complete from cloud/virtual results.
 
 ## E. Public repository acceptance
 
 - [x] No private keys, tokens, credentials, real server IPs or personal paths in current committed files.
-- [x] Reachable Git history scan passes.
+- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`, 627 objects).
 - [x] Final Actions log/report reviewed; raw `live-build.log` excluded from repository because it contains Debian mirror IPv4 addresses.
 - [x] Repository visibility unchanged (Public).
 - [x] Existing runs and artifacts not deleted.
@@ -72,4 +95,5 @@ These require the user's physical hardware and separate authorization. They must
 ## Overall
 
 - Cloud/virtual delivery: **READY_WITH_REAL_HARDWARE_UNVERIFIED**.
+- Operator console binding: **CLOSED for static/PTY/CI**; real screen open.
 - Production migration: **NOT STARTED**; old VPS remains authoritative.

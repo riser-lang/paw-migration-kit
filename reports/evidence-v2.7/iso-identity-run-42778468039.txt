@@ -1,0 +1,13 @@
+ISO identity for Run 42778468039 (HEAD 2c2a37d)
+Source: build log step "Build minimal Debian Live ISO", artifacts/iso-identity.txt
+iso_bytes=953155584
+sha256=17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363
+
+Comparison build: Run 42747871471 (HEAD 72678c0)
+iso_bytes=953155584
+sha256=2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d
+Independently re-downloaded and re-hashed on the workstation: MATCH with the
+artifact sidecar. Same byte size as 42778468039 but a different hash, so
+byte-for-byte reproducibility is still unproven.
+
+Always verify an ISO against the sidecar from the same run.

@@ -139,3 +139,97 @@
 ## 7. 当前结论
 
 项目已有可构建、可虚拟启动、可虚拟克隆的扎实基线，但距离“可安全交付的 PAW 自动迁移启动介质”仍差 P0-1 至 P0-5 的闭环，以及 P1 的真实适配测试。当前不能标记 READY，也不能写真实 TF 卡或连接生产环境。
+
+---
+
+# 第二轮接管（2026-11-10 UTC）
+
+## 8. 本轮工作环境（与第一段不同，必须记录）
+
+第一段的云端工作站是 Ubuntu 24.04 且带非 root 沙箱。本轮接手的工作站是
+**Windows 11 家庭版（build 26200）**：i5-12450H（8 核 / 12 线程）、15.7 GiB 内存、
+C 盘剩余 46.6 GiB、D 盘剩余 95.7 GiB；无 WSL 发行版、无 QEMU、无 ShellCheck、
+无 Docker；有 Git、GitHub CLI 2.103.3（账号 `riser-lang`，`repo` 权限）、
+Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
+
+因此本轮的分工是：
+
+- 本机：读代码、改代码、静态检查与**实际 `bash -n`**、Git/GitHub 操作、Actions
+  触发、Artifact 下载与**真实 SHA256 复核**、文档与交付整理。
+- GitHub Actions（ubuntu-24.04，root，含 loop / PTY / QEMU）：唯一的完整执行平台。
+
+不得因为换了工作站就把“本机没跑”写成“通过”。
+
+## 9. 本轮实际发现的缺陷（P0-5 级）
+
+`boot/paw-console.service` 使用 `StandardOutput=journal`。菜单脚本自己用 tty1 fd
+打印，但**从菜单进入的六个操作员脚本仍用裸 `printf` 写面板**，面板只进 journal：
+
+| 脚本 | 面板内容 | 后果 |
+|---|---|---|
+| `paw-final-confirm.sh` | 数据损失警告、源系统、源盘序列号/组合身份、固定主机指纹、目标 SSD 型号容量序列号、数据来源、恢复边界 | 屏幕上只剩“输入最后 6 位”，操作员在看不到数据损失说明的情况下授权整盘覆盖 |
+| `paw-memtest-confirm.sh` | 三选一含义、登记摘要、启动 ID | 操作员看不到选项含义 |
+| `paw-target-discovery.sh` | 候选磁盘清单（含序列号） | 提示要求“按屏幕显示的序列号输入”，而屏幕上并没有序列号 |
+| `paw-rescue-key-prepare.sh` | 一次性公钥、候选 SHA256 主机指纹 | 操作员无法复制公钥、无法核对指纹 |
+| `paw-network-phase-select.sh` | R / U 的含义 | 阶段选择无说明 |
+| `paw-source-discovery.sh` | 根 UUID 的用途与范围 | 只有一个裸提示 |
+
+这是“用户不会用 Linux、关键确认必须在中文界面完成”这条要求上的真实破口，不是
+排版问题：授权界面缺的正是最关键的“会丢什么数据”。
+
+## 10. 本轮修复
+
+- `scripts/paw-tty-lib.sh`
+  - 新增 `paw_tty_open_optional()`：显式 `PAW_INTERACTIVE_TTY` 优先；否则当
+    `/dev/tty1` 是字符设备**且**继承的 stdin/stdout/stderr 至少一个是 tty 时走
+    原有严格绑定；都不是则回退到继承 stdio。
+  - 回退时不写 tty1 会话记录（`paw_tty_record` 直接返回），并在日志显式说明
+    “这不是实机 tty1 路径”，防止把 CI 截图当成硬件证据。
+  - 交互输入 fd 显式化为 `PAW_TTY_IN_FD`（默认 3）。
+  - 新增 `paw_tty_read_secret()`：同一 fd、同一 300 秒超时、不回显。
+- 六个脚本改为 `paw_tty_say / paw_tty_prompt / paw_tty_read / paw_tty_read_secret`，
+  面板文本与原内容一致（信息未删减），并新增 ASCII 屏幕标记：
+  `PAW-TTY1-FINAL-PANEL/PROMPT/OK/BAD/TIMEOUT/ABORTED`、
+  `PAW-TTY1-MEMTEST-*`、`PAW-TTY1-TARGET-*`、`PAW-TTY1-RESCUE-*`、
+  `PAW-TTY1-NETPHASE-*`、`PAW-TTY1-SOURCE-*`。
+- 超时与中断都走“安全停止、不写入”路径（授权超时 `exit 2`，序列号不匹配 `exit 1`）。
+- `paw-data-prepare.sh` 保持严格绑定：静态断言新增“PAWDATA 不允许回退”。
+- `scripts/ci/run-tty-virtual-tests.sh`：静态断言 37 → **55**，新增覆盖
+  “无隐式 stdin 提示”“统一可选绑定”“标记存在”“PAWDATA 不回退”。
+- 工作流新增 `artifacts/iso-identity.txt`（ISO 字节数 + SHA256），交付核对不必
+  先下载 1 GB。
+
+## 11. 本轮验证（只写实际跑过的）
+
+| 项 | 结果 | 出处 |
+|---|---|---|
+| Run `42775846760`（HEAD `c211dc9`） | success | Actions，全部步骤通过 |
+| Run `42778468039`（HEAD `2c2a37d`） | success | Actions，20m37s，全部步骤通过 |
+| 本机 `bash -n` 全脚本 | PASS，0 语法错误 | Git Bash 5.3.9 实跑 |
+| 本机 TTY 静态断言 | 55 passed / 0 failed | `run-tty-virtual-tests.sh` 实跑 |
+| 本机 PTY | BLOCKED（Windows Python 无 `termios`） | 不作为 PASS |
+| CI TTY 套件 | 56 passed / 0 failed / 0 blocked（含 15 PTY） | Run `42778468039` |
+| CI 其余套件 | PAWDATA 12、故障注入 35、修复 15、网络 17、finalize 36、CJK 字体 1、QEMU CJK 4 例 71 断言，均 0 failed | Run `42778468039` |
+| ISO（Run `42747871471`）独立复核 | `2295eb0a…39336d` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
+| ISO（Run `42778468039`） | `17789c04…6e0363`；953,155,584 bytes | 构建日志 `iso-identity.txt` |
+
+## 12. 本轮仍未验证（不得写成通过）
+
+- 真实 ASUS 主板屏幕与键盘上是否真的显示这些新面板（QEMU CJK 套件只覆盖菜单与
+  PAWDATA 面板，未覆盖新授权面板）。
+- 真实 TF 卡写入与回读、真实主板启动。
+- 真实 SSD SMART / 只读扫描 / 温度，真实内存 Memtest86+ 运行与目视确认。
+- 真实腾讯云 Rescue Mode SSH 与真实整盘克隆。
+- ISO 字节级可复现（两次构建同尺寸不同 SHA256）。
+- 本机 PTY 执行（环境限制，由 CI 覆盖）。
+
+## 13. 下一轮建议顺序
+
+1. 给 QEMU CJK 套件增加一个 `final` 用例：注入完整的源/目标/硬件/内存 fixture，
+   证明授权面板在 tty1 上以真实字形出现（目前只有静态断言）。
+2. 把 GRUB 修复从 stub 提升为在 loop 上真实执行 `grub-install --target=i386-pc`
+   （CI 已装 `grub-pc-bin`），以关闭“GRUB 修复只有模拟证据”这一项。
+3. 复核 `growpart` 对“根分区不是最后一个分区”的克隆布局，给出明确阻断而不是
+   依赖 growpart 报错。
+4. 真实硬件阶段：TF 卡写入、主板启动、SSD/内存、Rescue 与正式迁移，全部需要
+   用户在场并单独授权。

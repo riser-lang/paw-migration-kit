@@ -1,8 +1,12 @@
 # PAW v2.7 最终云端证据
 
+> **历史记录（2026-11-09）**。当前交付请以 `DELIVERY.md`、`PAW-MIGRATION-STATE.md`
+> 和 Run `42778468039`（HEAD `2c2a37d`，ISO SHA256 `17789c04…6e0363`）为准。
+> 本文保留 v2.7 阶段的原始证据，不改写。
+
 记录时间：2026-11-09 UTC
 分支：`fix/v2.6.2-final-readiness`
-最终代码提交：`f18202b714cd2431733ff54e132c3083a4197aca`
+最终代码提交（当时）：`f18202b714cd2431733ff54e132c3083a4197aca`
 Draft PR：<https://github.com/riser-lang/paw-migration-kit/pull/2>
 
 ## GitHub Actions
@@ -35,7 +39,7 @@ Draft PR：<https://github.com/riser-lang/paw-migration-kit/pull/2>
 - Run `42615204317`：ISO SHA256 `5daf4c0b7af05258c7e90d8c84ba5e474b2ba8215a2cc75781c5374e4c15a4b8`
 - Run `42618901559`：ISO SHA256 `8c8ffedd3a6eb84c56f1da84b3ee3a79df10b8e1e987099ad88d398e6854c4a7`
 
-两次 ISO 字节数相同（938,475,520），但 SHA256 不同。**逐字节可复现性仍未证明**，不得声称双构建一致。交付使用最新的 Run `42618901559`。
+两次 ISO 字节数相同（938,475,520），但 SHA256 不同。**逐字节可复现性仍未证明**，不得声称双构建一致。当时交付使用最新的 Run `42618901559`；当前交付改用 Run `42778468039`（同尺寸不同哈希，结论相同）。
 
 ## 虚拟测试结果
 

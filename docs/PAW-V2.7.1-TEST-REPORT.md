@@ -176,28 +176,29 @@ PAW_ARTIFACT_DIR=$PWD/artifacts scripts/ci/run-tty-virtual-tests.sh
 ## 7. GitHub Actions 完整回归
 
 工作流：`.github/workflows/build-live-and-test.yml`
-运行：**Run ID `42741425053`**（首次，HEAD `376c35d`；后续修复提交 `364429e`
-会触发最终 Run，最终 Run ID 以交付说明为准）
-URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42741425053
+最终成功运行：**Run ID `42778468039`**（HEAD `2c2a37d`，2026-11-10T07:53:31Z 触发，
+20m37s，全部步骤 success）
+URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42778468039
 
-> 说明：本轮新增 CJK 步骤后，第一次运行用于发现 CI 环境差异；最终交付必须引用
-> **最新 HEAD 的成功 Run**，不能引用旧的 Run #44。
+> 说明：本轮新增 CJK 步骤后，第一次运行（`42741425053`）用于发现 CI 环境差异；
+> 交付必须引用**最新 HEAD 的成功 Run**。下表全部取自 Run `42778468039` 的日志
+> 与 Artifact，未手写猜测。
 
-CI 实际计数（完成后填入，取自 Artifact/日志，不手写猜测）：
+CI 实际计数（Run `42778468039`，HEAD `2c2a37d`）：
 
 | 套件 | 实际结果 |
 |---|---|
-| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | 待填 |
-| Debian 签名 / Xray / Tailscale | 待填 |
-| ISO 构建 / SeaBIOS+TCG | 待填 |
-| PAWDATA 12 项 | 待填 |
-| 克隆/故障注入 35 项 | 待填 |
-| 离线修复 15 项 | 待填 |
-| 网络 17 项 | 待填 |
-| Finalize 36 项 | 待填 |
-| TTY 静态 35 项 + PTY | 待填 |
-| CJK 字体校验 | 待填 |
-| QEMU CJK 4 例/71 断言 | 待填 |
+| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 627 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
+| Debian 签名 / Xray / Tailscale | PASS。Debian Live `13.7.0-amd64-standard`：分离签名 PASS（Debian CD key `DF9B9C49EAA9298432589D76DA87E80D6294BE9B`）、manifest hash PASS、SHA256 `040a44f3…c14e17ec`；Tailscale 1.104.5（签名 stable 仓库）；Xray v26.3.27，archive SHA2-256 `23cd9af9…`；二进制 SHA256 记录在 `software-manifest.txt` |
+| ISO 构建 / SeaBIOS+TCG | PASS。ISO `953,155,584` bytes，SHA256 `17789c04…6e0363`；`System area summary: MBR isohybrid cyl-align-on GPT APM`；QEMU SeaBIOS 1.16 + TCG（未用 KVM）启动到 readiness gate，按缺失实机条件保持 `BLOCKED`，`clone_started=false` |
+| PAWDATA 12 项 | `Summary: 12 passed, 0 failed` |
+| 克隆/故障注入 35 项 | `Summary: 35 passed, 0 failed` |
+| 离线修复 15 项 | `Summary: 15 passed, 0 failed` |
+| 网络 17 项 | `Summary: 17 passed, 0 failed` |
+| Finalize 36 项 | `Summary: 36 passed, 0 failed` |
+| TTY 静态 55 项 + PTY | `Static tty assertions: 55 passed, 0 failed`；`Summary: 15 passed, 0 failed`（PTY，`PAW_REQUIRE_PTY=1`）；套件合计 `56 passed, 0 failed, 0 blocked` |
+| CJK 字体校验 | `Summary: 1 passed, 0 failed`；PSF2 512 槽 / 480 映射 / 384 个非 ASCII 运行时字符全覆盖 |
+| QEMU CJK 4 例/71 断言 | `Cases: 4 passed, 0 failed, 0 blocked`；四例断言 26 + 17 + 17 + 11 = 71，0 failed |
 
 ## 8. 未执行 / BLOCKED / OPEN
 
@@ -226,3 +227,55 @@ CI 实际计数（完成后填入，取自 Artifact/日志，不手写猜测）�
 - `docs/PAW-V2.7.1-TEST-REPORT.md`
 - `docs/PAW-V2.7.1-BLOCKERS.md`
 - `docs/PAW-V2.7.1-USER-GUIDE-ZH.md`
+
+## 10. 第二轮接管补充（操作员控制台绑定）
+
+执行环境与第一段不同：本轮接手的工作站是 **Windows 11**（i5-12450H、15.7 GiB、
+Python 3.11、Git Bash 5.3.9），没有 WSL、没有 QEMU、没有可用的 sudo/loop，
+因此本机只能做静态与实际脚本语法检查；**需要 root/loop/PTY/QEMU 的执行仍全部
+交给 GitHub Actions**。
+
+### 10.1 本轮发现并修复的缺陷
+
+`paw-console.service` 使用 `StandardOutput=journal`。五个操作员脚本仍用裸 `printf`
+写面板，因此面板只进日志、**不上屏幕**：
+
+- `paw-final-confirm.sh`：整块授权面板（含数据损失警告、源盘组合身份、固定主机
+  指纹、目标序列号）不可见，屏幕上只有"输入最后 6 位"这一句；
+- `paw-memtest-confirm.sh`：三选一说明与登记摘要不可见；
+- `paw-target-discovery.sh`：候选磁盘清单和序列号不可见，却要求"按屏幕显示的
+  序列号输入"；
+- `paw-rescue-key-prepare.sh`：一次性公钥与候选主机指纹不可见，操作员无法粘贴；
+- `paw-network-phase-select.sh`：R/U 含义不可见；
+- `paw-source-discovery.sh`：根分区 UUID 只有一个裸提示，无任何说明。
+
+修复：`paw-tty-lib.sh` 增加 `paw_tty_open_optional()`（有控制台且继承流是 tty 时
+绑定 `/dev/tty1`；否则回退到继承 stdin/stdout，并在回退时不写 tty1 会话记录，
+以免把 CI 截图当成实机证据）；六个脚本改为 `paw_tty_say/paw_tty_prompt/
+paw_tty_read/paw_tty_read_secret`，带 300 秒输入超时与 ASCII 屏幕标记；
+`paw-data-prepare.sh` 保持严格绑定、不允许回退。`paw_tty_read_secret()` 用于不回显
+的 UUID 输入。
+
+### 10.2 本轮验证
+
+| 项 | 本机（Windows） | CI Run `42778468039` |
+|---|---|---|
+| `bash -n` 全部脚本 | PASS（0 语法错误） | PASS |
+| TTY 静态断言 | **55 passed / 0 failed** | `Static tty assertions: 55 passed, 0 failed` |
+| PTY 真实交互 | **BLOCKED**：Windows Python 无 `termios`，`pty_tty_test.py` 无法导入 | `Summary: 15 passed, 0 failed`（`PAW_REQUIRE_PTY=1`） |
+| TTY 套件合计 | 55 passed / 1 failed（失败项是上述 PTY 环境限制） | `56 passed, 0 failed, 0 blocked` |
+| 其余全套（PAWDATA/克隆/修复/网络/finalize/CJK/QEMU） | 未执行（无 root/loop/QEMU） | 全部 PASS，计数见第 7 节 |
+
+本机 PTY 的失败**不是代码失败**，也不冒充通过；结论以 CI 的 root/PTY 执行为准。
+
+### 10.3 ISO 独立复核（本轮实际执行）
+
+- 2026-11-10：用 `curl` 经显式代理下载 Run `42747871471` 的 Artifact
+  `13731684896`（`gh run download` 在该网络下 20 分钟无字节写入，改用 API +
+  `curl --proxy` 后 ~9 分钟完成）。
+- `Get-FileHash -Algorithm SHA256` 计算值 `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d`
+  与侧车文件 `2295eb0a…39336d` **完全一致**，ISO `953,155,584` bytes。
+- 该次复核关闭了 `PAW-MIGRATION-ACCEPTANCE.md` 中"未在云工作站重新下载并复核
+  哈希"这一项（针对 Run `42747871471`）。
+- 两次构建 ISO 字节数相同（`953,155,584`）但 SHA256 不同
+  （`2295eb0a…` vs `17789c04…`），**字节级可复现仍未证明**。
