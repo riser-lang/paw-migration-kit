@@ -10,4 +10,10 @@ Independently re-downloaded and re-hashed on the workstation: MATCH with the
 artifact sidecar. Same byte size as 42778468039 but a different hash, so
 byte-for-byte reproducibility is still unproven.
 
+Delivery build: Run 42778468039 artifact 13744904698 also downloaded
+(1,009,075,181 bytes) and re-hashed on the workstation:
+computed=17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363
+sidecar=17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363
+MATCH. ISO bytes on disk: 953155584.
+
 Always verify an ISO against the sidecar from the same run.

@@ -33,12 +33,17 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 
 ### 2.1 已完成的独立复核
 
-对上一轮 Run `42747871471` 的 Artifact `13731684896` 实际下载并复核：
+本轮两次构建的 ISO 都在工作站上实际下载并重算哈希：
 
-- 下载：`gh run download` 在 20 分钟无字节写入后放弃，改用
-  `curl --proxy http://127.0.0.1:10808` + GitHub API artifact zip 端点，约 9 分钟完成；
-- 计算值 `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d`
-  与侧车文件完全一致；ISO `953,155,584` bytes。
+- Run `42778468039`（交付件）：Artifact `13744904698` 下载 1,009,075,181 bytes，
+  解压后 `Get-FileHash -Algorithm SHA256` =
+  `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363`，
+  与 Artifact 内 `paw-live-amd64.iso.sha256` **完全一致**；ISO `953,155,584` bytes。
+- Run `42747871471`：Artifact `13731684896` 同样下载并复核，
+  `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d` 与侧车一致。
+
+下载方式说明：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理），改用
+GitHub API artifact zip 端点 + `curl --proxy` 后约 9 分钟完成。
 
 注意：ISO 构建**不是字节级可复现**。Run `42747871471` 与 `42778468039` 的 ISO
 字节数同为 `953,155,584`，但 SHA256 不同（`2295eb0a…` / `17789c04…`）。
@@ -76,7 +81,7 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 |---|---|---|
 | 云端构建 | PASS | Run `42778468039` |
 | ISO SHA256 | PASS（构建生成） | `17789c04…6e0363` |
-| ISO 独立复核 | PASS | Run `42747871471` 的 ISO 在本机重算哈希一致（`2295eb0a…`） |
+| ISO 独立复核 | PASS（两次 Run 均复核） | Run `42778468039` 的 ISO 已下载并重算：`17789c04…6e0363` 与侧车一致；Run `42747871471` 的 ISO 同样复核通过（`2295eb0a…`） |
 | ISO 字节级可复现 | NOT PROVEN | 同尺寸不同 SHA256 |
 | QEMU SeaBIOS/TCG 虚拟启动 | PASS（fail-closed） | `qemu-smoke-report.txt` |
 | 中文 tty1 菜单（QEMU） | PASS | 4 例 / 71 断言 |

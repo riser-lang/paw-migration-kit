@@ -16,8 +16,12 @@ Branch: `fix/v2.6.2-final-readiness`
 - [x] Tailscale and Xray provenance/digest checks are PASS.
 - [x] Software package list and build provenance are present.
 - [x] Artifact is retained for 3 days (expires 2026-11-13 08:14:16 UTC).
-- [x] ISO from Run `42747871471` was independently re-downloaded and re-hashed on the
-      workstation: computed `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d`
+- [x] ISO from Run `42778468039` (the delivery artifact) was independently
+      re-downloaded and re-hashed on the workstation: computed
+      `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363`
+      matched the uploaded sidecar exactly (953,155,584 bytes).
+- [x] ISO from Run `42747871471` was independently re-downloaded and re-hashed:
+      computed `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d`
       matched the uploaded sidecar exactly.
 - [ ] Two builds of the same code tree produce the same ISO SHA256. Runs
       `42747871471` and `42778468039` produced identical size (953,155,584) but

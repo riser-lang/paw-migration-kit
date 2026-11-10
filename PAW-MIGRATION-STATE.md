@@ -61,11 +61,15 @@ strict binding.
 
 ## Independently verified in this round
 
-- ISO from Run `42747871471` was downloaded through an explicit proxy and re-hashed:
-  computed `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d`
-  equals the uploaded sidecar; ISO `953,155,584` bytes.
+- ISO from Run `42778468039` (the delivery artifact) was downloaded
+  (1,009,075,181 bytes) and re-hashed: computed
+  `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363` equals the
+  uploaded sidecar; ISO `953,155,584` bytes.
+- ISO from Run `42747871471` was downloaded and re-hashed the same way:
+  `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d` equals its sidecar.
 - Local `bash -n` over all shell scripts on the new workstation: PASS.
 - Local TTY static assertions: 55 passed / 0 failed.
+- Local `scripts/ci/check-public-safety.py`: `PUBLIC-SAFETY=PASS`.
 - Two builds produced the same ISO byte size but different SHA256, so
   byte-for-byte reproducibility is still unproven.
 
