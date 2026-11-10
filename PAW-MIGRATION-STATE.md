@@ -7,7 +7,8 @@ Two heads matter, and neither is `main`:
 
 - **Product head / delivery ISO**: `bf1a705` — every production script inside the
   delivered ISO comes from this commit.
-- **Latest verification head**: `ac0813e` — adds CI suites (real `grub-install`
+- **Latest verification head**: `a19ae9d` — adds the offline quick-card generator; no
+  production script or ISO input changed. Previous verification head `ac0813e` — adds CI suites (real `grub-install`
   host-side and in chroot, a QEMU boot of a repaired disk), a text-only evidence
   artifact, and the delivery self-check script. No production script or ISO input
   changed.
@@ -131,7 +132,7 @@ boots to a login prompt.
   CJK font 1, QEMU CJK 5 cases / 96 assertions — all 0 failed.
 - Static: ShellCheck `--severity=error` clean, `bash -n` clean, Python compile PASS,
   PowerShell parse PASS, JSON/YAML/unit structure PASS, `PUBLIC-SAFETY=PASS`,
-  `PUBLIC-HISTORY=PASS` (1041 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
+  `PUBLIC-HISTORY=PASS` (1094 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
 - QEMU SeaBIOS + TCG (no KVM): boot reached the readiness gate, readiness
   `BLOCKED`, `clone_started=false`.
 

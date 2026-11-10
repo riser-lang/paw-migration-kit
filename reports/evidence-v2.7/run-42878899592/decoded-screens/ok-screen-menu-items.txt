@@ -1,0 +1,50 @@
+[PAW-MENU-TTY1]
+==============================================
+ PAW 迁 移 准 备 控 制 台 （ v2.7）
+==============================================
+[PAW-MENU-KEYS] 1 Memtest 2 PAWDATA 3 RescueSSH 4 TargetSSD 5 HWCheck 6 Migrate
+7 Reports 8 Network 0 Redraw
+当 前 ： 状 态 =BLOCKED data=PASS source=BLOCKED target_identity=BLOCKED hardware=BLO
+CKED network=BLOCKED
+1) 登 记  Memtest86+ 人 工 确 认 结 果
+2) 初 始 化 /修 复  PAWDATA 持 久 分 区
+3) 配 置  Rescue SSH 并 识 别 旧  VPS 源 盘
+4) 登 记 目 标  SSD（ 只 读 盘 点 ）
+5) 运 行 目 标  SSD 硬 件 检 查 （ SMART/只 读 扫 描 /温 度 /内 存 ）
+6) 最 终 中 文 授 权 并 开 始 迁 移
+7) 查 看 状 态 和 报 告
+8) 选 择  Rescue / Restored 网 络 阶 段
+0) 重 新 显 示 状 态
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
