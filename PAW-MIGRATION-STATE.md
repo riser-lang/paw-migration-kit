@@ -176,6 +176,25 @@ boots to a login prompt.
 These remain open until the user performs them on hardware. No production VPS was
 accessed; no physical disk or TF card was written.
 
+## Reproducibility probe
+
+`.github/workflows/build-live-and-test.yml` has a `double_build` input (default false).
+When set, `scripts/ci/repro-probe.sh` keeps the first ISO, builds a second one in a fresh
+work directory, and compares them layer by layer: sizes, hashes, first differing byte,
+`xorriso -pvd_info` volume fields, the three `/live` components, squashfs compression
+settings and full listing, seven file contents read out of both images, and — with
+`PAW_PROBE_DEEP=1` — a `diff -rq` over both extracted rootfs trees.
+
+What run `42892095324` established: everything structural is identical (size, volume
+metadata, vmlinuz, initrd, squashfs size and settings, 25,600-line listing with zero
+differing metadata rows, 7/7 sampled files), while the squashfs bytes and therefore the ISO
+differ. The first real content difference the deep diff surfaces is `/etc/nvme/hostid`,
+which the `nvme` package generates during the chroot build.
+
+Not yet established: that this file is the only difference, or that removing it makes the
+image reproducible. The `diff` output still needs filtering (dangling symlinks and `/dev`
+device nodes are counted today), and the removal has to be proven with a rebuild.
+
 ## ISO payload verification
 
 `scripts/ci/verify-iso-payload.sh` answers "was the shipped ISO really built from this
