@@ -31,7 +31,9 @@ Historical branch: `fix/v2.6.2-final-readiness`
       production block-device/SSH clone path and full project offline repair remain
       open. Evidence: `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`.
 - [ ] Stage 3 full migration chain. **OPEN**.
-- [ ] Stage 4 final ISO + downloaded-ISO SHA256 (never ZIP hash). **OPEN**.
+- [ ] Stage 4 final release ISO + physical media. **OPEN**; the candidate test
+      ISO was downloaded from artifact `13769479260`, re-hashed from the ISO file
+      (953,155,584 bytes, `c34cb137...e068fb`), never from the ZIP.
 
 ## A. Historical cloud build acceptance (`bf1a705`)
 
@@ -158,7 +160,8 @@ be marked complete from cloud/virtual results.
 - Stage 2: **VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN** (real boot and
   GRUB/initramfs/expansion evidence; production block clone and full project
   offline repair still open).
-- Stage 3/4: **OPEN** (not started in this round).
+- Stage 3: **OPEN** (full migration chain not executed). Stage 4: candidate test
+  ISO downloaded and re-hashed; final release ISO and physical media **OPEN**.
 - Historical cloud/virtual delivery (`bf1a705`): **READY_WITH_REAL_HARDWARE_UNVERIFIED**.
 - Operator console binding: **CLOSED for static/PTY/CI and QEMU glyph rendering**
   (Run `42825407549`: TTY 56/56, CJK 25/25); real ASUS screen remains open.

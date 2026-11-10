@@ -145,10 +145,12 @@ claims, and asserts the `sfdisk` dump is byte-identical afterwards.
 
 ## Not verified
 
-- New-branch GitHub Actions run and its artifact hashes.
 - Stage 2 production block/SSH clone path and full project offline repair on the
   cloned target (virtual boot and real GRUB/initramfs already proven).
-- Stage 3 full migration chain and Stage 4 final ISO.
+- Stage 3 full migration chain.
+- Stage 4 final release ISO and physical media. The candidate test ISO from Run
+  `42825407549` was downloaded and re-hashed from the ISO file (953,155,584 bytes,
+  `c34cb137...e068fb`), not from the ZIP.
 - Real TF card write and read-back.
 - Real ASUS motherboard/SeaBIOS boot, real keyboard and display.
 - Real SSD SMART/read scan/temperature.

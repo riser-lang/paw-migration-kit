@@ -53,7 +53,8 @@ PR #2：保持 Draft，未合并。
   **19/19**、网络 **17/17**、finalize **36/36**、TTY **56/56（0 blocked）**。
   测试 ISO 953,155,584 bytes，SHA256
   `c34cb13712acbe49247fadf3f088a1a4d9765d481303df6e2856c26da2e068fb`；
-  artifact `13769479260`。
+  artifact `13769479260`。已下载 artifact 的 ISO 并对下载文件重算 SHA256，
+  与 sidecar 一致（不是 ZIP 哈希）。
 - 旧 Run `42804949796`（`bf1a705`）是历史绿色证据，不能当作当前分支门禁的
   CI 结果。
 - 最终发布 ISO、真实 ASUS 屏幕/键盘、真实 TF 卡/SSD、真实腾讯云 Rescue、

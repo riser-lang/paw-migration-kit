@@ -163,7 +163,9 @@ rm -rf --one-file-system -- "$iso"
     25/25、PAWDATA 12/12、虚拟故障 39/39、repair 19/19、network 17/17、
     finalize 36/36、TTY 56/56（0 blocked）。测试 ISO 953,155,584 bytes，
     SHA256 `c34cb13712acbe49247fadf3f088a1a4d9765d481303df6e2856c26da2e068fb`；
-    artifact `13769479260`。不能把历史 `42804949796` 当作新证据。
+    artifact `13769479260`。已实际下载 artifact 的 `paw-live-amd64.iso`
+    （953,155,584 bytes），对下载后的 ISO 文件重算 SHA256，与 sidecar 完全一致；
+    没有把 artifact ZIP 的哈希当作 ISO 哈希。不能把历史 `42804949796` 当作新证据。
 - P0-2 文档：七份文件已按当前分支更新；本报告是新增交接报告。
 - 第二阶段 Ubuntu 24.04 克隆盘：**VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN**。
   已完成真实 raw → 240GB 稀疏虚拟盘、项目 clone/verify（显式
@@ -171,7 +173,8 @@ rm -rf --one-file-system -- "$iso"
   无 seed 第三次启动登录；生产块/SSH clone 和完整项目离线修复仍 OPEN。证据：
   `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`。
 - 第三阶段完整迁移链路：**OPEN**。
-- 第四阶段最终 ISO + 下载后 ISO SHA256：**OPEN**。
+- 第四阶段：**候选测试 ISO 已下载并重算 SHA256 PASS；最终发布 ISO、
+  真实介质写入和实机验收仍 OPEN**。
 
 本机已实际执行的非 root 验证：
 

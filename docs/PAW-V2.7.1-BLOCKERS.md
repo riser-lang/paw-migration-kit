@@ -31,7 +31,7 @@
 | PAW-271-B13 | 低 | 本机 PTY 不可用（当前 Linux 沙箱 `/dev/ptmx` → Out of pty devices；历史 Windows 无 `termios`） | **OPEN（环境）** | 由 CI `PAW_REQUIRE_PTY=1` 覆盖 |
 | PAW-271-B14 | 高 | 字体门禁只在“报告 PASS”时允许写盘；8x16 回退是 WARN，必须拒绝 | **CLOSED（Run 42825407549）** | 缺报告/哈希/字体/setfont/过期 boot_id 全部 fail-closed；CI 26/26 + QEMU CJK 25/25；Run 42817841755 的 `(M) frame buffer device` 回归已由 4572280 修复并复跑通过 |
 | PAW-271-B15 | 高 | 第二阶段 Ubuntu 24.04 克隆盘真实启动已完成虚拟证据，但生产块设备/SSH 克隆入口和完整项目离线修复未执行 | **PARTIAL_VIRTUAL_BOOT / BLOCK_CLONE_OPEN** | 已用真实 Ubuntu raw、240GB 稀疏虚拟盘、SeaBIOS 启动、GPT/ext4 扩容、真实 GRUB/initramfs 和第三次启动登录证明；还需生产 clone 入口和 `paw-offline-repair.sh` 全链路。见 `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md` |
-| PAW-271-B16 | 高 | 第三阶段完整迁移链路、第四阶段最终 ISO 未完成 | **OPEN（后续段）** | 需全部真实程序入口测试、下载 ISO 后重算 ISO SHA256（不能用 ZIP 哈希） |
+| PAW-271-B16 | 高 | 第三阶段完整迁移链路、第四阶段最终 ISO 未完成 | **OPEN（后续段）** | 需全部真实程序入口测试；候选测试 ISO 已下载并重算 ISO SHA256（953,155,584 bytes，`c34cb137...e068fb`，不是 ZIP 哈希），最终发布 ISO/介质仍 OPEN |
 
 ## PAW-271-B11 操作员面板不上屏幕（第二段修复）
 
