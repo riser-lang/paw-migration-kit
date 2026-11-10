@@ -94,7 +94,9 @@ def build() -> str:
     parts.append(
         "<ul>"
         "<li>按 <code>4</code> 登记目标 SSD，按 <code>5</code> 跑硬件检查（SMART / 只读扫描 / 温度 / 内存）。</li>"
-        "<li>按 <code>3</code> 配置 Rescue SSH 并识别旧 VPS 源盘 —— <b>需要旧 VPS 进 Rescue Mode，会停机</b>。</li>"
+        "<li>按 <code>3</code> 配置 Rescue SSH 并识别旧 VPS 源盘 —— <b>需要旧 VPS 进 Rescue Mode，会停机</b>。"
+        "动手前先看硬件清单 <b>第 6 项</b>：VNC 里取主机指纹、贴 PAW 一次性公钥、开 sshd、"
+        "安全组只放行你的公网 IP，还有一张排错表。</li>"
         "<li>按 <code>6</code> 最终中文授权 → 整盘覆盖迁移，<b>目标 SSD 原有数据全部丢失</b>。</li>"
         "<li>迁移完关机换盘开机，做离线修复与首次启动检查。</li>"
         "</ul>"
