@@ -24,12 +24,12 @@ PR #2：保持 Draft，未合并。
 | Python compile | PASS | 见 CI 表 | 所有 `.py` |
 | PowerShell 语法 | 未执行（无 pwsh） | 见 CI 表 | CI 专用 |
 | Public safety | PASS | 见 CI 表 | 无密钥/凭据/二进制 |
-| Public history | PASS | 见 CI 表 | 543 objects |
+| Public history | PASS | 见 CI 表 | 682 objects |
 | Finalize 36 项 | **36 passed / 0 failed** | 见 CI 表 | 未改 finalizer 核心 |
-| TTY 静态检查 | **35 passed / 0 failed / 1 blocked** | 见 CI 表 | 新增 6 项字体断言 |
-| PTY 交互 | **BLOCKED**（本机 `/dev/ptmx` 不可用） | 见 CI 表 | CI `PAW_REQUIRE_PTY=1` |
+| TTY 静态检查 | **55 passed / 0 failed** | 见 CI 表 | 6 个操作员脚本 + 字体断言 |
+| PTY 交互 | **BLOCKED**（Windows Python 无 `termios`） | 见 CI 表 | CI `PAW_REQUIRE_PTY=1`，15 passed |
 | CJK 字体校验 | **PASS**（480 映射，385 非 ASCII 全覆） | 见 CI 表 | PSF2/PSF1 |
-| QEMU CJK 显示器/键盘 | **4 cases / 71 assertions / 0 failed** | 见 CI 表 | 真实 QEMU + PSF 字形匹配 |
+| QEMU CJK 显示器/键盘 | **5 cases / 96 assertions / 0 failed** | 见 CI 表 | 真实 QEMU + PSF 字形匹配 |
 | PAWDATA 12 项 | BLOCKED（本机无 root/loop） | 见 CI 表 | CI sudo loop |
 | 克隆/故障注入 35 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
 | 离线修复 15 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
@@ -106,7 +106,7 @@ python3 tests/qemu/qemu_cjk_screen_test.py \
   不打开任何宿主块设备。
 - 串口只写 `serial.log`，键盘只走 QEMU `sendkey`。
 
-结果：**4 cases passed, 0 failed；71 assertions passed, 0 failed**。
+结果：**5 cases passed, 0 failed；96 assertions passed, 0 failed**。
 
 | 用例 | 断言 | 关键证据 |
 |---|---|---|
@@ -114,6 +114,7 @@ python3 tests/qemu/qemu_cjk_screen_test.py \
 | bad | 17 | `000000`；`INPUT-BAD`；中文“序列号末六位不匹配…没有写入任何分区”；无 `INPUT-OK`；单一占用 |
 | timeout | 17 | 5 秒无输入；`INPUT-TIMEOUT`；中文“等待输入超过 5 秒…没有写入任何分区”；无 `INPUT-OK`；单一占用 |
 | render | 11 | 真实 `paw-finalize-reboot.sh` + mock reboot；中文“迁移成功/完成记录已原子写入/系统将在 5 秒后自动重启/自动重启命令已下发”；`reboot-status=PASS`、`reboot_invoked=true` |
+| final | 25 | 生产 `paw-final-confirm.sh` 在 tty1 跑两次：错后缀 → `FINAL-BAD`+中文拒绝；正确后缀 → `FINAL-OK`+中文确认；面板逐行字形匹配（标题/源系统/组合身份/主机指纹/目标 SSD 行+运行时序列号/数据来源/整盘数据损失警告/输入提示）；会话 `tty_path=/dev/tty1`、BAD+OK 标记、无 getty/login 占用 |
 
 字形证明：
 
@@ -122,8 +123,8 @@ python3 tests/qemu/qemu_cjk_screen_test.py \
 - 每例 `match_ratio ≥ 0.995`（仅光标/半格允许 1 个 inexact cell）。
 - 断言的是完整中文句子，不是单个字；例如
   `错误：序列号末六位不匹配，已安全停止，没有写入任何分区。`
-- 屏幕证据（本机，不提交二进制）：
-  `~/paw-fb/cjk-out/{ok,bad,timeout,render}/screen-*.ppm`、
+- 屏幕证据（CI，不提交二进制）：
+  `qemu-cjk-{ok,bad,timeout,render,final}/screen-*.ppm`、
   `screen-*.txt`、`result.json`、`serial.log`。
 
 **边界**：这是 QEMU 虚拟 VGA + PS/2 键盘，不是 ASUS B85M-G Plus 实机；

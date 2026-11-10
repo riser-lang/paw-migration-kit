@@ -74,7 +74,7 @@
 - 本机 QEMU（generic 6.12.94 + bochs-drm，1280x800）：
   - 菜单/PAWDATA 面板/序列号提示/错误原因/超时/迁移完成提示均以真实字形出现；
   - `screendump` 逐单元格与 PSF 位图精确匹配，ratio ≥ 0.995；
-  - ok/bad/timeout/render 四例，71 断言全过；
+  - ok/bad/timeout/render/final 五例，96 断言全过；
   - 状态文件 `tty_path=/dev/tty1`、`menu_tty=input_tty=/dev/tty1`、`max_holders=1`。
 - CI：`Run framebuffer CJK tty1 display and keyboard suite` 从真实 ISO squashfs
   启动并重跑四例（Run ID 见 TEST-REPORT）。

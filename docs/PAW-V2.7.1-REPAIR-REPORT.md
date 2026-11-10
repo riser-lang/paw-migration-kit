@@ -149,9 +149,9 @@ losetup --find --show <8MiB file> → Permission denied（attach 需要 CAP_SYS_
 ## 5. P1 回归结论
 
 - Finalize：本机 36 passed / 0 failed；未改 finalizer 逻辑。
-- TTY 静态：本机 35 passed / 0 failed / 1 blocked（本地 pty 不可用）；
+- TTY 静态：本机 55 passed / 0 failed（本地 pty 不可用 → PTY 项 BLOCKED）；
   CI 以 `PAW_REQUIRE_PTY=1` 强制 PTY。
-- QEMU tty1：本机 4 例 71 断言全过；CI 用真实 ISO 再跑。
+- QEMU tty1：CI 5 例 96 断言全过（Run `42795953493`，含授权面板用例）。
 - 中文字体加入后，交互仍使用 `paw-tty-lib.sh` 的 `exec 3<>/dev/tty1`、`read -u 3`；
   状态文件仍记录 `tty_path=/dev/tty1`、`menu_tty=input_tty=/dev/tty1`、
   `max_holders=1`。
