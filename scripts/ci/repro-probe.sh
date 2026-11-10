@@ -68,9 +68,12 @@ say "== first differing byte"
 if cmp -s "$work/iso-a.iso" "$work/iso-b.iso"; then
   say "identical"
 else
-  offset="$(cmp -l "$work/iso-a.iso" "$work/iso-b.iso" 2>/dev/null | head -n1 | awk '{print $1}')"
+  # cmp exits 1 when the files differ, so every pipeline below needs its own `|| true`;
+  # with pipefail+errexit the bare form aborted the probe right here.
+  offset="$( { cmp -l "$work/iso-a.iso" "$work/iso-b.iso" 2>/dev/null || true; } | head -n1 | awk '{print $1}')"
   say "first_offset=${offset:-unknown}"
-  say "differing_bytes_total=$(cmp -l "$work/iso-a.iso" "$work/iso-b.iso" 2>/dev/null | wc -l)"
+  differing="$( { cmp -l "$work/iso-a.iso" "$work/iso-b.iso" 2>/dev/null || true; } | wc -l)"
+  say "differing_bytes_total=${differing:-unknown}"
 fi
 
 # --- 3. ISO volume metadata ------------------------------------------------------------
