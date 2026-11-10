@@ -9,6 +9,17 @@ for c in growpart resize2fs lsblk sgdisk sfdisk e2fsck; do need "$c"; done
 part_parent="$(parent_disk "$part")"; [[ "$part_parent" == "$disk" ]] || die 'Root partition is not on the registered target disk.'
 [[ "$(lsblk -dn -o FSTYPE "$part" | xargs)" == ext4 ]] || die 'Root partition is not ext4.'
 n="$(lsblk -dn -o PARTN "$part" | xargs)"; [[ "$n" =~ ^[0-9]+$ ]] || die 'Cannot determine partition number.'; assert_unmounted "$part"
+# growpart can only take free space that follows the partition. If another partition
+# starts later on the disk, the extension is impossible and the only symptom would be
+# a cryptic growpart error after the GPT backup header was already moved. Refuse up
+# front, before anything on the disk is touched.
+part_start="$(lsblk -bnr -o START "$part" 2>/dev/null | xargs || true)"
+last_start="$(lsblk -bnr -o START "$disk" 2>/dev/null | awk 'NF{print $1}' | sort -n | tail -n1 || true)"
+if [[ -n "$part_start" && -n "$last_start" ]]; then
+  ((part_start == last_start)) || die 'Root partition is not the last partition on the target disk; a later partition would collide, so nothing was changed. Remove or shrink the later partition, then rerun.'
+else
+  log WARN 'lsblk did not report partition start offsets; the last-partition guard was skipped.'
+fi
 before_bytes="$(blockdev --getsize64 "$part")"
 table="$PAW_REPORT_DIR/gpt-before-expand-$(basename "$disk").txt"
 sfdisk --dump "$disk" >"$table"

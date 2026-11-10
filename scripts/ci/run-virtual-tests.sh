@@ -291,5 +291,30 @@ e2fsck -fn "$part" >/dev/null
 fs_bytes="$(dumpe2fs -h "$part" 2>/dev/null | awk -F: '/Block count/ {gsub(/ /,"",$2); b=$2} /Block size/ {gsub(/ /,"",$2); s=$2} END {print b*s}')"
 ((fs_bytes > old_fs_bytes)) && pass 'Loop-backed ext4 filesystem expanded' || { echo 'FAIL ext4 filesystem did not grow' >>"$report"; failed=$((failed+1)); }
 
+# Guard: a root partition that is not the last one cannot grow, and the refusal must
+# happen before the GPT backup header is moved or growpart is attempted.
+notlast_file="$root/tests/virtual/ci-gpt-notlast.img"
+truncate -s 128M "$notlast_file"
+printf 'label: gpt\n,64M\n,60M\n' | sfdisk "$notlast_file" >/dev/null
+notlast_loop="$(losetup --find --show -P "$notlast_file")"; loop_devices+=("$notlast_loop")
+notlast_part="${notlast_loop}p1"
+for _ in $(seq 1 20); do [[ -b "$notlast_part" ]] && break; sleep 1; done
+if [[ -b "$notlast_part" ]]; then
+  mkfs.ext4 -F "$notlast_part" >/dev/null
+  before_table="$(sfdisk --dump "$notlast_part" 2>/dev/null || true)"
+  set +e
+  out="$("$root/scripts/paw-gpt-expand.sh" "$notlast_loop" "$notlast_part" 2>&1)"; rc=$?
+  set -e
+  ((rc != 0)) && pass 'Non-last root partition expansion is refused' || { echo 'FAIL non-last root partition expansion was not refused' >>"$report"; failed=$((failed+1)); }
+  grep -q 'not the last partition' <<<"$out" && pass 'Refusal explains the later-partition collision' || { echo 'FAIL refusal did not explain the collision' >>"$report"; failed=$((failed+1)); }
+  grep -q 'nothing was changed' <<<"$out" && pass 'Refusal states that nothing was changed' || { echo 'FAIL refusal did not state that nothing changed' >>"$report"; failed=$((failed+1)); }
+  after_second_start="$(lsblk -bnr -o START "${notlast_loop}p2" | xargs)"
+  expected_second_start="$(sfdisk -d "$notlast_loop" | awk '$1 ~ /p2$/ {for(i=1;i<=NF;i++) if($i ~ /^start=/) {split($i,a,"="); print a[2]}}')"
+  [[ "$after_second_start" == "$expected_second_start" ]] && pass 'Later partition kept its offset (no GPT surgery)' || { echo 'FAIL later partition offset changed' >>"$report"; failed=$((failed+1)); }
+else
+  echo 'FAIL non-last GPT loop partition absent' >>"$report"; failed=$((failed+1))
+fi
+unset out rc before_table
+
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 ((failed == 0))
