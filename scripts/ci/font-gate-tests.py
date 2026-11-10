@@ -107,7 +107,7 @@ def run_font_script(
         (fbsys / "name").write_text("test-fbcon\n", encoding="utf-8")
         (fbsys / "virtual_size").write_text("1024,768\n", encoding="utf-8")
         (vt / "vtcon1").mkdir(parents=True)
-        (vt / "vtcon1/name").write_text("frame buffer device\n", encoding="utf-8")
+        (vt / "vtcon1/name").write_text("(M) frame buffer device\n", encoding="utf-8")
         (vt / "vtcon1/bind").write_text("1\n", encoding="utf-8")
     else:
         fbdev = case / "no-such-fbdev"
@@ -140,6 +140,7 @@ def run_font_script(
             "PAW_FBCON_DEVICE": str(fbdev),
             "PAW_FB_SYSFS_DIR": str(fbsys),
             "PAW_VTCONSOLE_DIR": str(vt),
+            "PAW_FONT_WAIT_SECONDS": "1",
             "FAKE_SETFONT_LOG": str(case / "setfont.log"),
         }
     )

@@ -35,8 +35,14 @@ font_sha=""
 expected_sha=""
 manifest_schema=""
 manifest_cell=""
+font_loadable=false
 setfont_rc=-1
 setfont_output="not attempted"
+wait_seconds="${PAW_FONT_WAIT_SECONDS:-30}"
+if [[ ! "$wait_seconds" =~ ^[0-9]+$ ]]; then
+  wait_seconds=30
+fi
+deadline=$((SECONDS + wait_seconds))
 
 mark_fail(){
   if [[ "$status" != FAIL ]]; then
@@ -45,21 +51,37 @@ mark_fail(){
   fi
 }
 
+# The DRM/fbcon driver can bind a little after udev-settle.  Wait briefly for
+# the framebuffer and for fbcon to bind before deciding this is vgacon; a
+# premature fallback would load the squashed 8x16 font and leave Chinese as
+# boxes on a perfectly capable framebuffer console.
+while [[ ! -e "$fb_device" && "$SECONDS" -lt "$deadline" ]]; do
+  sleep 0.2
+done
+
 if [[ -e "$fb_device" ]]; then
   mode="fbcon"
   font="$primary"
-  fb_name="$(cat "$fb_sysfs/name" 2>/dev/null || true)"
-  fb_size="$(cat "$fb_sysfs/virtual_size" 2>/dev/null || true)"
   if [[ -d "$vt_sysfs" ]]; then
-    for vt in "$vt_sysfs"/vtcon*; do
-      [[ -e "$vt/name" && -e "$vt/bind" ]] || continue
-      if [[ "$(cat "$vt/name" 2>/dev/null || true)" == "frame buffer device" \
-            && "$(cat "$vt/bind" 2>/dev/null || true)" == "1" ]]; then
-        fbcon_bound=true
-        break
-      fi
+    while [[ "$SECONDS" -lt "$deadline" ]]; do
+      fbcon_bound=false
+      for vt in "$vt_sysfs"/vtcon*; do
+        [[ -e "$vt/name" && -e "$vt/bind" ]] || continue
+        # /sys/class/vtconsole/vtconN/name is "(M) frame buffer device" or
+        # "(S) frame buffer device" on current kernels; match the suffix, not
+        # the whole line, or a bound fbcon is misread as vgacon.
+        if [[ "$(cat "$vt/name" 2>/dev/null || true)" == *"frame buffer device"* \
+              && "$(cat "$vt/bind" 2>/dev/null || true)" == "1" ]]; then
+          fbcon_bound=true
+          break
+        fi
+      done
+      [[ "$fbcon_bound" == true ]] && break
+      sleep 0.2
     done
   fi
+  fb_name="$(cat "$fb_sysfs/name" 2>/dev/null || true)"
+  fb_size="$(cat "$fb_sysfs/virtual_size" 2>/dev/null || true)"
   [[ "$fbcon_bound" == true ]] || mark_fail "存在 $fb_device，但没有已绑定的 fbcon；拒绝冒充 16x16 主路径。"
 else
   # vgacon is an emergency diagnostic path only.  It must never produce PASS.
@@ -101,15 +123,23 @@ PY
       mark_fail "无法计算控制台字体 SHA256：$font"
     elif [[ "$font_sha" != "$expected_sha" ]]; then
       mark_fail "控制台字体 SHA256 与构建 manifest 不一致：$font"
+    else
+      font_loadable=true
     fi
   fi
 fi
 
+while [[ ! -c "$tty" && "$SECONDS" -lt "$deadline" ]]; do
+  sleep 0.2
+done
 if [[ ! -c "$tty" ]]; then
   mark_fail "控制台字体：$tty 不是字符设备。"
 fi
 
-if [[ "$status" != FAIL && -c "$tty" ]]; then
+# Load the font even when fbcon is not bound yet (or the fallback is selected):
+# the screen must not stay on the VGA font.  The report status remains WARN or
+# FAIL, so this cannot open the destructive write gate.
+if [[ "$font_loadable" == true && -c "$tty" ]]; then
   if command -v kbd_mode >/dev/null 2>&1; then
     kbd_mode -u -C "$tty" 2>/dev/null || log WARN "无法把 $tty 切到 UTF-8 键盘模式；仍尝试加载字体。"
   fi
