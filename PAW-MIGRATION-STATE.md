@@ -2,9 +2,20 @@
 
 Updated: 2026-11-10 UTC (second takeover round)
 Branch: `fix/v2.6.2-final-readiness`
-Branch HEAD: `2c2a37d` (Bind the Rescue source-UUID prompt to the verified tty1 path)
+Code HEAD covered by the final run: `2c2a37d` (Bind the Rescue source-UUID prompt to the verified tty1 path)
+Documentation HEAD: `908f2a6` (state/blockers/acceptance/delivery/test-report only; no code, no ISO change)
 Main HEAD: `0d6aefd` (unchanged; development never restarted from `main`)
 PR: #2 (Draft, not merged); #1 untouched
+
+## Evidence mapping
+
+The ISO, its SHA256 and every test count in this file come from Run `42778468039`
+on code HEAD `2c2a37d`. The only commit after it is documentation; it changes no
+script, workflow or package, so the ISO and test evidence still apply. That
+documentation commit was checked locally with `scripts/ci/check-public-safety.py`
+(result `PUBLIC-SAFETY=PASS`) instead of consuming another 20-minute full build,
+because a rebuild would produce a different ISO hash (the build is not
+byte-reproducible) and would only make the delivered hash ambiguous.
 
 ## Phase
 

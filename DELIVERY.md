@@ -1,7 +1,9 @@
 # PAW Migration Kit v2.7 交付包
 
 交付更新时间：2026-11-10 UTC（第二轮接管）
-分支：`fix/v2.6.2-final-readiness` / HEAD `2c2a37d`
+分支：`fix/v2.6.2-final-readiness`
+代码 HEAD（本次 ISO 与全部测试证据对应）：`2c2a37d`
+文档 HEAD（仅文档，无代码/ISO 变化）：`908f2a6` 及之后的文档提交
 PR #2：<https://github.com/riser-lang/paw-migration-kit/pull/2>（Draft，未合并）
 PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未改动）
 
