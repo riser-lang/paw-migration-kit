@@ -4,7 +4,9 @@
 控制台：`/dev/tty1`（普通显示器 + 键盘）
 串口：`ttyS0,115200n8` 仅用于诊断日志，不作为交互输入
 
-> 本指南对应第一段修复后的测试版本。真实 ASUS B85M-G Plus 现场验收尚未完成；
+> 本指南对应当前第一段收尾版本（基线 `d640712` + 字体失败安全门禁）。新分支
+> CI、第二阶段生产块/SSH 克隆入口、第三/四阶段和真实 ASUS B85M-G Plus 现场
+> 验收尚未完成；第二阶段已有虚拟 Ubuntu 启动证据，但不能当作生产克隆验收。
 > 若屏幕显示异常，请按第 7 节采集证据，不要直接写入任何磁盘。
 
 ## 1. 启动前
@@ -35,6 +37,28 @@
 字体未加载时仍可按键操作。
 
 如果屏幕只有英文/方块/空白，见第 7 节。
+
+### 2.1 字体安全门禁（重要）
+
+从当前 `vm/ds-clean-handover-20261110` 分支起，PAW 使用 **fail-closed** 字体
+门禁：只有下面条件全部满足才允许分区、格式化、克隆、离线修复或扩容：
+
+1. `/dev/fb0` 存在且内核 fbcon 已绑定；
+2. 当前启动的是 `paw-cjk-16x16.psf`（不是 8x16 回退）；
+3. 字体的实际 SHA256 与构建 manifest 的 `primary_font_sha256` 一致；
+4. `setfont -C /dev/tty1` 返回 0；
+5. `console-font.json` 的 `schema` 是 `paw.console-font.v2`、`status` 是
+   `PASS`、`boot_id` 等于本次启动、`fbcon_bound` 是 `true`。
+
+- 8x16 vgacon 回退只写 `status=WARN`，**不会**打开写门禁；屏幕仍可用于只读
+  诊断，但不能继续迁移。
+- 字体缺失、损坏、哈希错误、`setfont` 失败、报告缺失或 boot_id 过期都会写
+  `status=FAIL` 并阻断所有破坏性操作；只读查看/诊断仍可用。
+- 授权面板之前就会过门禁；如果没有 PASS，不会出现“输入序列号末六位”的破坏性
+  授权提示。
+- 当前 VM 的字体门禁已做 26 项故障注入；新分支 CI Run `42825407549` 已全绿
+  （gate 26/26、CJK 25/25、TTY 56/56），现场仍以目标机的实际
+  `console-font.json` 为准。
 
 ## 3. 首次 PAWDATA 初始化
 
@@ -124,14 +148,17 @@ journalctl -u paw-console-font.service -b --no-pager
 期望：
 
 - `/dev/fb0` 存在，名称类似 `i915drmfb` 或 `bochs-drmdrmfb`；
-- `console-font.json` 中 `"mode": "fbcon"`、`"font": "...16x16.psf"`、
-  `"setfont_exit_code": 0`、`"status": "PASS"`；
+- `console-font.json` 中 `"schema": "paw.console-font.v2"`、
+  `"mode": "fbcon"`、`"fbcon_bound": true`、`"font": "...16x16.psf"`、
+  `"setfont_exit_code": 0`、`"status": "PASS"`，且 `"boot_id"` 等于当前
+  `cat /proc/sys/kernel/random/boot_id`；
 - 服务日志出现“控制台字体已加载：fbcon ...”。
 
 如果 `/dev/fb0` 不存在：
 
 - 说明内核没有拿到 framebuffer（常见于错误的 `nomodeset`、云内核、或显卡驱动
-  未加载）。PAW 会回退到 8x16 字体，复杂汉字可能压缩/难读，但不应完全空白。
+  未加载）。PAW 会回退到 8x16 字体并记 `WARN`；复杂汉字可能压缩/难读，屏幕可用
+  于只读诊断，但**不会允许任何磁盘写入**。
 - 记录 `dmesg | grep -Ei 'drm|fb0|bochs|i915|vesa'` 和
   `journalctl -b --no-pager`，交给维护者；不要自行写入磁盘。
 
@@ -139,7 +166,8 @@ journalctl -u paw-console-font.service -b --no-pager
 
 - 记录 `ls -l /opt/paw-migration/fonts/`、`sha256sum /opt/paw-migration/fonts/*.psf`；
 - 记录 `systemctl status paw-console-font.service`；
-- 这属于字体/内核问题，不是序列号问题，不要继续最终授权。
+- 这属于字体/内核问题，不是序列号问题，不要继续最终授权；检查
+  `boot_id`、`fbcon_bound`、`expected_font_sha256` 与实际 `font_sha256` 是否一致。
 
 ## 8. 安全边界
 

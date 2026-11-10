@@ -1,10 +1,16 @@
 # PAW v2.7.1 第一段 BLOCKERS（本轮更新）
 
 更新日期：2026-11-10
-分支：`fix/v2.6.2-final-readiness`
-本轮 HEAD：`bf1a705`（第二段）／`376c35d00a943941e64ff2b38c627e9657a47cc9`（第一段）
+历史证据分支：`fix/v2.6.2-final-readiness`
+当前干净交接分支：`vm/ds-clean-handover-20261110`
+当前分支基线：`d64071251bb3075d9cb26a967dfcba6cf139250a`
+历史 HEAD：`bf1a705`（第二段）／`376c35d00a943941e64ff2b38c627e9657a47cc9`（第一段）
 对应测试报告：`docs/PAW-V2.7.1-TEST-REPORT.md`
 保护边界：只使用虚拟磁盘/QEMU；未触碰旧 VPS、生产 PAW、真实 TF 卡或真实硬盘。
+
+> 当前分支的字体门禁已本机 26/26 通过；新分支 Run `42825407549` 已全绿
+> （26/26 gate、25/25 CJK、56/56 TTY）。历史 Run `42804949796` 的绿色结果
+> 只对应 `bf1a705`，不能写成新门禁的 CI 证据。
 
 ## 状态汇总
 
@@ -22,7 +28,10 @@
 | PAW-271-B10 | 中 | CI QEMU 仍是虚拟硬件，不是 ASUS 实机 | OPEN | 不能把虚拟测试说成实机验收 |
 | PAW-271-B11 | 高 | 六个操作员脚本的面板只进 journal、不上屏幕 | **CLOSED（静态 55 + PTY 15，CI 绿）** | 实机屏幕仍归 B03 |
 | PAW-271-B12 | 中 | 新增授权面板的中文字形未进 QEMU CJK 截图套件 | **CLOSED（QEMU final 用例，25 断言）** | 实机屏幕仍归 B03 |
-| PAW-271-B13 | 低 | 本机换成 Windows 11，无 `termios`，PTY 无法本地执行 | **OPEN（环境）** | 由 CI `PAW_REQUIRE_PTY=1` 覆盖 |
+| PAW-271-B13 | 低 | 本机 PTY 不可用（当前 Linux 沙箱 `/dev/ptmx` → Out of pty devices；历史 Windows 无 `termios`） | **OPEN（环境）** | 由 CI `PAW_REQUIRE_PTY=1` 覆盖 |
+| PAW-271-B14 | 高 | 字体门禁只在“报告 PASS”时允许写盘；8x16 回退是 WARN，必须拒绝 | **CLOSED（Run 42825407549）** | 缺报告/哈希/字体/setfont/过期 boot_id 全部 fail-closed；CI 26/26 + QEMU CJK 25/25；Run 42817841755 的 `(M) frame buffer device` 回归已由 4572280 修复并复跑通过 |
+| PAW-271-B15 | 高 | 第二阶段 Ubuntu 24.04 克隆盘真实启动已完成虚拟证据，但生产块设备/SSH 克隆入口和完整项目离线修复未执行 | **PARTIAL_VIRTUAL_BOOT / BLOCK_CLONE_OPEN** | 已用真实 Ubuntu raw、240GB 稀疏虚拟盘、SeaBIOS 启动、GPT/ext4 扩容、真实 GRUB/initramfs 和第三次启动登录证明；还需生产 clone 入口和 `paw-offline-repair.sh` 全链路。见 `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md` |
+| PAW-271-B16 | 高 | 第三阶段完整迁移链路、第四阶段最终 ISO 未完成 | **OPEN（后续段）** | 需全部真实程序入口测试、下载 ISO 后重算 ISO SHA256（不能用 ZIP 哈希） |
 
 ## PAW-271-B11 操作员面板不上屏幕（第二段修复）
 
@@ -66,7 +75,8 @@
 - 采用 **fbcon + GNU Unifont 16x16 PSF2**，不是“给 vgacon 装一个大字体”。
 - 512 槽：95 ASCII（空格固定在 32 槽）+ 385 个运行时非 ASCII 字符，480 个映射。
 - `paw-console-font.service` 在 PAWDATA/菜单之前 `setfont -C /dev/tty1`；
-  有 `/dev/fb0` 用 16x16，无 fb0 用 8x16 应急后备。
+  有 `/dev/fb0` 且 fbcon 已绑定用 16x16；无 fb0 用 8x16 应急后备，但只记
+  `WARN`，不打开写门禁。
 - 不声明 `TTYPath=`，不改变 `paw-tty-lib.sh` 的 fd3 读写和键盘路径。
 
 **证据**
@@ -92,7 +102,8 @@
   `CAP_SYS_ADMIN`，失败。
 - 不是容器：`systemd-detect-virt=kvm`，`/proc/1/cgroup=0::/init.scope`。
 - 不是 sudoers 配置：调度方直接执行（NNP=0）`sudo -n id` 成功。
-- 本机 pty：`/dev/ptmx` 不可用（`out of pty devices`），PTY 用例标记 BLOCKED。
+- 当前 Linux 本机 pty：`/dev/ptmx` 不可用（`out of pty devices`），PTY 用例
+  标记 BLOCKED；历史 Windows 工作站无 `termios`。
 - CI 以 root 执行 loop 套件，以 `PAW_REQUIRE_PTY=1` 强制 PTY；不可用即失败。
 
 ## PAW-271-B03 真实 ASUS 主板（高，实机）
@@ -125,6 +136,13 @@
 - 第二段（2026-11-10）关闭了“操作员面板不上屏幕”（B11）与“授权面板缺像素级
   证据”（B12）：静态 55 项、PTY 15 项、QEMU 授权面板 25 项断言在 Run
   `42804949796` 全绿；新增 B13（Windows 无 termios）。
-- 整体仍为 **PARTIAL**：真实 ASUS、真实重启、最终发布 ISO 现场验收、真实硬件
-  全部 OPEN。
+- 当前分支新增字体失败安全门禁：本机 26/26；CI 实际运行暴露两个回归
+  （字体槽位 418/417、`(M) frame buffer device` 名称误判），均已修复；Run
+  `42825407549` 已全绿（gate 26/26、CJK 25/25、TTY 56/56）。这是第一段收尾
+  的必要条件，不是最终发布验收。
+- 整体仍为 **PARTIAL**：新分支 CI、第二阶段生产块/SSH 克隆入口与完整离线修复、
+  第三/四阶段、真实 ASUS、真实重启、最终发布 ISO 现场验收、真实硬件全部 OPEN。
+- 第二阶段已有 **VIRTUAL_BOOT_PASS** 证据：真实 Ubuntu 24.04 raw、240GB 稀疏
+  目标、项目 clone/verify（显式 simulation）、GPT/ext4 扩容、真实 GRUB/initramfs、
+  SeaBIOS 启动和无 seed 第三次启动登录；不能把 simulation clone 写成生产 clone。
 - PR #2 保持 Draft，未合并。

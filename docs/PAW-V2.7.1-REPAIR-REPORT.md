@@ -1,11 +1,95 @@
 # PAW v2.7.1 第一段遗留问题修复报告
 
 执行日期：2026-11-10
-分支：`fix/v2.6.2-final-readiness`
-本轮基线（开始时远端 HEAD）：`572588132f86a4632702589ef20ac398c068248f`
-本轮实现提交：`376c35d00a943941e64ff2b38c627e9657a47cc9`
+历史证据分支：`fix/v2.6.2-final-readiness`（下文第 1–6 节保留该分支的历史记录）
+当前干净交接分支：`vm/ds-clean-handover-20261110`
+当前分支基线：`d64071251bb3075d9cb26a967dfcba6cf139250a`（远端最新开发分支）
+历史实现提交：`376c35d00a943941e64ff2b38c627e9657a47cc9`
 PR #2：保持 **Draft**，未合并。
-最终发布 ISO：**未构建/未发布**（本轮只做修复与回归，CI 构建的是测试用 Live ISO）。
+最终发布 ISO：**未构建/未发布**。
+
+## 0. 2026-11-10 干净交接与 P0-1 字体失败安全门禁
+
+### 0.1 环境接管
+
+- 旧 PAW 现场已按清单隔离后删除；删除明细、释放空间和保留工具见
+  `reports/DS-CLEAN-ENVIRONMENT-TAKEOVER.md`。没有删除整个 `$HOME`，没有删除
+  非 PAW 项目，没有触碰生产 VPS、生产磁盘、真实 TF 卡、Tailscale、Funnel、
+  Xray、Nginx、443、防火墙或 COS。
+- 新工作区从 GitHub 重新克隆到 `/home/agentuser/paw-migration-kit`，基线是
+  `d640712`，没有复用旧工作树/旧未提交修改。
+- 当前 VM 的 bash 执行通道仍设置 `NoNewPrivs: 1` 且 `sudo -n` 失败；因此本机
+  只能执行不需要 root 的测试。需要 root/loop 的测试仍由 GitHub Actions 执行，
+  本机结果如实标 BLOCKED，不冒充 PASS。
+
+### 0.2 P0-1 实现
+
+**原则：只有本次启动、fbcon 已绑定、主 16x16 PSF2 字体的 manifest/实际
+SHA256 一致、`setfont` 返回 0、且报告为 `PASS`，才允许破坏性磁盘写入。
+8x16 回退只能是 `WARN`，永远不能打开写门禁；缺失、损坏、哈希不符、加载失败、
+报告缺失/过期一律 `FAIL`/阻断。只读诊断仍允许。**
+
+新增和修改：
+
+- `scripts/paw-font-gate.py`：写门禁校验器。拒绝旧 schema、非 `PASS`、非
+  `fbcon`、`fbcon_bound` 非 true、boot_id 不一致、tty 不符、字体路径不是
+  `paw-cjk-16x16.psf`、大小/SHA256/manifest 不符、`setfont_exit_code != 0`，
+  以及 PSF2 头部不是 512 槽/16x16/32 字节字形/带 Unicode 表/表有终止符。
+- `scripts/paw-console-font.sh`：重写为 `paw.console-font.v2` 报告。PASS/WARN/FAIL
+  所有路径都先原子写报告再退出；WARN（vgacon 8x16）退出 0 供只读诊断，FAIL
+  退出非零。报告记录 `boot_id`、`fbcon_bound`、`fbcon` 名称/分辨率、字体实际
+  与 manifest 期望 SHA256、`setfont` 退出码/输出。
+- `scripts/paw-lib.sh`：新增 `require_console_font_pass`，并在
+  `require_sim_or_enrollment` 的真实路径最先调用。`paw-stream-clone.sh`、
+  `paw-offline-repair.sh`、`paw-gpt-expand.sh` 因此都在动盘前过门禁。
+- `scripts/paw-final-confirm.sh`：在显示一次性破坏性授权面板前过门禁；没有
+  PASS 就不出现授权输入。
+- `scripts/paw-prepare-data-partition.sh`：在任何 `sfdisk`/`sgdisk`/`mkfs`/
+  mount 写操作前过门禁。
+- `boot/paw-data-init.service`、`boot/paw-console.service`：显式
+  `After=paw-console-font.service`；字体服务原有 `Before` 顺序保留。
+- `scripts/ci/font-gate-tests.py` + `scripts/ci/make-font-gate-fixture.py`：
+  26 项故障注入，覆盖 PASS、8x16 WARN、缺字体、字体损坏、manifest 哈希不符、
+  `setfont` 失败、报告缺失、boot_id 过期、WARN 状态、vgacon 冒充、fbcon 未绑定、
+  非零退出码、8x16 冒充主字体、manifest 缺失，以及三个破坏性入口调用断言。
+- `.github/workflows/build-live-and-test.yml`：新增
+  `Run console-font fail-closed gate fault injection`，并把报告加入测试汇总。
+- `scripts/ci/run-virtual-tests.sh` 在 `PAW_SIMULATION=0` 的 loop 授权测试中
+  导出合成的同启动 PASS fixture；`tests/qemu/paw-cjk-final-probe.sh` 把门禁指向
+  真实 Live 字体报告，避免测试夹具覆盖真实报告。
+
+### 0.3 已执行与未执行
+
+本机实际执行（不冒充 CI/实机）：
+
+- `font-gate-tests.py --out artifacts`：**26 assertions, 0 failed**。
+- `run-finalize-virtual-tests.sh`：**36 passed, 0 failed**。
+- `run-tty-virtual-tests.sh`：静态 **55 passed, 0 failed**；PTY 1 项 BLOCKED
+  （本机 `/dev/ptmx` 不可用）。
+- ShellCheck 0.11.0 `--severity=error` 无命中；Bash `-n`、Python compile、
+  `PUBLIC-SAFETY=PASS`、`PUBLIC-HISTORY=PASS`（849 objects）。
+
+未执行/未声称：
+
+- 新分支的 GitHub Actions 已实际运行并暴露回归：Run `42812469612` 字体槽位
+  超限，Run `42817841755` 误判 `(M) frame buffer device` 为未绑定 fbcon。
+  后者已由提交 `4572280` 修复；Run `42824906347` 因共享 concurrency 排队后
+  取消，提交 `4af304e` 按分支隔离。Run `42825407549`（`4af304e`）已 **SUCCESS**：
+  font gate 26/26、CJK 25/25、PAWDATA 12/12、虚拟故障 39/39、repair 19/19、
+  network 17/17、finalize 36/36、TTY 56/56；测试 ISO SHA256
+  `c34cb13712acbe49247fadf3f088a1a4d9765d481303df6e2856c26da2e068fb`。旧 Run
+  `42804949796` 只对应 `bf1a705`，不能当作新分支 CI 结果。
+- 最终发布 ISO、真实 ASUS 屏幕、真实 TF 卡/SSD、真实腾讯云 Rescue 和正式
+  迁移全部 OPEN。
+- 第二阶段：真实 Ubuntu 24.04 raw → 240GB 稀疏虚拟盘，项目 clone/verify（显式
+  `PAW_SIMULATION=1`）、GPT/ext4 扩容、真实 `grub-install`/`update-grub`/
+  `update-initramfs`、QEMU/SeaBIOS 启动及无 seed 第三次启动登录已完成；生产块/SSH
+  clone 入口和完整 `paw-offline-repair.sh` 仍未执行，故记为
+  **VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN**。证据：
+  `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`。
+- 第三/四阶段尚未完成；见 `PAW-MIGRATION-BLOCKERS.md`。
+
+## 1. 本轮做了什么（历史，`fix/v2.6.2-final-readiness`）
 
 ## 1. 本轮做了什么
 
@@ -71,9 +155,11 @@ Tailscale、Funnel、Xray、Nginx、443、防火墙、COS，没有删除历史 A
 - 加载：`boot/paw-console-font.service` → `scripts/paw-console-font.sh`
   - `After=systemd-vconsole-setup.service`，`Before=paw-data-init.service paw-console.service paw-preflight.service getty@tty1.service`
   - 不声明 `TTYPath=`，不抢占交互终端；只 `setfont -C /dev/tty1 <font>`
-  - 有 `/dev/fb0` 时加载 16x16，没有时加载 8x16 并记录 `mode=vgacon-fallback`
-  - 写 `/run/paw-migration/reports/console-font.json`（模式、fb 名称/分辨率、
-    字体 SHA256、setfont 退出码）；串口/journal 保留诊断日志
+  - 有 `/dev/fb0` 且 fbcon 已绑定时加载 16x16；没有 fb0 时加载 8x16 并记录
+    `mode=vgacon-fallback`、`status=WARN`（只读诊断，禁止写盘）
+  - 写 `/run/paw-migration/reports/console-font.json`，当前 schema 为
+    `paw.console-font.v2`（boot_id、fbcon_bound、模式、fb 名称/分辨率、字体实际/
+    manifest 期望 SHA256、setfont 退出码）；串口/journal 保留诊断日志
 - 字体包版本：Debian trixie 快照 `unifont 1:15.1.01-1`（CI 的
   `software-packages.lock` 为准；本地验证用 15.1.01）。
 
@@ -91,9 +177,13 @@ Tailscale、Funnel、Xray、Nginx、443、防火墙、COS，没有删除历史 A
 ## 3. P0 GitHub Actions 完整回归
 
 工作流：`.github/workflows/build-live-and-test.yml`
-运行：**Run ID `42741425053`**（HEAD `376c35d`）
-结果：见 `docs/PAW-V2.7.1-TEST-REPORT.md` 的“CI 实际结果”一节（以该 Run 的
-日志/Artifact 为准）。
+历史运行：**Run ID `42741425053`**（HEAD `376c35d`）；后续历史成功 Run 为
+`42804949796`（HEAD `bf1a705`）。这些结果属于历史分支，不是当前
+`vm/ds-clean-handover-20261110` 的新 CI 结果。当前分支已实际运行 CI：Run
+`42812469612` 失败于字体槽位 418/417，Run `42817841755` 失败于
+`(M) frame buffer device` 名称误判；修复后 Run `42825407549`（HEAD
+`4af304e`）全绿，含 gate 26/26、CJK 25/25、TTY 56/56。不得把旧 Run 写成
+新门禁的 CI 证据。
 
 本轮工作流新增：
 
@@ -143,8 +233,9 @@ losetup --find --show <8MiB file> → Permission denied（attach 需要 CAP_SYS_
 - 需要 root 的虚拟磁盘测试全部交给 GitHub Actions runner；CI 的
   `run-pawdata`/`run-virtual`/`run-repair`/`run-network` 使用 `sudo` 真实执行
   loop 测试。
-- 调度方在 2026-11-10 00:50 直接执行时 `NoNewPrivs: 0`、`sudo -n id` 成功，
-  与上述结论一致：差异来自执行通道，不是主机配置。
+- 2026-11-10 本次干净接管再次实测：当前 bash 执行通道仍然
+  `NoNewPrivs: 1`、`sudo -n id` 失败，`losetup --find --show` 无法 attach。
+  不能声称本机 `sudo` 可用；需要 root 的证据只能来自 CI runner。
 
 ## 5. P1 回归结论
 

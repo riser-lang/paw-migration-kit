@@ -1,10 +1,74 @@
 # PAW v2.7.1 第一段测试报告（本轮）
 
 执行日期：2026-11-10
-分支：`fix/v2.6.2-final-readiness`
-本轮基线：`572588132f86a4632702589ef20ac398c068248f`
-本轮代码 HEAD：`364429e`（最终以 `git log` 为准）
+历史证据分支：`fix/v2.6.2-final-readiness`（下文历史 Run/计数只属于该分支）
+当前干净交接分支：`vm/ds-clean-handover-20261110`
+当前分支基线：`d64071251bb3075d9cb26a967dfcba6cf139250a`
+历史代码 HEAD：`364429e`（最终以 `git log` 为准）
 PR #2：保持 Draft，未合并。
+
+## 0. 当前分支（`vm/ds-clean-handover-20261110`）实际结果
+
+### 0.1 新增字体失败安全门禁
+
+| 测试 | 实际结果 | 说明 |
+|---|---|---|
+| 字体门禁故障注入 | **26 assertions, 0 failed** | 真实执行 `scripts/ci/font-gate-tests.py`，含 7 个真实 `paw-console-font.sh` 报告路径用例 + 13 个门禁篡改用例 + 6 个入口/顺序断言 |
+| PASS 16x16 fbcon | PASS | 合成 PSF2 满足真实头部/哈希校验；报告打开写门禁 |
+| 8x16 vgacon 回退 | WARN + 门禁拒绝 | 回退报告退出 0 供诊断，但 `paw-font-gate.py` 返回 2 |
+| 缺字体/字体损坏/manifest 哈希错/`setfont` 失败 | FAIL + 门禁拒绝 | 每种都实际写 v2 报告并以非零退出 |
+| 缺报告/boot_id 过期/WARN 冒充 PASS/vgacon 冒充/未绑定 fbcon/非零退出码/8x16 冒充主字体/manifest 缺失 | 门禁拒绝 | 全部返回 2，没有静默放行 |
+| 破坏性入口调用 | PASS | `paw-final-confirm.sh`、`paw-prepare-data-partition.sh`、`paw-lib.sh` 的 `require_console_font_pass` 静态断言 |
+| 服务顺序 | PASS | 字体服务在 PAWDATA 菜单之前 |
+
+### 0.2 历史回归的本机复跑
+
+| 套件 | 结果 |
+|---|---|
+| Finalize 36 项 | **36 passed, 0 failed** |
+| TTY 静态 | **55 passed, 0 failed** |
+| TTY PTY | **1 blocked**（本机 `/dev/ptmx` → `out of pty devices`；不写成 PASS） |
+| ShellCheck 0.11.0 `--severity=error` | PASS（无命中） |
+| Bash `-n` / Python compile | PASS |
+| `PUBLIC-SAFETY` | PASS |
+| `PUBLIC-HISTORY` | PASS，849 reachable Git objects |
+
+### 0.3 当前分支 CI 结果与实际失败
+
+- Run `42812469612`（`8e6e300`）：**FAIL**。字体门禁新增的中文“槽”字使运行时
+  唯一非 ASCII 字形达到 418，超过 512 槽内核字体的 417 个空闲槽；修词后实际
+  构建为 417 个 CJK/UI + ASCII。
+- Run `42817841755`（`d5f1a85`）：**FAIL**。构建、字体校验、ISO 启动均通过，
+  但 CJK/PAWDATA 套件失败。根因是字体服务用完整字符串
+  `frame buffer device` 比较 `/sys/class/vtconsole/vtconN/name`，而内核实际
+  返回 `(M) frame buffer device`；因此误判 fbcon 未绑定，跳过 `setfont`，
+  屏幕保持 VGA 字形，PAWDATA 写门禁也按 FAIL 阻断。该失败已保留在证据中，
+  不是测试噪声。
+- 修复提交 `4572280`：等待 `/dev/fb0` 与 fbcon 绑定，按名称后缀匹配，并在
+  尚未绑定时仍加载已校验字体（报告保持 FAIL，不打开写门禁）。
+- Run `42824906347`（`4572280`）被原开发分支的共享 concurrency 运行阻塞，
+  排队后取消，未作为测试证据；提交 `4af304e` 按分支隔离 concurrency 组。
+- Run `42825407549`（`4af304e`）：**SUCCESS**。字体门禁 **26/26**、CJK
+  QEMU **25/25**、PAWDATA **12/12**、虚拟故障注入 **39/39**、离线修复
+  **19/19**、网络 **17/17**、finalize **36/36**、TTY **56/56（0 blocked）**。
+  测试 ISO 953,155,584 bytes，SHA256
+  `c34cb13712acbe49247fadf3f088a1a4d9765d481303df6e2856c26da2e068fb`；
+  artifact `13769479260`。
+- 旧 Run `42804949796`（`bf1a705`）是历史绿色证据，不能当作当前分支门禁的
+  CI 结果。
+- 最终发布 ISO、真实 ASUS 屏幕/键盘、真实 TF 卡/SSD、真实腾讯云 Rescue、
+  真实迁移：**OPEN**。
+- 第二阶段 Ubuntu 24.04 克隆盘：**VIRTUAL_BOOT_PASS / BLOCK_CLONE_OPEN**。
+  已实际执行真实 raw → 240GB 稀疏目标、项目 `paw-stream-clone.sh` 与
+  `paw-stream-verify.sh`（显式 `PAW_SIMULATION=1`，SHA256 3,758,096,384 bytes）、
+  GPT/ext4 扩容、真实 `grub-install`/`update-grub`/`update-initramfs`、SeaBIOS
+  启动和无 seed 第三次启动登录；生产块/SSH clone 和完整离线修复仍 OPEN。证据：
+  `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`。
+- 第三/四阶段：**OPEN**（见 `PAW-MIGRATION-BLOCKERS.md`）。
+- 本机 PAWDATA/克隆/修复/网络 loop 套件：**BLOCKED（环境）**，当前 bash 通道
+  `NoNewPrivs=1`、`sudo -n` 失败、无法 attach loop。
+
+## 1. 结论摘要（历史分支，Run `42804949796`）
 
 本报告严格区分：
 
@@ -19,15 +83,16 @@ PR #2：保持 Draft，未合并。
 
 | 项目 | 本机 | GitHub Actions | 备注 |
 |---|---|---|---|
-| ShellCheck | PASS（0.9.0，severity=error） | 见 CI 表 | 全量脚本 |
+| 字体失败安全门禁（当前分支） | **26/26 PASS** | **26/26 PASS（Run 42825407549）** | 只有 fbcon 16x16 PASS 可写盘；8x16 WARN 拒绝；两个 CI 回归已修复 |
+| ShellCheck | PASS（历史 0.9.0；当前 0.11.0） | 见 CI 表 | 全量脚本 |
 | Bash 语法 | PASS | 见 CI 表 | `bash -n` |
 | Python compile | PASS | 见 CI 表 | 所有 `.py` |
 | PowerShell 语法 | 未执行（无 pwsh） | 见 CI 表 | CI 专用 |
 | Public safety | PASS | 见 CI 表 | 无密钥/凭据/二进制 |
-| Public history | PASS | 见 CI 表 | 728 objects |
+| Public history | PASS | 见 CI 表 | 849 objects（本轮扫描） |
 | Finalize 36 项 | **36 passed / 0 failed** | 见 CI 表 | 未改 finalizer 核心 |
 | TTY 静态检查 | **55 passed / 0 failed** | 见 CI 表 | 6 个操作员脚本 + 字体断言 |
-| PTY 交互 | **BLOCKED**（Windows Python 无 `termios`） | 见 CI 表 | CI `PAW_REQUIRE_PTY=1`，15 passed |
+| PTY 交互 | **BLOCKED**（当前 Linux 沙箱无 `/dev/ptmx`） | 见 CI 表 | CI `PAW_REQUIRE_PTY=1`，15 passed；历史 Windows 无 `termios` |
 | CJK 字体校验 | **PASS**（480 映射，385 非 ASCII 全覆） | 见 CI 表 | PSF2/PSF1 |
 | QEMU CJK 显示器/键盘 | **5 cases / 96 assertions / 0 failed** | 见 CI 表 | 真实 QEMU + PSF 字形匹配 |
 | PAWDATA 12 项 | BLOCKED（本机无 root/loop） | 见 CI 表 | CI sudo loop |
@@ -40,15 +105,14 @@ PR #2：保持 Draft，未合并。
 
 ## 2. 本机环境与 sudo/losetup 根因
 
-日期：2026-11-10 02:15 UTC。
+日期：2026-11-10（干净接管后再次实测；历史记录保留 02:15 UTC 结论）。
 
 ```
 id -un                         → agentuser
 id                             → uid=1002(agentuser) gid=1003(agentuser)
 sudo -n true                   → rc=1
-sudo -n id                     → rc=1
+sudo -n id                     → sudo: The "no new privileges" flag is set ...
 /proc/self/status              → NoNewPrivs: 1, CapEff: 0000000000000000
-父 node 进程                   → NoNewPrivs: 0
 systemd-detect-virt            → kvm
 /proc/1/cgroup                 → 0::/init.scope
 /dev/loop-control, /dev/loop0  → 存在
@@ -181,7 +245,12 @@ PAW_ARTIFACT_DIR=$PWD/artifacts scripts/ci/run-tty-virtual-tests.sh
 全部步骤 success）
 URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796
 
-> 说明：本轮新增 CJK 步骤后，第一次运行（`42741425053`）用于发现 CI 环境差异；
+> 当前分支说明：以下 Run `42804949796` 是历史分支 `bf1a705` 的 CI 证据，不能
+> 写成当前分支的 CI 结果。当前 `vm/ds-clean-handover-20261110` 的 CI 结果另列于
+> 0.3：Run `42825407549`（HEAD `4af304e`）**SUCCESS**，gate 26/26、CJK 25/25、
+> TTY 56/56；两个真实失败 Run `42812469612`/`42817841755` 均已记录并修复。
+>
+> 历史说明：本轮新增 CJK 步骤后，第一次运行（`42741425053`）用于发现 CI 环境差异；
 > 新增"中文授权面板"用例后又用 `42784672282` / `42788769956` / `42792565444`
 > 三轮真实失败把夹具与断言修到正确（见 10.4），不是 flaky 重跑。交付引用**最新
 > HEAD 的成功 Run**。下表全部取自 Run `42804949796` 的日志与 Artifact，未手写猜测。

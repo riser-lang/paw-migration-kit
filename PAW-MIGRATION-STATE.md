@@ -1,11 +1,42 @@
 # PAW Migration State
 
-Updated: 2026-11-10 UTC (second takeover round)
-Branch: `fix/v2.6.2-final-readiness`
-Code HEAD covered by the final run: `bf1a705` (Refuse to expand a root partition that
-is not the last one)
+Updated: 2026-11-10 UTC (clean VM takeover round)
+Current branch: `vm/ds-clean-handover-20261110`
+Current base: `d64071251bb3075d9cb26a967dfcba6cf139250a` (latest remote
+development branch, "Prove the real grub-install on a loop GPT disk instead of a
+stub")
+Historical evidence branch: `fix/v2.6.2-final-readiness`
+Historical code HEAD covered by the last green run: `bf1a705`
 Main HEAD: `0d6aefd` (unchanged; development never restarted from `main`)
 PR: #2 (Draft, not merged); #1 untouched
+
+## Current clean-takeover status
+
+- Old PAW workspace/isolation was explicitly deleted after the fresh clone and local
+  gate tests passed. Exact deleted list, retained tools and freed space:
+  `reports/DS-CLEAN-ENVIRONMENT-TAKEOVER.md`.
+- The new clone is `/home/agentuser/paw-migration-kit`; no old worktree or local
+  modification was reused. Branch `vm/ds-clean-handover-20261110` starts at
+  `d640712`.
+- P0-1 is implemented: only a same-boot `paw.console-font.v2` report with
+  `status=PASS`, `mode=fbcon`, `fbcon_bound=true`, the primary 16x16 PSF2,
+  actual/manifest SHA256 match and `setfont_exit_code=0` opens destructive writes.
+  The 8x16 vgacon fallback is `WARN` and is refused. Missing/corrupt/hash-mismatch/
+  load-failure/missing/stale reports are `FAIL`/blocked. Read-only diagnostics stay
+  available.
+- Local gate fault injection: **26 assertions, 0 failed**. Local finalize **36/36**;
+  TTY static **55/0** with 1 PTY case BLOCKED (no `/dev/ptmx`); ShellCheck/Bash/
+  Python/public safety/public history PASS.
+- **New-branch CI is green.** Run `42825407549` at `4af304e` succeeded:
+  font-gate 26/26, CJK QEMU 25/25, PAWDATA 12/12, virtual 39/39, repair 19/19,
+  network 17/17, finalize 36/36 and TTY 56/56 with 0 blocked. It followed two
+  real failures (`42812469612` font-slot overflow; `42817841755` misreading
+  `(M) frame buffer device`), both fixed in `d5f1a85`/`4572280`; queued Run
+  `42824906347` was cancelled after the shared concurrency group blocked it.
+  The green Run `42804949796` belongs to `bf1a705` and remains historical.
+- The current bash channel has `NoNewPrivs=1`; `sudo -n` and loop attach remain
+  unavailable locally. Root/loop tests must run in CI; local status is BLOCKED,
+  never PASS.
 
 ## Evidence mapping
 
@@ -18,13 +49,19 @@ build is not byte-reproducible) and would only make the delivered hash ambiguous
 
 ## Phase
 
-- Phase 1: repository and environment takeover — complete.
-- Phase 2: P0 blockers — implemented and virtually verified.
-- Phase 3: P1 adaptation — implemented and virtually verified; real hardware pending.
-- Phase 4: cloud build — PASS.
-- Phase 5: expanded virtual test matrix — PASS.
-- Phase 6: public security audit and delivery package — complete for the
-  cloud/virtual scope; real hardware still unverified.
+- Phase 1: clean VM takeover, fresh GitHub clone, P0-1 font gate — **complete**
+  locally and in CI Run `42825407549`; two real CI regressions were fixed.
+- Phase 2: clone of a real Ubuntu 24.04 disk and QEMU/SeaBIOS boot from the target
+  disk — **VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN**. Actual QEMU/SeaBIOS boot,
+  GPT/ext4 expansion, real GRUB/initramfs and a second seedless boot are proven;
+  the project clone ran in explicit `PAW_SIMULATION=1`, and the production
+  block/SSH clone plus full project offline repair remain OPEN. Evidence:
+  `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`.
+- Phase 3: full migration chain with real program entry points — **OPEN**.
+- Phase 4: final ISO, downloaded-artifact ISO SHA256, Chinese guide/rollback —
+  **OPEN**.
+- Historical cloud build (`42804949796`) and the historical virtual matrix remain
+  valid for `bf1a705` only; they do not certify the new branch or Stage 2–4.
 
 ## Operator console binding
 
@@ -58,10 +95,10 @@ message that names the collision and states that nothing was changed. The virtua
 suite builds a two-partition GPT loop, expects the refusal, checks both message
 claims, and asserts the `sfdisk` dump is byte-identical afterwards.
 
-## Final cloud evidence
+## Historical cloud evidence (not current-branch evidence)
 
 - Run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
-  (HEAD `bf1a705`, success)
+  (HEAD `bf1a705`, success; historical branch only)
 - Artifact ID: `13760370816`, `paw-live-build-test-results`, 1,030,665,391 bytes
 - Artifact expiry: 2026-11-13 11:27:18 UTC
 - ISO: `paw-live-amd64.iso`, 953,155,584 bytes
@@ -108,6 +145,10 @@ claims, and asserts the `sfdisk` dump is byte-identical afterwards.
 
 ## Not verified
 
+- New-branch GitHub Actions run and its artifact hashes.
+- Stage 2 production block/SSH clone path and full project offline repair on the
+  cloned target (virtual boot and real GRUB/initramfs already proven).
+- Stage 3 full migration chain and Stage 4 final ISO.
 - Real TF card write and read-back.
 - Real ASUS motherboard/SeaBIOS boot, real keyboard and display.
 - Real SSD SMART/read scan/temperature.
@@ -119,11 +160,16 @@ claims, and asserts the `sfdisk` dump is byte-identical afterwards.
 These remain open until the user performs them on hardware. No production VPS was
 accessed; no physical disk or TF card was written.
 
-## Immediate next steps for the user
+## Immediate next steps
 
-1. Use the ISO at `delivery/paw-live-amd64.iso` (or download Artifact
-   `13760370816` from Run `42804949796` before 2026-11-13 11:27:18 UTC).
-2. Recompute ISO SHA256 and compare with `d9fe2879…fb95a4476`.
-3. Follow `docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md` step by step; it lists the exact
-   screen text each step must show and what to do when it does not.
-4. Keep physical results separate from cloud/virtual results.
+1. Finish the P0-2 docs commit on `vm/ds-clean-handover-20261110`; record the new
+   workflow_dispatch Run ID/HEAD. Do not reuse `42804949796` as current evidence.
+2. Close the remaining Stage 2 gap: execute the production block/SSH clone entry
+   and full `paw-offline-repair.sh` against the cloned target, then boot it again.
+   The virtual Ubuntu boot, GPT/ext4 expansion, real GRUB/initramfs and seedless
+   second boot are already evidenced; do not repeat them as stubs.
+3. Only after Stage 2 and the full chain pass, build the final ISO, download the
+   ISO artifact and recompute its SHA256 (never a ZIP hash), then update the
+   Chinese guide and rollback guide.
+4. Keep physical results separate from cloud/virtual results; real ASUS/TF/SSD/
+   Tencent Rescue remain OPEN and require separate authorization.

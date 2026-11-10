@@ -1,6 +1,6 @@
 # PAW Virtual Test Matrix (v2.5)
 
-No Linux/QEMU environment is available, so all rows remain `NOT RUN`. All disk cases must use files under `tests/virtual`; any loop devices must be backed by files in that directory. Never attach a physical disk.
+This is the original v2.5 planning matrix; current execution evidence is in `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md` and the CI reports, so do not read every row as `NOT RUN`. All disk cases must use files under `tests/virtual`; any loop devices must be backed by files in that directory. Never attach a physical disk.
 
 | # | Test | Injection / fixture | Expected fail-closed result |
 |---:|---|---|---|

@@ -1,10 +1,39 @@
 # PAW Migration Acceptance
 
-Updated: 2026-11-10 UTC (second takeover round)
-Final green run: `42804949796` — success — HEAD `bf1a705`
-Branch: `fix/v2.6.2-final-readiness`
+Updated: 2026-11-10 UTC (clean VM takeover round)
+Current branch: `vm/ds-clean-handover-20261110` — base `d640712`
+Historical green run: `42804949796` — success — HEAD `bf1a705`
+Historical branch: `fix/v2.6.2-final-readiness`
 
-## A. Cloud build acceptance
+## A0. Current-branch P0-1 acceptance
+
+- [x] Destructive write gate exists in `scripts/paw-font-gate.py` and rejects any
+      report that is not same-boot `paw.console-font.v2` `PASS` with `fbcon`,
+      `fbcon_bound=true`, primary 16x16 PSF2, actual/manifest SHA256 match and
+      `setfont_exit_code=0`.
+- [x] 8x16 vgacon fallback is `WARN`, not `PASS`, and the gate returns non-zero.
+- [x] Missing font, corrupt font, manifest hash mismatch, `setfont` failure,
+      missing/stale report, vgacon-as-fbcon, 8x16-as-primary and unbound fbcon all
+      block.
+- [x] `paw-final-confirm.sh` gates before the destructive authorization panel.
+- [x] `paw-prepare-data-partition.sh` gates before any partition/format/mount write.
+- [x] `paw-stream-clone.sh`, `paw-offline-repair.sh` and `paw-gpt-expand.sh` gate
+      through `require_sim_or_enrollment`; read-only diagnostics remain available.
+- [x] Fault injection: **26 assertions, 0 failed** locally.
+- [x] New-branch GitHub Actions run `42825407549` at `4af304e`: **success**,
+      including font-gate 26/26, CJK QEMU 25/25, PAWDATA 12/12, virtual 39/39,
+      repair 19/19, network 17/17, finalize 36/36 and TTY 56/56. Earlier failures
+      `42812469612`/`42817841755` are recorded; old `42804949796` remains historical.
+- [~] Stage 2 Ubuntu 24.04 cloned-disk boot. **VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN**;
+      real QEMU/SeaBIOS boot from a 240GB target, GPT/ext4 expansion, real
+      `grub-install`/`update-grub`/`update-initramfs`, second boot to login. The
+      project clone ran in explicit `PAW_SIMULATION=1` (no host root/loop), so the
+      production block-device/SSH clone path and full project offline repair remain
+      open. Evidence: `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`.
+- [ ] Stage 3 full migration chain. **OPEN**.
+- [ ] Stage 4 final ISO + downloaded-ISO SHA256 (never ZIP hash). **OPEN**.
+
+## A. Historical cloud build acceptance (`bf1a705`)
 
 - [x] Workflow runs on the v2.6.2 branch and completes successfully (`42804949796`).
 - [x] Debian Live ISO `paw-live-amd64.iso` is produced (953,155,584 bytes).
@@ -85,6 +114,23 @@ repair/rollback 15/15; network 17/17; finalize 36/36; TTY 56 (static 55 + PTY,
       matched against the shipped PSF glyphs, 25 assertions, 0 failed.
 - [ ] The real ASUS screen still needs the same visual confirmation (see D).
 
+## C3. Stage 2 partial evidence; Stage 3–4 open
+
+- [x] Real Ubuntu 24.04 source disk with GPT, BIOS Boot, ext4, real GRUB and real
+      initramfs (cloud image, raw, 3.5GB).
+- [x] 240GB sparse target virtual disk.
+- [~] Production clone program: `scripts/paw-stream-clone.sh` + `paw-stream-verify.sh`
+      executed in explicit `PAW_SIMULATION=1`; not the real block/SSH path.
+- [x] Independent SHA256 after clone: `987a7c33...289b7a09`, 3,758,096,384 bytes.
+- [~] GPT/ext4 expansion, real GRUB install, real initramfs: actual Ubuntu guest
+      commands executed; full project `paw-offline-repair.sh` against this target
+      remains OPEN.
+- [x] QEMU + SeaBIOS boot from the target disk; serial/login evidence (two boots).
+- [ ] Full Live → menu → PAWDATA → hardware → network → Rescue → source → final
+      authorization → clone → verify → repair → expand → first boot → reboot chain.
+- [ ] Final ISO built, ISO artifact downloaded, ISO SHA256 recomputed from the ISO
+      file (not the ZIP), Chinese guide and rollback guide updated.
+
 ## D. Real-world acceptance (still open)
 
 - [ ] Real TF card written and verified.
@@ -101,14 +147,19 @@ be marked complete from cloud/virtual results.
 ## E. Public repository acceptance
 
 - [x] No private keys, tokens, credentials, real server IPs or personal paths in current committed files.
-- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`, 728 objects).
+- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`; current run 849 objects).
 - [x] Final Actions log/report reviewed; raw `live-build.log` excluded from repository because it contains Debian mirror IPv4 addresses.
 - [x] Repository visibility unchanged (Public).
 - [x] Existing runs and artifacts not deleted.
 
 ## Overall
 
-- Cloud/virtual delivery: **READY_WITH_REAL_HARDWARE_UNVERIFIED**.
-- Operator console binding: **CLOSED for static/PTY/CI and for QEMU glyph rendering**;
-  real screen open.
+- Current branch P0-1: **PASS (local 26/26; CI Run `42825407549` green)**.
+- Stage 2: **VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN** (real boot and
+  GRUB/initramfs/expansion evidence; production block clone and full project
+  offline repair still open).
+- Stage 3/4: **OPEN** (not started in this round).
+- Historical cloud/virtual delivery (`bf1a705`): **READY_WITH_REAL_HARDWARE_UNVERIFIED**.
+- Operator console binding: **CLOSED for static/PTY/CI and QEMU glyph rendering**
+  (Run `42825407549`: TTY 56/56, CJK 25/25); real ASUS screen remains open.
 - Production migration: **NOT STARTED**; old VPS remains authoritative.
