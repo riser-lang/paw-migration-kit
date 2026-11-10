@@ -297,7 +297,11 @@ menuentry 'paw boot chain test' {
   initrd /boot/initrd.img
 }
 CFG
-        grub-install --target=i386-pc --boot-directory="$chain_root/boot" --recheck "$chain_loop" >"$work/grub-chain-install.log" 2>&1 || true
+        if grub-install --target=i386-pc --boot-directory="$chain_root/boot" --recheck "$chain_loop" >"$work/grub-chain-install.log" 2>&1; then
+          pass 'GRUB installed into the boot chain fixture'
+        else
+          cat "$work/grub-chain-install.log" >>"$report"; fail 'GRUB installed into the boot chain fixture'
+        fi
         umount "$chain_root"
         mounts=("$iso_mnt")
         chain_log="$work/grub-chain-serial.log"
@@ -307,12 +311,14 @@ CFG
           set +e
           timeout 240 qemu-system-x86_64 -m 2048 -display none -serial "file:$chain_log" \
             -monitor none -no-reboot -boot order=c \
-            -drive "file=$chain_img,format=raw,if=virtio" >/dev/null 2>&1
+            -drive "file=$chain_img,format=raw,if=ide,index=0" >/dev/null 2>&1
           set -e
           if grep -Eq 'Linux version ' "$chain_log" 2>/dev/null; then
             pass 'GRUB on the repaired disk loaded the kernel'
           else
             fail 'GRUB on the repaired disk loaded the kernel'
+            { echo '--- serial log excerpt ---'; head -40 "$chain_log" 2>/dev/null || echo '(no serial log)'; } >>"$report"
+            { echo '--- grub-install log ---'; head -20 "$work/grub-chain-install.log" 2>/dev/null || echo '(no install log)'; } >>"$report"
           fi
           if grep -Eqi 'Unpacking initramfs' "$chain_log" 2>/dev/null; then
             pass 'Kernel unpacked the initrd from the repaired disk'
