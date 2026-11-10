@@ -73,6 +73,7 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 - 单页入口：`docs/PAW-START-HERE-ZH.md`（先看这个：第 0 步核对哈希、前 3 件事、三条硬规矩）
 - 交付包自检：`scripts/verify-delivery.ps1` + `SHA256SUMS.txt`（Windows PowerShell 5.1 可跑，本机已通过 23 项检查，并做过篡改反向验证：改一个文件即 FAIL / exit 1）
 - 写卡图示：`TF-CARD-RUFUS-GUIDE.md`
+- 离线速查卡：`PAW-QUICK-CARD-ZH.html`（单文件、图片内嵌、无外部引用，可在手机或另一台电脑上离线打开；由 `scripts/build-offline-guide.py` 生成，本机校验 `OFFLINE_GUIDE=PASS`）
 - 现场对照：`PAW-SCREEN-EXPECTATIONS-ZH.md` + `screens/`（5 张 CI 真实渲染的截屏，用来看屏幕上应该出现什么）
 - 接管报告：`reports/PAW-V2.7-TAKEOVER.md`
 - P0 实现记录：`reports/PAW-V2.7-P0-IMPLEMENTATION.md`
