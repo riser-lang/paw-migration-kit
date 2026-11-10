@@ -249,6 +249,88 @@ PY
   losetup -d "$chroot_loop" 2>/dev/null || true
 fi
 
+# Last link of the repair chain: a disk that GRUB installed into must actually boot.
+# Build a GPT loop disk, put the ISO's own kernel and initrd into its /boot with a
+# minimal grub.cfg, install GRUB host-side, then let QEMU SeaBIOS boot from the disk
+# only (no ISO attached) and read the serial log.
+boot_iso="$root/boot/custom/paw-live-amd64.iso"
+if [[ ! -s "$boot_iso" ]]; then
+  fail 'ISO present for the repaired-disk boot chain test'
+else
+  iso_mnt="$work/iso-mnt"; mkdir -p "$iso_mnt"
+  if ! mount -o loop,ro "$boot_iso" "$iso_mnt" 2>/dev/null; then
+    fail 'ISO mount for the boot chain test'
+  else
+    mounts+=("$iso_mnt")
+    kernel_src="" initrd_src=""
+    for cand in live/vmlinuz boot/vmlinuz vmlinuz; do
+      [[ -s "$iso_mnt/$cand" ]] && { kernel_src="$iso_mnt/$cand"; break; }
+    done
+    for cand in live/initrd.img live/initrd.gz boot/initrd.img initrd.img; do
+      [[ -s "$iso_mnt/$cand" ]] && { initrd_src="$iso_mnt/$cand"; break; }
+    done
+    if [[ -z "$kernel_src" || -z "$initrd_src" ]]; then
+      fail 'ISO kernel and initrd located for the boot chain test'
+    else
+      pass 'ISO kernel and initrd located for the boot chain test'
+      chain_img="$work/grub-chain.img"
+      truncate -s 320M "$chain_img"
+      printf 'label: gpt\n2048,2048\n4096,600000\n' | sfdisk "$chain_img" >/dev/null
+      sgdisk -t 1:ef02 -c 1:'BIOS boot' -c 2:'paw root' "$chain_img" >/dev/null
+      chain_loop="$(losetup --find --show -P "$chain_img")"; loops+=("$chain_loop")
+      chain_part="${chain_loop}p2"
+      for _ in $(seq 1 20); do [[ -b "$chain_part" ]] && break; sleep 1; done
+      if [[ ! -b "$chain_part" ]]; then
+        fail 'Boot chain fixture partitions absent'
+      else
+        mkfs.ext4 -F -q "$chain_part"
+        chain_root="$work/grub-chain-root"; mkdir -p "$chain_root"
+        mount "$chain_part" "$chain_root"; mounts+=("$chain_root")
+        mkdir -p "$chain_root/boot/grub"
+        cp "$kernel_src" "$chain_root/boot/vmlinuz"
+        cp "$initrd_src" "$chain_root/boot/initrd.img"
+        cat >"$chain_root/boot/grub/grub.cfg" <<'CFG'
+set default=0
+set timeout=1
+menuentry 'paw boot chain test' {
+  linux /boot/vmlinuz boot=live components quiet console=ttyS0,115200n8
+  initrd /boot/initrd.img
+}
+CFG
+        grub-install --target=i386-pc --boot-directory="$chain_root/boot" --recheck "$chain_loop" >"$work/grub-chain-install.log" 2>&1 || true
+        umount "$chain_root"
+        mounts=("$iso_mnt")
+        chain_log="$work/grub-chain-serial.log"
+        if ! command -v qemu-system-x86_64 >/dev/null; then
+          fail 'qemu-system-x86_64 available for the boot chain test'
+        else
+          set +e
+          timeout 240 qemu-system-x86_64 -m 2048 -display none -serial "file:$chain_log" \
+            -monitor none -no-reboot -boot order=c \
+            -drive "file=$chain_img,format=raw,if=virtio" >/dev/null 2>&1
+          set -e
+          if grep -Eq 'Linux version ' "$chain_log" 2>/dev/null; then
+            pass 'GRUB on the repaired disk loaded the kernel'
+          else
+            fail 'GRUB on the repaired disk loaded the kernel'
+          fi
+          if grep -Eqi 'Unpacking initramfs' "$chain_log" 2>/dev/null; then
+            pass 'Kernel unpacked the initrd from the repaired disk'
+          else
+            fail 'Kernel unpacked the initrd from the repaired disk'
+          fi
+          if grep -Eqi 'Kernel panic' "$chain_log" 2>/dev/null; then
+            fail 'Boot chain reached initramfs without a kernel panic'
+          else
+            pass 'Boot chain reached initramfs without a kernel panic'
+          fi
+        fi
+        losetup -d "$chain_loop" 2>/dev/null || true
+      fi
+    fi
+    umount "$iso_mnt"; mounts=()
+  fi
+fi
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 cat "$report"
 ((failed == 0))
