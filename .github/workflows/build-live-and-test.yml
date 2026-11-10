@@ -7,7 +7,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: paw-live-build-and-test
+  # The original development branch and this clean-handover branch can be
+  # verified independently; a shared group would queue one behind a stalled
+  # run on the other branch.
+  group: paw-live-build-and-test-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
