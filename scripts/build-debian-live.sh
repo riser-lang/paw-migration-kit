@@ -81,11 +81,12 @@ chmod 0755 "$work/config/hooks/live/0600-paw-software-manifest.hook.chroot"
 cat >"$work/config/hooks/live/0650-paw-repro-cleanup.hook.chroot" <<'HOOK'
 #!/bin/sh
 set -eu
-# Identifiers that the chroot build generates on the *build host*. They describe the
-# machine that built the image rather than the image, they differ between two builds of the
-# same tree, and they serve no purpose in a live system (systemd regenerates machine-id at
-# boot when it is missing).
-for path in /etc/nvme/hostid /var/lib/systemd/random-seed /etc/machine-id /var/lib/dbus/machine-id; do
+# Files the chroot build generates on the *build host*. They describe the machine that
+# built the image rather than the image, they differ between two builds of the same tree, and
+# none of them serve a purpose in a live system: systemd regenerates machine-id at boot when
+# it is missing, and the apt package caches are rebuilt on demand.
+for path in /etc/nvme/hostid /var/lib/systemd/random-seed /etc/machine-id /var/lib/dbus/machine-id \
+            /var/cache/apt/pkgcache.bin /var/cache/apt/srcpkgcache.bin; do
   if [ -e "$path" ]; then
     rm -f "$path"
     echo "repro-cleanup: removed $path"
