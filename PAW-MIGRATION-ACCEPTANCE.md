@@ -2,7 +2,7 @@
 
 Updated: 2026-11-10 UTC (second takeover round)
 Delivery run: `42804949796` — success — product head `bf1a705`
-Verification run: `42838392058` — success — `daef72f` (tests-only changes)
+Verification run: `42845816766` — success — `e4ec96c` (tests-only changes)
 Branch: `fix/v2.6.2-final-readiness`
 
 ## A. Cloud build acceptance
@@ -36,8 +36,8 @@ Branch: `fix/v2.6.2-final-readiness`
       matched the uploaded sidecar exactly.
 - [ ] Two builds of the same code tree produce the same ISO SHA256. Runs
       `42747871471`, `42778468039`, `42795953493`, `42804949796`, `42810087226`,
-      `42816492016` and `42838392058` produced identical size (953,155,584) but seven
-      different SHA256 values; byte-for-byte reproducibility remains unproven.
+      `42816492016`, `42838392058` and `42845816766` produced identical size (953,155,584)
+      but eight different SHA256 values; byte-for-byte reproducibility remains unproven.
 
 ## B. Virtual boot acceptance
 
@@ -78,7 +78,7 @@ Branch: `fix/v2.6.2-final-readiness`
       real Ubuntu root booting to login is still unverified.
 - [x] First-boot gate rejects incomplete/wrong-target receipts in virtual flow.
 
-Test totals (Run `42838392058`): PAWDATA 12/12; fault injection 39/39;
+Test totals (Run `42845816766`): PAWDATA 12/12; fault injection 39/39;
 repair/rollback 28/28 (real `grub-install` host-side and chroot, plus a QEMU boot of the repaired disk); network 17/17; finalize 36/36; TTY 56 (static 55 + PTY,
 0 blocked); CJK font 1/1; QEMU CJK 5 cases / 96 assertions.
 
@@ -114,7 +114,7 @@ be marked complete from cloud/virtual results.
 ## E. Public repository acceptance
 
 - [x] No private keys, tokens, credentials, real server IPs or personal paths in current committed files.
-- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`, 888 objects).
+- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`, 905 objects).
 - [x] Final Actions log/report reviewed; raw `live-build.log` excluded from repository because it contains Debian mirror IPv4 addresses.
 - [x] Repository visibility unchanged (Public).
 - [x] Existing runs and artifacts not deleted.

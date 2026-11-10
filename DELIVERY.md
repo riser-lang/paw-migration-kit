@@ -11,7 +11,7 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 
 - Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
 - 结论：success（全部步骤通过，含 5 例 QEMU 中文用例）
-- 最新全绿验证运行：`42838392058`（HEAD `daef72f`，仅改 CI 套件：宿主侧 + chroot 真实 `grub-install`、修复盘 QEMU 启动链；ISO 载荷与交付件相同）
+- 最新全绿验证运行：`42845816766`（HEAD `e4ec96c`，仅改 CI/工作流：宿主侧 + chroot 真实 `grub-install`、修复盘 QEMU 启动链、文本证据小包；ISO 载荷与交付件相同）
 - Artifact ID：`13760370816`
 - Artifact 名称：`paw-live-build-test-results`
 - Artifact 大小：1,030,665,391 bytes

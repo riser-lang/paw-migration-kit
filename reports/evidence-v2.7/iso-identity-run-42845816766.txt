@@ -1,0 +1,26 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42845816766
+
+Run:           42845816766 (workflow_dispatch, PAW live build and isolated tests)
+Head:          e4ec96c (fix/v2.6.2-final-readiness, text-only evidence artifact)
+Started:       2026-11-10T15:34:51Z
+Artifact IDs:  13779373807 paw-test-reports (18,689 bytes)
+               13779328788 paw-live-build-test-results (1,030,666,547 bytes)
+
+ISO bytes:     953,155,584
+ISO SHA256:    b68b5dbd966a498d071af13977cd5c6c74f5e7b2e6790c01ec3e76262663d886
+
+Build-side value (artifacts/iso-identity.txt inside this run):
+  iso_bytes=953155584
+  b68b5dbd966a498d071af13977cd5c6c74f5e7b2e6790c01ec3e76262663d886  boot/custom/paw-live-amd64.iso
+
+This run only added a workflow step, so the ISO payload equals the delivery run
+42804949796. The rebuilt ISO differs in bytes because the build is not byte-reproducible.
+The delivered ISO therefore keeps
+d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476.
+
+Unlike the earlier runs, this ISO was NOT downloaded and re-hashed: the point of this run
+was to avoid the 1 GB transfer, and the payload is identical to an already verified one.
+So this hash is a build-side value only, and the table below says so.
+
+Eight builds now exist with identical size 953,155,584 and eight distinct SHA256 values:
+2295eb0a…, 17789c04…, 2edf88a0…, d9fe2879…, aff7a807…, 35f0baff…, 910aa4ea…, b68b5dbd….

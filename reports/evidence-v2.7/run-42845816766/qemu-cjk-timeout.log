@@ -1,0 +1,18 @@
+PASS font under test is 16x16
+PASS timeout: PAWDATA prompt reached on fbcon
+PASS timeout: kernel font service reports fbcon 16x16 load
+PASS timeout: framebuffer device is bochs-drm
+PASS timeout: framebuffer cells match shipped PSF glyphs
+PASS timeout: 中文屏幕显示「PAW 首次启动 · PAWDATA 持久分区初…」
+PASS timeout: 中文屏幕显示「只针对当前启动本系统的可移动设备；不会碰其他磁盘…」
+PASS timeout: 中文屏幕显示「将只追加一个新的 PAWDATA 分区并格式化该…」
+PASS timeout: 中文屏幕显示「请输入该设备序列号最后 6 位以继续：…」
+PASS timeout: 中文屏幕显示「序列号：QEMU-123456…」
+PASS timeout: no-input timeout stopped safely on tty1
+PASS timeout: framebuffer cells match shipped PSF glyphs
+PASS timeout: 中文屏幕显示「错误：等待输入超过 5 秒，已安全停止，没有写入…」
+PASS timeout: no INPUT-OK marker after timeout
+PASS timeout: status file records actual output tty /dev/tty1
+PASS timeout: PAWDATA panel and serial input share /dev/tty1
+PASS timeout: tty1 has exactly one non-helper holder
+Summary: 17 passed, 0 failed

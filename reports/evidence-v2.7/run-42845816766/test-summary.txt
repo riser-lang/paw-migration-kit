@@ -1,0 +1,40 @@
+===== artifacts/pawdata-virtual-test-report.txt
+PASS Missing PAWDATA is reported as WARN/BLOCKED
+PASS Corrupted ext4 superblock fails closed
+PASS Space exhaustion is detected and remains non-PASS
+Summary: 12 passed, 0 failed
+===== artifacts/virtual-fault-injection-report.txt
+PASS Refusal explains the later-partition collision
+PASS Refusal states that nothing was changed
+PASS Partition table unchanged by the refusal
+Summary: 39 passed, 0 failed
+===== artifacts/repair-virtual-test-report.txt
+PASS Kernel processed the initrd from the repaired disk
+PASS Boot chain reached initramfs without a kernel panic
+PASS Boot from the repaired disk reached the initramfs stage
+Summary: 28 passed, 0 failed
+===== artifacts/network-virtual-test-report.txt
+PASS Tailscale pending state is explicit
+PASS No Tailscale auth key file was created by the join flow
+PASS Wired network config covers en*, eth* and r8169-compatible e* names
+Summary: 17 passed, 0 failed
+===== artifacts/finalize-virtual-test-report.txt
+PASS A7 反向断言：所有前置/取消路径 reboot 总调用次数为 0
+PASS A8 完成数据 checks 不完整时阻断重启
+PASS A9 已成功下发重启后重跑不会重复 reboot
+Summary: 36 passed, 0 failed
+===== artifacts/tty-virtual-test-report.txt
+PASS B4b 写入 ABORTED/TIMEOUT 状态标记
+Summary: 15 passed, 0 failed
+PASS B2/B3/B4/B5/B6 pty 真实交互测试全部通过
+Summary: 56 passed, 0 failed, 0 blocked
+===== artifacts/cjk-font-test-report.txt
+PASS every non-ASCII runtime character is covered (393 unique)
+PASS fallback PSF1 8x16 512 glyphs, 8196 bytes
+PASS PSF2/PSF1 headers, space slot, Unicode table and full runtime coverage
+Summary: 1 passed, 0 failed
+===== artifacts/qemu-cjk-test-report.txt
+Summary: 25 passed, 0 failed
+Cases: 5 passed, 0 failed, 0 blocked
+Font: /home/runner/work/paw-migration-kit/paw-migration-kit/tests/virtual/cjk-qemu-run/rootfs/opt/paw-migration/fonts/paw-cjk-16x16.psf
+Font SHA256: 0d0aa7e6ba56b7c58fcb0da8f805f9f528bc0fe209bca94428bd4864e19f8d7d

@@ -1,0 +1,39 @@
+PAW finalize/reboot virtual fault-injection results
+Executed: 2026-11-10T16:00:54Z
+PASS A0 final-confirm 在首次启动检查之后才调用 finalizer
+PASS A0 旧的直接完成记录写入已移除（仅 finalizer 原子写）
+PASS A1 所有步骤成功时 finalizer 返回 0
+PASS A1 状态为 PASS
+PASS A1 reboot 恰好调用 1 次
+PASS A1 完成记录以 0600 原子写入
+PASS A1 授权记录被原子标记为 CONSUMED
+PASS A1 完成记录可回读且 checks 全 PASS
+PASS A1 原子写无临时文件残留
+PASS A2 完成记录写入失败时返回非 0
+PASS A2 状态为 FAIL
+PASS A2 reboot 调用次数为 0
+PASS A2: 未通过门禁时不进入倒计时
+PASS A3 SHA256 失败时返回非 0
+PASS A3 状态为 BLOCKED
+PASS A3 reboot 调用次数为 0
+PASS A3: 未通过门禁时不进入倒计时
+PASS A4 离线修复失败时返回非 0
+PASS A4 状态为 BLOCKED
+PASS A4 reboot 调用次数为 0
+PASS A4: 未通过门禁时不进入倒计时
+PASS A4b GPT/ext4 扩容失败时不重启
+PASS A4c 首次启动检查失败时不重启
+PASS A5 reboot 失败时返回非 0
+PASS A5 状态为 NEEDS_MANUAL_ACTION
+PASS A5 输出明确的手动重启提示
+PASS A5 手动提示包含可执行命令
+PASS A5 reboot 被调用且失败被捕获
+PASS A6 用户取消时正常退出
+PASS A6 状态为 CANCELLED
+PASS A6 取消后 reboot 调用次数为 0
+PASS A6 明确显示已取消自动重启
+PASS A6 取消状态未伪写为已重启
+PASS A7 反向断言：所有前置/取消路径 reboot 总调用次数为 0
+PASS A8 完成数据 checks 不完整时阻断重启
+PASS A9 已成功下发重启后重跑不会重复 reboot
+Summary: 36 passed, 0 failed
