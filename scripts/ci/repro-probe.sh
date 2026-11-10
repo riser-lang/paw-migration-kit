@@ -182,11 +182,16 @@ if [[ "${PAW_PROBE_DEEP:-0}" == "1" ]]; then
       exit 1
     }
   done
-  diff -rq "$work/root-a" "$work/root-b" >"$work/content-diff.txt" 2>&1 || true
-  entries="$(wc -l <"$work/content-diff.txt")"
-  say "differing_entries=$entries"
-  say "first 25 differences:"
-  head -n 25 "$work/content-diff.txt" >>"$report" || true
+  # --no-dereference compares symlinks as symlinks; -x dev skips the device-node directory,
+  # which diff refuses to compare and which produced most of the previous run's noise.
+  diff -rq --no-dereference -x dev "$work/root-a" "$work/root-b" >"$work/content-diff-raw.txt" 2>&1 || true
+  grep -E ' differ$|^Only in ' "$work/content-diff-raw.txt" >"$work/content-diff.txt" || true
+  raw_entries="$(wc -l <"$work/content-diff-raw.txt")"
+  real_entries="$(wc -l <"$work/content-diff.txt")"
+  say "diff_raw_lines=$raw_entries"
+  say "differing_entries=$real_entries"
+  say "list (up to 60):"
+  head -n 60 "$work/content-diff.txt" >>"$report" || true
   rm -rf "$work/root-a" "$work/root-b"
 fi
 
