@@ -1,0 +1,24 @@
+Offline repair virtual tests
+PASS Offline repair executed the simulation adaptation path
+PASS Netplan matches eth0/en*/r8169 with DHCP
+PASS AHCI and r8169 added to initramfs modules
+PASS machine-id regenerated
+PASS SSH host key regenerated
+PASS user authorized_keys preserved
+PASS PAW business data preserved
+PASS Tencent/MAC udev rule disabled with original retained
+PASS Repair report says SIMULATION_PASS and does not claim hardware validation
+PASS Reversible configuration backup exists with SHA256
+PASS Injected update-grub failure stopped repair
+PASS Rollback restored original netplan file
+PASS Rollback restored original machine-id
+PASS Rollback restored original SSH host key
+PASS Rollback restored initramfs module list
+PASS Real grub-install succeeded on a loop GPT disk
+PASS GRUB i386-pc modules were copied into the boot directory
+PASS MBR boot code was written with a valid 0x55AA signature
+PASS GRUB core image was embedded in the BIOS boot partition
+PASS Chroot grub-install succeeded on a loop GPT disk
+PASS Chroot grub-install copied i386-pc modules into the fixture boot directory
+PASS Chroot grub-install wrote MBR boot code with a valid 0x55AA signature
+Summary: 22 passed, 0 failed

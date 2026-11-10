@@ -8,7 +8,7 @@
 - Draft PR：#2
 - 基线：v2.6.1 `0128110`
 - 构建运行：GitHub Actions → `PAW live build and isolated tests` → Run workflow
-- 最终云端成功运行：`42810087226`（2026-11-10 UTC，全部步骤通过，含 5 例 QEMU 中文用例与真实 grub-install 验证）
+- 最终云端成功运行：`42816492016`（2026-11-10 UTC，全部步骤通过，含 5 例 QEMU 中文用例与两种形态的真实 grub-install）
 - 交付 ISO 来源运行：`42804949796`（产品 HEAD `bf1a705`；此后仅测试脚本变更，产品载荷相同）
 - 当前 ISO：953,155,584 bytes，SHA256
   `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`

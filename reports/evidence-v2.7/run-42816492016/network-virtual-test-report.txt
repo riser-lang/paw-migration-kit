@@ -1,0 +1,19 @@
+Network and staged connectivity virtual tests
+PASS Xray Reality config uses publicKey, loopback inbounds and no privateKey
+PASS malformed Xray address rejected before writing config
+PASS Valid loopback Xray proxy start passed the connectivity checks
+PASS Non-loopback Xray inbound rejected before start
+PASS Rescue phase fails closed without direct network
+PASS Rescue phase report records blocked direct network
+PASS Rescue phase passes with direct network and no proxy
+PASS Restored phase without Xray config is blocked
+PASS Restored phase missing-config state is explicit
+PASS Restored phase starts the RAM-only Xray proxy when direct network is unavailable
+PASS Restored phase records temporary Xray state
+PASS Tailscale join reaches ONLINE after mock authorization
+PASS Tailscale report records ONLINE
+PASS Pending Tailscale authorization times out without false ONLINE
+PASS Tailscale pending state is explicit
+PASS No Tailscale auth key file was created by the join flow
+PASS Wired network config covers en*, eth* and r8169-compatible e* names
+Summary: 17 passed, 0 failed

@@ -7,8 +7,8 @@ Two heads matter, and neither is `main`:
 
 - **Product head / delivery ISO**: `bf1a705` — every production script inside the
   delivered ISO comes from this commit.
-- **Latest verification head**: `d640712` — adds only a CI suite (real `grub-install`
-  on a loop GPT disk). No production script and no ISO input changed.
+- **Latest verification head**: `b4bfd84` — adds only CI suites (real `grub-install`
+  on a loop GPT disk, plus its chroot variant). No production script or ISO input changed.
 
 `main` HEAD stays `0d6aefd`; development never restarted from `main`.
 PR #2 is a Draft and is not merged; PR #1 was not touched.
@@ -16,10 +16,10 @@ PR #2 is a Draft and is not merged; PR #1 was not touched.
 ## Evidence mapping
 
 The delivered ISO, its SHA256 and all runtime test counts come from Run
-`42804949796` on product head `bf1a705`. Run `42810087226` on `d640712` re-ran the
-whole matrix with the new real-`grub-install` suite and is green too; it rebuilt the
-ISO from an identical product payload, which is why it reports the same byte size and
-a different SHA256 (builds are not byte-reproducible).
+`42804949796` on product head `bf1a705`. Runs `42810087226` (`d640712`) and `42816492016` (`b4bfd84`)
+re-ran the whole matrix with the new GRUB suites and are green too; they rebuilt the
+ISO from an identical product payload, which is why they report the same byte size and
+different SHA256 values (builds are not byte-reproducible).
 
 The delivery ISO is therefore kept from Run `42804949796`: shipping a fresh hash for
 an unchanged payload would only make verification ambiguous. Documentation commits
@@ -71,36 +71,41 @@ the `sfdisk` dump is byte-identical afterwards.
 
 ## Real GRUB install evidence
 
-The offline-repair fixture replaces `grub-install` with a compiled stub, so "GRUB
-repair" only had simulated evidence. The repair suite now additionally builds a loop
-GPT disk with a BIOS boot partition plus an ext4 root and runs the **real**
-`grub-install --target=i386-pc --boot-directory=... /dev/loopN` host-side, asserting:
-exit 0, the `i386-pc` modules copied into the boot directory, MBR boot code with a
-valid `0x55AA` signature, and a non-empty embedded core image in the BIOS boot
-partition.
+The offline-repair *rollback* fixture replaces `grub-install` with a compiled stub, so
+"GRUB repair" only had simulated evidence. Two loop cases now exercise the real binary:
 
-That proves the real binary installs BIOS GRUB on a GPT loop disk. It does **not**
-prove the chroot variant used by `paw-offline-repair.sh`, which still needs a real
-target.
+1. **Host side** — a loop GPT disk with a BIOS boot partition plus an ext4 root, then
+   `grub-install --target=i386-pc --boot-directory=... /dev/loopN`. Asserts: exit 0,
+   `i386-pc` modules copied, MBR boot code with a valid `0x55AA` signature, and a
+   non-empty embedded core image in the BIOS boot partition.
+2. **Chroot variant** — the same disk shape with `/boot`, a minimal `grub.cfg`, and
+   host binaries/GRUB modules supplied through read-only bind mounts, then the command
+   form the production script uses inside the repaired root:
+   `chroot ROOT grub-install --target=i386-pc --recheck /dev/loopN`. Asserts: exit 0,
+   modules copied into the fixture `/boot`, MBR boot code with `0x55AA`.
+
+Together these prove both install shapes install BIOS GRUB on a GPT loop disk with the
+real binary. Neither replaces a real target disk, and a real first boot from a repaired
+disk is still unverified.
 
 ## Final cloud evidence
 
 - Delivery run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
   (product head `bf1a705`, success)
 - Verification run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42810087226>
-  (`d640712`, success, repair suite 19/19)
+  (`b4bfd84`, success, repair suite 22/22)
 - Delivery artifact: `13760370816`, `paw-live-build-test-results`, 1,030,665,391 bytes,
   expires 2026-11-13 11:27:18 UTC
-- Verification artifact: `13763731974`, 1,030,666,564 bytes, expires 2026-11-13 12:10:39 UTC
+- Verification artifact (run 11): `13765554334`, 1,030,666,472 bytes, expires 2026-11-13 12:51:02 UTC
 - ISO: `paw-live-amd64.iso`, 953,155,584 bytes
 - ISO SHA256: `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
 - ISO layout: `MBR isohybrid cyl-align-on GPT APM`
-- Test totals (verification run): PAWDATA 12, fault injection 39, offline repair **19**,
+- Test totals (verification run): PAWDATA 12, fault injection 39, offline repair **22**,
   network 17, finalize 36, TTY 56 (static 55 + PTY 15 with the aggregate row),
   CJK font 1, QEMU CJK 5 cases / 96 assertions — all 0 failed.
 - Static: ShellCheck `--severity=error` clean, `bash -n` clean, Python compile PASS,
   PowerShell parse PASS, JSON/YAML/unit structure PASS, `PUBLIC-SAFETY=PASS`,
-  `PUBLIC-HISTORY=PASS` (759 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
+  `PUBLIC-HISTORY=PASS` (806 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
 - QEMU SeaBIOS + TCG (no KVM): boot reached the readiness gate, readiness
   `BLOCKED`, `clone_started=false`.
 
@@ -127,7 +132,7 @@ target.
 - Local Python source compile over `scripts/**/*.py` and `tests/qemu/*.py`: PASS.
 - `scripts/windows-static-check.ps1` was **not** run locally: the host has Windows
   PowerShell 5.1 but no `pwsh`, so that parse check remains CI-only.
-- Five builds produced the same ISO byte size but different SHA256 values, so
+- Six builds produced the same ISO byte size but different SHA256 values, so
   byte-for-byte reproducibility is still unproven.
 
 ## Not verified
@@ -138,7 +143,7 @@ target.
 - Real Tencent Cloud Rescue Mode SSH.
 - Real full-disk clone and real PAW migration.
 - Physical Memtest86+ run and operator observation.
-- The chroot variant of `grub-install` used by offline repair on a real target.
+- A real first boot from a disk repaired by the offline repair path.
 - Local PTY execution on the Windows workstation (no `termios`); CI covers it.
 
 These remain open until the user performs them on hardware. No production VPS was

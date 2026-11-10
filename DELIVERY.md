@@ -11,7 +11,7 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 
 - Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
 - 结论：success（全部步骤通过，含 5 例 QEMU 中文用例）
-- 最新全绿验证运行：`42810087226`（HEAD `d640712`，仅改 CI 套件：真实 `grub-install`；ISO 载荷与交付件相同）
+- 最新全绿验证运行：`42816492016`（HEAD `b4bfd84`，仅改 CI 套件：宿主侧 + chroot 真实 `grub-install`；ISO 载荷与交付件相同）
 - Artifact ID：`13760370816`
 - Artifact 名称：`paw-live-build-test-results`
 - Artifact 大小：1,030,665,391 bytes
@@ -92,7 +92,7 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 | 中文授权面板（真实脚本、真实字形） | PASS | `qemu-cjk-final.log`（25 断言） |
 | PAWDATA 虚拟介质 | 12/12 PASS | `pawdata-virtual-test-report.txt` |
 | 虚拟克隆/故障注入 | 39/39 PASS | `virtual-fault-injection-report.txt` |
-| 离线修复/回滚 | 19/19 PASS（含真实 grub-install） | `repair-virtual-test-report.txt` |
+| 离线修复/回滚 | 22/22 PASS（含两种形态的真实 grub-install） | `repair-virtual-test-report.txt` |
 | 网络阶段 | 17/17 PASS | `network-virtual-test-report.txt` |
 | Finalize/重启门 | 36/36 PASS | `finalize-virtual-test-report.txt` |
 | TTY 绑定（静态 + PTY） | 55 静态 + 15 PTY PASS | `tty-virtual-test-report.txt` |
