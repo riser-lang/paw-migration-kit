@@ -259,6 +259,7 @@ jobs:
             artifacts/*.txt
             artifacts/pty-tty-test.log
             artifacts/qemu-cjk-*.log
+            artifacts/qemu-cjk/**
           retention-days: 3
           compression-level: 6
           if-no-files-found: warn
