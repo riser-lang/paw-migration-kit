@@ -2,6 +2,11 @@ name: PAW live build and isolated tests
 
 on:
   workflow_dispatch:
+    inputs:
+      double_build:
+        description: "Build twice and characterise the differences (slow, for the REPRO probe)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -140,6 +145,15 @@ jobs:
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/verify-iso-payload.sh
           sudo chown "$(id -u):$(id -g)" artifacts/iso-payload-report.txt
 
+      - name: Reproducibility probe (second build, opt-in)
+        if: inputs.double_build
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A second build needs the same root privileges as the first one.
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/repro-probe.sh
+          sudo chown "$(id -u):$(id -g)" artifacts/iso-repro-report.txt
+
       - name: Validate generated CJK console font
         shell: bash
         run: |
@@ -215,7 +229,8 @@ jobs:
             artifacts/tty-virtual-test-report.txt \
             artifacts/cjk-font-test-report.txt \
             artifacts/qemu-cjk-test-report.txt \
-            artifacts/iso-payload-report.txt; do
+            artifacts/iso-payload-report.txt \
+            artifacts/iso-repro-report.txt; do
             if [[ -f "$file" ]]; then
               echo "===== $file"
               tail -n 4 "$file"
