@@ -70,6 +70,9 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 - 用户说明：`docs/PAW-V2.7.1-USER-GUIDE-ZH.md`、`docs/PAW-V2.7-USER-GUIDE-ZH.md`
 - 回滚说明：`docs/PAW-V2.7-ROLLBACK-ZH.md`
 - 实机验证清单：`docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md`（7 项，含每步预期屏幕文字与失败处置）
+- 单页入口：`docs/PAW-START-HERE-ZH.md`（先看这个：第 0 步核对哈希、前 3 件事、三条硬规矩）
+- 交付包自检：`scripts/verify-delivery.ps1` + `SHA256SUMS.txt`（Windows PowerShell 5.1 可跑，本机已通过 23 项检查，并做过篡改反向验证：改一个文件即 FAIL / exit 1）
+- 写卡图示：`reports/TF-CARD-RUFUS-GUIDE.md`
 - 接管报告：`reports/PAW-V2.7-TAKEOVER.md`
 - P0 实现记录：`reports/PAW-V2.7-P0-IMPLEMENTATION.md`
 - 最终证据（上一轮）：`reports/PAW-V2.7-FINAL-EVIDENCE.md`
