@@ -2,7 +2,7 @@
 
 Updated: 2026-11-10 UTC (second takeover round)
 Delivery run: `42804949796` — success — product head `bf1a705`
-Verification run: `42816492016` — success — `b4bfd84` (tests-only changes)
+Verification run: `42838392058` — success — `daef72f` (tests-only changes)
 Branch: `fix/v2.6.2-final-readiness`
 
 ## A. Cloud build acceptance
@@ -35,9 +35,9 @@ Branch: `fix/v2.6.2-final-readiness`
       computed `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`
       matched the uploaded sidecar exactly.
 - [ ] Two builds of the same code tree produce the same ISO SHA256. Runs
-      `42747871471`, `42778468039`, `42795953493`, `42804949796`, `42810087226` and
-      `42816492016` produced identical size (953,155,584) but six different SHA256
-      values; byte-for-byte reproducibility remains unproven.
+      `42747871471`, `42778468039`, `42795953493`, `42804949796`, `42810087226`,
+      `42816492016` and `42838392058` produced identical size (953,155,584) but seven
+      different SHA256 values; byte-for-byte reproducibility remains unproven.
 
 ## B. Virtual boot acceptance
 
@@ -72,12 +72,14 @@ Branch: `fix/v2.6.2-final-readiness`
       host-side (modules copied, MBR `0x55AA` boot code, embedded core image).
 - [x] The chroot shape used by the production repair path
       (`chroot ROOT grub-install --target=i386-pc --recheck LOOP`) also succeeds on a
-      loop GPT disk (modules copied into the fixture `/boot`, MBR `0x55AA`). A real
-      first boot from a repaired disk is still unverified.
+      loop GPT disk (modules copied into the fixture `/boot`, MBR `0x55AA`).
+- [x] A repaired loop disk boots: QEMU SeaBIOS starts it alone, GRUB loads the kernel,
+      the initrd is processed and the initramfs stage is reached without a panic. A
+      real Ubuntu root booting to login is still unverified.
 - [x] First-boot gate rejects incomplete/wrong-target receipts in virtual flow.
 
-Test totals (Run `42816492016`): PAWDATA 12/12; fault injection 39/39;
-repair/rollback 22/22 (real `grub-install`, host-side and chroot); network 17/17; finalize 36/36; TTY 56 (static 55 + PTY,
+Test totals (Run `42838392058`): PAWDATA 12/12; fault injection 39/39;
+repair/rollback 28/28 (real `grub-install` host-side and chroot, plus a QEMU boot of the repaired disk); network 17/17; finalize 36/36; TTY 56 (static 55 + PTY,
 0 blocked); CJK font 1/1; QEMU CJK 5 cases / 96 assertions.
 
 ## C2. Operator console acceptance
@@ -112,7 +114,7 @@ be marked complete from cloud/virtual results.
 ## E. Public repository acceptance
 
 - [x] No private keys, tokens, credentials, real server IPs or personal paths in current committed files.
-- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`, 806 objects).
+- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`, 888 objects).
 - [x] Final Actions log/report reviewed; raw `live-build.log` excluded from repository because it contains Debian mirror IPv4 addresses.
 - [x] Repository visibility unchanged (Public).
 - [x] Existing runs and artifacts not deleted.

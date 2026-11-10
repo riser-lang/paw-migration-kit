@@ -32,7 +32,7 @@ PR #2：保持 Draft，未合并。
 | QEMU CJK 显示器/键盘 | **5 cases / 96 assertions / 0 failed** | 见 CI 表 | 真实 QEMU + PSF 字形匹配 |
 | PAWDATA 12 项 | BLOCKED（本机无 root/loop） | 见 CI 表 | CI sudo loop |
 | 克隆/故障注入 39 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
-| 离线修复 22 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
+| 离线修复 28 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
 | 网络 17 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
 | 真实 ASUS 显示器/键盘 | 未执行 | 未执行 | **OPEN** |
 
@@ -181,9 +181,9 @@ PAW_ARTIFACT_DIR=$PWD/artifacts scripts/ci/run-tty-virtual-tests.sh
 全部步骤 success）
 URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796
 
-最新全绿验证运行：**Run ID `42816492016`**（HEAD `b4bfd84`，仅改 CI 套件：
-真实 `grub-install` 的宿主侧与 chroot 两种形态）— 修复套件因此从 15 项增到 **22 项**。
-URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42816492016
+最新全绿验证运行：**Run ID `42838392058`**（HEAD `daef72f`，仅改 CI 套件：
+真实 `grub-install` 的两种形态 + 修复盘的 QEMU 启动链）— 修复套件因此从 15 项增到 **28 项**。
+URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42838392058
 
 > 说明：本轮新增 CJK 步骤后，第一次运行（`42741425053`）用于发现 CI 环境差异；
 > 新增"中文授权面板"用例后又用 `42784672282` / `42788769956` / `42792565444`
@@ -194,12 +194,12 @@ CI 实际计数（Run `42804949796`，HEAD `bf1a705`）：
 
 | 套件 | 实际结果 |
 |---|---|
-| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 728 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
+| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 888 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
 | Debian 签名 / Xray / Tailscale | PASS。Debian Live `13.7.0-amd64-standard`：分离签名 PASS（Debian CD key `DF9B9C49EAA9298432589D76DA87E80D6294BE9B`）、manifest hash PASS、SHA256 `040a44f3…c14e17ec`；Tailscale 1.104.5（签名 stable 仓库）；Xray v26.3.27，archive SHA2-256 `23cd9af9…`；二进制 SHA256 记录在 `software-manifest.txt` |
 | ISO 构建 / SeaBIOS+TCG | PASS。ISO `953,155,584` bytes，SHA256 `d9fe2879…fb95a4476`；`System area summary: MBR isohybrid cyl-align-on GPT APM`；QEMU SeaBIOS + TCG（未用 KVM）启动到 readiness gate，按缺失实机条件保持 `BLOCKED`，`clone_started=false` |
 | PAWDATA 12 项 | `Summary: 12 passed, 0 failed` |
 | 克隆/故障注入 39 项 | `Summary: 39 passed, 0 failed` |
-| 离线修复 22 项 | `Summary: 22 passed, 0 failed` |
+| 离线修复 28 项 | `Summary: 28 passed, 0 failed` |
 | 网络 17 项 | `Summary: 17 passed, 0 failed` |
 | Finalize 36 项 | `Summary: 36 passed, 0 failed` |
 | TTY 静态 55 项 + PTY | `Static tty assertions: 55 passed, 0 failed`；`Summary: 15 passed, 0 failed`（PTY，`PAW_REQUIRE_PTY=1`）；套件合计 `56 passed, 0 failed, 0 blocked` |
@@ -368,5 +368,34 @@ grub-install --target=i386-pc --boot-directory=<挂载点>/boot --recheck /dev/l
 2. `i386-pc` 模块被拷进 fixture 的 `/boot`；
 3. MBR 前 440 字节非零且签名 `55 AA`。
 
-两项合计：**修复套件 22 项全过**。仍未证明的是"真实目标盘被修复后真的能启动"——
-那必须实机。
+两项合计后修复套件 22 项全过。仍未证明的是"真实目标盘被修复后真的能启动"——
+那必须实机，见 10.7 的启动链补强。
+
+### 10.7 修复盘的启动链（Run `42838392058`）
+
+把 GRUB 写对，不等于能从它启动。新增用例走完最后一环：320 MiB loop GPT 盘，
+把 **ISO 自带的 kernel 与 initrd** 放进 `/boot` 并写最小 `grub.cfg`，宿主侧装入
+GRUB，然后让 **QEMU SeaBIOS 只从这块盘启动**（不挂 ISO、IDE 接口），读串口日志。
+
+六项断言（Run `42838392058` 全部 PASS）：
+
+1. 能从 ISO 定位 kernel 与 initrd；
+2. 真实 `grub-install` 退出码 0；
+3. 串口出现 `Linux version`（GRUB 真的把 kernel 拉起来了）；
+4. kernel 处理了 initrd（`Unpacking initramfs` / `Freeing initrd memory` / `Trying to unpack rootfs image`）；
+5. 没有 `Kernel panic`；
+6. 启动到达 initramfs 阶段（`Run /init as init process` 或 `(initramfs)` 提示）。
+
+过程中三次失败都保留在记录里，没有掩盖：
+
+- `42821382664`：用 virtio 盘，SeaBIOS 没枚举到，且我把 `grub-install` 的退出码
+  用 `|| true` 吞掉了 —— 无法定位问题；
+- `42827723019`：加诊断（单独断言安装退出码、改用 IDE、失败时把串口与安装日志写进
+  报告）后，日志证明**盘确实启动到了 `(initramfs)`**，但命令行里的 `quiet` 把两条
+  断言要找的 kernel 行压掉了，属于断言误报；
+- `42833112745`：去掉 `quiet` 后 6 项过 5 项，只因 6.12 内核不再打印
+  `Unpacking initramfs` 而失败。
+
+范围说明：fixture 是"被修好的目标盘"的替身，证明的是**启动链**（真实 GRUB + 真实
+内核）；不等于真实 Ubuntu 根能启动到登录界面。
+

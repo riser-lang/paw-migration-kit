@@ -7,8 +7,9 @@ Two heads matter, and neither is `main`:
 
 - **Product head / delivery ISO**: `bf1a705` — every production script inside the
   delivered ISO comes from this commit.
-- **Latest verification head**: `b4bfd84` — adds only CI suites (real `grub-install`
-  on a loop GPT disk, plus its chroot variant). No production script or ISO input changed.
+- **Latest verification head**: `daef72f` — adds only CI suites (real `grub-install`
+  host-side and in chroot, plus a QEMU boot of a repaired disk). No production script
+  or ISO input changed.
 
 `main` HEAD stays `0d6aefd`; development never restarted from `main`.
 PR #2 is a Draft and is not merged; PR #1 was not touched.
@@ -16,8 +17,8 @@ PR #2 is a Draft and is not merged; PR #1 was not touched.
 ## Evidence mapping
 
 The delivered ISO, its SHA256 and all runtime test counts come from Run
-`42804949796` on product head `bf1a705`. Runs `42810087226` (`d640712`) and `42816492016` (`b4bfd84`)
-re-ran the whole matrix with the new GRUB suites and are green too; they rebuilt the
+`42804949796` on product head `bf1a705`. Runs `42810087226` (`d640712`), `42816492016` (`b4bfd84`) and `42838392058`
+(`daef72f`) re-ran the whole matrix with the new GRUB suites and are green too; they rebuilt the
 ISO from an identical product payload, which is why they report the same byte size and
 different SHA256 values (builds are not byte-reproducible).
 
@@ -88,24 +89,47 @@ Together these prove both install shapes install BIOS GRUB on a GPT loop disk wi
 real binary. Neither replaces a real target disk, and a real first boot from a repaired
 disk is still unverified.
 
+## Repaired-disk boot chain evidence
+
+Installing GRUB correctly is not the same as booting from it, so the repair suite now
+closes the last link: a 320 MiB loop GPT disk gets the ISO kernel and initrd in `/boot`
+with a minimal `grub.cfg`, GRUB is installed host-side, and QEMU SeaBIOS then boots
+**that disk alone** (no ISO attached, IDE interface).
+
+Assertions (all PASS in Run `42838392058`): the ISO kernel and initrd were located, GRUB
+installed with exit 0, the kernel version line appeared on `ttyS0` (GRUB executed the
+kernel), the kernel processed the initrd, no kernel panic occurred, and the boot reached
+the initramfs stage.
+
+Earlier attempts are recorded, not hidden: `42821382664` booted a virtio disk that
+SeaBIOS did not enumerate and swallowed the `grub-install` exit code; `42827723019`
+added the diagnostics and then reported a false negative because `quiet` suppressed the
+two kernel lines even though the serial log showed the `(initramfs)` prompt;
+`42833112745` passed five of six assertions because kernel 6.12 does not print
+"Unpacking initramfs".
+
+Scope: the fixture is a stand-in for a repaired target disk. It proves the boot chain
+with the real GRUB and a real kernel; it does not prove that a repaired real Ubuntu root
+boots to a login prompt.
+
 ## Final cloud evidence
 
 - Delivery run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
   (product head `bf1a705`, success)
 - Verification run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42810087226>
-  (`b4bfd84`, success, repair suite 22/22)
+  (`daef72f`, success, repair suite 28/28)
 - Delivery artifact: `13760370816`, `paw-live-build-test-results`, 1,030,665,391 bytes,
   expires 2026-11-13 11:27:18 UTC
-- Verification artifact (run 11): `13765554334`, 1,030,666,472 bytes, expires 2026-11-13 12:51:02 UTC
+- Verification artifact (run 15): `13776368305`, 1,030,664,725 bytes, expires 2026-11-13 15:18:47 UTC
 - ISO: `paw-live-amd64.iso`, 953,155,584 bytes
 - ISO SHA256: `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
 - ISO layout: `MBR isohybrid cyl-align-on GPT APM`
-- Test totals (verification run): PAWDATA 12, fault injection 39, offline repair **22**,
+- Test totals (verification run): PAWDATA 12, fault injection 39, offline repair **28**,
   network 17, finalize 36, TTY 56 (static 55 + PTY 15 with the aggregate row),
   CJK font 1, QEMU CJK 5 cases / 96 assertions — all 0 failed.
 - Static: ShellCheck `--severity=error` clean, `bash -n` clean, Python compile PASS,
   PowerShell parse PASS, JSON/YAML/unit structure PASS, `PUBLIC-SAFETY=PASS`,
-  `PUBLIC-HISTORY=PASS` (806 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
+  `PUBLIC-HISTORY=PASS` (888 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
 - QEMU SeaBIOS + TCG (no KVM): boot reached the readiness gate, readiness
   `BLOCKED`, `clone_started=false`.
 
@@ -132,7 +156,7 @@ disk is still unverified.
 - Local Python source compile over `scripts/**/*.py` and `tests/qemu/*.py`: PASS.
 - `scripts/windows-static-check.ps1` was **not** run locally: the host has Windows
   PowerShell 5.1 but no `pwsh`, so that parse check remains CI-only.
-- Six builds produced the same ISO byte size but different SHA256 values, so
+- Seven builds produced the same ISO byte size but different SHA256 values, so
   byte-for-byte reproducibility is still unproven.
 
 ## Not verified
@@ -143,7 +167,7 @@ disk is still unverified.
 - Real Tencent Cloud Rescue Mode SSH.
 - Real full-disk clone and real PAW migration.
 - Physical Memtest86+ run and operator observation.
-- A real first boot from a disk repaired by the offline repair path.
+- A real system boot (Ubuntu root to login) from a disk repaired by the offline repair path.
 - Local PTY execution on the Windows workstation (no `termios`); CI covers it.
 
 These remain open until the user performs them on hardware. No production VPS was

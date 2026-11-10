@@ -105,7 +105,7 @@ Tailscale、Funnel、Xray、Nginx、443、防火墙、COS，没有删除历史 A
   PSF 字形逐像素匹配（不使用 OCR）。
 - 保留原有 ShellCheck、Bash 语法、Python compile、PowerShell parse、Public safety、
   Public history、Debian 签名、Xray/Tailscale 校验、ISO 构建、SeaBIOS/TCG smoke、
-  PAWDATA 12 项、克隆/故障注入 39 项、离线修复 22 项（含宿主侧与 chroot 两种真实 `grub-install` 用例）、网络 17 项、Finalize 36 项、
+  PAWDATA 12 项、克隆/故障注入 39 项、离线修复 28 项（含宿主侧与 chroot 两种真实 `grub-install` 用例，以及修复盘的 QEMU 启动链）、网络 17 项、Finalize 36 项、
   TTY 静态检查、PTY（`PAW_REQUIRE_PTY=1`，不可用即失败）。
 - 新增 `Summarize real test counts` 步骤，打印每份报告真实计数；缺报告会显式
   打印 `MISSING`。

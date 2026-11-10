@@ -208,11 +208,12 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 | Run `42804949796`（HEAD `bf1a705`） | success | Actions，5 例 QEMU 中文用例 + GPT 扩容守卫全绿 |
 | Run `42810087226`（HEAD `d640712`） | success | Actions，新增真实 `grub-install` 用例，修复套件 19/19 |
 | Run `42816492016`（HEAD `b4bfd84`） | success | Actions，新增 chroot 形态用例，修复套件 22/22 |
+| Run `42838392058`（HEAD `daef72f`） | success | Actions，新增修复盘 QEMU 启动链用例，修复套件 28/28；其间 42821382664 / 42827723019 / 42833112745 三次失败均已修复并记录 |
 | 本机 `bash -n` 全脚本 | PASS，0 语法错误 | Git Bash 5.3.9 实跑 |
 | 本机 TTY 静态断言 | 55 passed / 0 failed | `run-tty-virtual-tests.sh` 实跑 |
 | 本机 PTY | BLOCKED（Windows Python 无 `termios`） | 不作为 PASS |
 | CI TTY 套件 | 56 passed / 0 failed / 0 blocked（含 15 PTY） | Run `42804949796` |
-| CI 其余套件 | PAWDATA 12、故障注入 35、修复 15、网络 17、finalize 36、CJK 字体 1、QEMU CJK 5 例 96 断言，均 0 failed | Run `42804949796` |
+| CI 其余套件 | PAWDATA 12、故障注入 39、修复 28、网络 17、finalize 36、CJK 字体 1、QEMU CJK 5 例 96 断言，均 0 failed | Run `42838392058` |
 | ISO（Run `42747871471`）独立复核 | `2295eb0a…39336d` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
 | ISO（Run `42778468039`）独立复核 | `17789c04…6e0363` 与侧车一致 | 本机下载后 `Get-FileHash` |
 | ISO（Run `42804949796`，交付件）独立复核 | `d9fe2879…fb95a4476` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
@@ -231,5 +232,5 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 
 1. 真实硬件阶段：TF 卡写入、主板启动、SSD/内存、Rescue 与正式迁移，全部需要
    用户在场并单独授权，按 `docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md` 逐步执行。
-2. `grub-install` 的宿主侧与 chroot 两种形态都已有 loop 证据（修复套件 22/22）；
-   仍未证明的是"真实目标盘修复后真的能启动"，只能在实机验证。
+2. `grub-install` 的宿主侧与 chroot 两种形态、以及修复盘的 QEMU 启动链都已有证据
+   （修复套件 28/28）；仍未证明的是"真实目标盘上的 Ubuntu 根能启动到登录"。
