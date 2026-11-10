@@ -36,6 +36,10 @@ else
   unset confirm serial PAW_DATA_CONFIRM_SUFFIX
 fi
 
+# Fail closed before any sfdisk/sgdisk/mkfs/mount write.  The helper itself
+# skips this check only for PAW_SIMULATION=1 loop-backed fixtures.
+require_console_font_pass
+
 for child in $(lsblk -nrpo NAME "$disk"); do
   options="$(findmnt --noheadings --raw --source "$child" --output OPTIONS 2>/dev/null || true)"
   while IFS= read -r opts; do case ",$opts," in *,rw,*) die 'A media partition is mounted read-write; refusing layout change.' ;; esac; done <<<"$options"

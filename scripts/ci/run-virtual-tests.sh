@@ -6,6 +6,13 @@ work="$root/tests/virtual/ci-run"
 state="$work/state"
 mock="$work/mockbin"
 mkdir -p "$work" "$mock" "$out" "$state/configs" "$state/reports" "$state/logs" "$root/logs"
+# This suite deliberately exercises the non-simulation authorization path with
+# loop-backed devices.  Give the production font gate a real same-boot PASS
+# fixture rather than weakening the gate for tests.
+python3 "$root/scripts/ci/make-font-gate-fixture.py" "$work/font-gate" >/dev/null
+export PAW_FONT_GATE_REPORT="$work/font-gate/console-font.json"
+export PAW_FONT_MANIFEST="$work/font-gate/paw-cjk-font.json"
+export PAW_CONSOLE_FONT_PATH="$work/font-gate/paw-cjk-16x16.psf"
 export PAW_ROOT="$root" PAW_STATE_DIR="$state" PAW_CONFIG_DIR="$state/configs" PAW_REPORT_DIR="$state/reports" PAW_LOG_DIR="$state/logs"
 export PATH="$mock:$PATH"
 report="$out/virtual-fault-injection-report.txt"

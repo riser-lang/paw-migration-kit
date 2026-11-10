@@ -1,6 +1,6 @@
 [Unit]
 Description=PAW text console menu
-After=paw-preflight.service paw-data-init.service getty@tty1.service
+After=paw-preflight.service paw-data-init.service paw-console-font.service getty@tty1.service
 Wants=paw-preflight.service
 Conflicts=getty@tty1.service
 

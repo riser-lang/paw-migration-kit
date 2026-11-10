@@ -99,6 +99,13 @@ jobs:
           python3 scripts/ci/check-public-history.py .
           pwsh -NoLogo -NoProfile -File scripts/windows-static-check.ps1 -Root "$PWD"
 
+      - name: Run console-font fail-closed gate fault injection
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          python3 scripts/ci/font-gate-tests.py --out "$PWD/artifacts"
+
       - name: Verify signed Debian base image and official hash manifest
         shell: bash
         run: |
@@ -205,7 +212,8 @@ jobs:
             artifacts/finalize-virtual-test-report.txt \
             artifacts/tty-virtual-test-report.txt \
             artifacts/cjk-font-test-report.txt \
-            artifacts/qemu-cjk-test-report.txt; do
+            artifacts/qemu-cjk-test-report.txt \
+            artifacts/font-gate-test-report.txt; do
             if [[ -f "$file" ]]; then
               echo "===== $file"
               tail -n 4 "$file"

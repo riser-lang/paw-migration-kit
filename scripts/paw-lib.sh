@@ -19,8 +19,30 @@ require_target_enrollment(){
   [[ -r "$PAW_CONFIG_DIR/target-ssd.json" ]] || die 'No target SSD enrollment: read-only mode only.'
   grep -q '"approved": true' "$PAW_CONFIG_DIR/target-ssd.json" || die 'Target SSD enrollment is not approved.'
 }
+require_console_font_pass(){
+  # A same-boot PASS report for the primary 16x16 font on a bound fbcon is the
+  # only state that may open a destructive write.  WARN/BLOCKED/missing reports
+  # remain read-only.  Simulation uses explicit loop-backed fixtures and is
+  # gated separately by assert_sim_loop_device.
+  [[ ${PAW_SIMULATION:-0} == 1 ]] && return 0
+  local report manifest expected_font expected_tty boot_id
+  report="${PAW_FONT_GATE_REPORT:-$PAW_REPORT_DIR/console-font.json}"
+  manifest="${PAW_FONT_MANIFEST:-$PAW_ROOT/fonts/paw-cjk-font.json}"
+  expected_font="${PAW_CONSOLE_FONT_PATH:-$PAW_ROOT/fonts/paw-cjk-16x16.psf}"
+  expected_tty="${PAW_INTERACTIVE_TTY:-/dev/tty1}"
+  boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+  need python3
+  python3 "$PAW_ROOT/scripts/paw-font-gate.py" \
+    --report "$report" \
+    --manifest "$manifest" \
+    --expected-font "$expected_font" \
+    --expected-tty "$expected_tty" \
+    --boot-id "$boot_id" \
+    || die '控制台字体安全门禁未通过：只有本次启动的 fbcon 16x16 中文字体 PASS 才允许磁盘写入；只读诊断仍可用。'
+}
 require_sim_or_enrollment(){
   [[ ${PAW_SIMULATION:-0} == 1 ]] && return 0
+  require_console_font_pass
   require_target_enrollment
   [[ ${PAW_DESTRUCTIVE_ARM:-} == 'I_HAVE_VERIFIED_THE_TARGET_SERIAL' ]] || die 'Destructive operation not armed.'
   [[ -r "$PAW_REPORT_DIR/operator-authorization.json" ]] || die 'Fresh operator authorization receipt is missing.'

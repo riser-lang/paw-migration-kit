@@ -13,6 +13,10 @@ export PAW_STATE_DIR="$base/state"
 export PAW_CONFIG_DIR="$base/state/configs"
 export PAW_REPORT_DIR="$base/state/reports"
 export PAW_LOG_DIR="$base/state/logs"
+# The production font unit writes its same-boot report into the virtual state
+# selected by /etc/paw-migration.env; the final-confirm fixture keeps its own
+# receipts in $base/state, so point the gate at the real boot report.
+export PAW_FONT_GATE_REPORT=/opt/paw-migration/tests/virtual/state/reports/console-font.json
 export PAW_INTERACTIVE_TTY=/dev/tty1
 export PAW_INPUT_TIMEOUT=90
 export PAW_TTY_SESSION_NAME=final-confirm

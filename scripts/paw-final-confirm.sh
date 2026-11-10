@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$(dirname "$0")/paw-lib.sh"
+# Refuse to show the one-time destructive authorization panel unless the
+# same-boot console-font report proves fbcon 16x16 PASS.  Read-only reports stay
+# available through the menu and journal.
+require_console_font_pass
 readiness="$PAW_REPORT_DIR/live-readiness.json"
 [[ -r "$readiness" ]] || die '请先运行准备检查。'
 python3 - "$readiness" <<'PY' || { printf '%s\n' '阻断：硬件、源盘、目标盘、网络和 PAWDATA 必须全部 PASS；当前不会出现确认输入。'; exit 2; }
