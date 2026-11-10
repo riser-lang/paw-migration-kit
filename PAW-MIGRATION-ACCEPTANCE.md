@@ -1,16 +1,17 @@
 # PAW Migration Acceptance
 
-Updated: 2026-11-10 UTC (second takeover round)
-Delivery run: `42804949796` — success — product head `bf1a705`
+Updated: 2026-11-10 UTC (reproducibility round)
+Delivery run: `42909076510` — success — head `507b25a`
+Previous delivery run: `42804949796` — success — product head `bf1a705`
 Verification run: `42873432670` — success — `ac0813e` (tests-only changes)
 Branch: `fix/v2.6.2-final-readiness`
 
 ## A. Cloud build acceptance
 
 - [x] Workflow runs on the v2.6.2 branch and completes successfully (`42804949796`).
-- [x] Debian Live ISO `paw-live-amd64.iso` is produced (953,155,584 bytes).
+- [x] Debian Live ISO `paw-live-amd64.iso` is produced (930,086,912 bytes).
 - [x] Build-generated ISO SHA256 sidecar is uploaded:
-      `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`.
+      `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f`.
 - [x] `artifacts/iso-identity.txt` gives ISO byte size and SHA256 directly in the
       build log, so a delivery check no longer needs the 1 GB artifact download.
 - [x] Debian base signature/hash verification is PASS.
@@ -19,7 +20,7 @@ Branch: `fix/v2.6.2-final-readiness`
 - [x] The built ISO carries the reviewed payload: `iso-payload-report.txt`
       `Summary: 54 passed, 0 failed` on run `42873432670`, with no extra or missing
       `paw-*` script inside the image.
-- [x] The delivered folder verifies itself: `DELIVERY=PASS (24 checks)` with
+- [x] The delivered folder verifies itself: `DELIVERY=PASS (25 checks)` with
       `scripts/verify-delivery.ps1` on Windows PowerShell 5.1, plus a negative test
       where one tampered file yields `DELIVERY=FAIL` and exit code 1.
 - [x] Artifact is retained for 3 days (expires 2026-11-13 11:27:18 UTC).
@@ -40,10 +41,14 @@ Branch: `fix/v2.6.2-final-readiness`
 - [x] ISO from Run `42795953493` was independently re-downloaded and re-hashed:
       computed `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`
       matched the uploaded sidecar exactly.
-- [ ] Two builds of the same code tree produce the same ISO SHA256. Runs
-      `42747871471`, `42778468039`, `42795953493`, `42804949796`, `42810087226`,
-      `42816492016`, `42838392058`, `42845816766` and `42873432670` produced identical size (953,155,584)
-      but twelve different SHA256 values; byte-for-byte reproducibility remains unproven.
+- [x] Two builds of the same code tree produce the same ISO SHA256 (same builder image).
+      Run `42909076510` was dispatched with `double_build=true`: build A and build B are both
+      930,086,912 bytes with SHA256 `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f`;
+      `scripts/ci/repro-probe.sh` reports `VERDICT: REPRO=IDENTICAL`, `diff_raw_lines=0`
+      and `differing_entries=0`.
+- [ ] Reproducibility across a different runner image or a different day. The probe has
+      only compared two builds inside one job on one `ubuntu-24.04` image; nothing yet
+      claims that a build next month produces the same bytes.
 
 ## B. Virtual boot acceptance
 

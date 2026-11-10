@@ -21,7 +21,7 @@ Set-Location -LiteralPath $Path
 $isoName = 'paw-live-amd64.iso'
 $sidecarName = 'paw-live-amd64.iso.sha256'
 $sumsName = 'SHA256SUMS.txt'
-$expectedIsoBytes = 953155584
+$expectedIsoBytes = 930086912
 
 function Get-Sha256 {
     param([string]$File)

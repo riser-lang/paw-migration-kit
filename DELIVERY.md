@@ -15,7 +15,7 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 - Artifact ID：`13760370816`
 - Artifact 名称：`paw-live-build-test-results`
 - Artifact 大小：1,030,665,391 bytes
-- 过期时间：2026-11-13 11:27:18 UTC（保留 3 天）
+- 过期时间：2026-11-13（保留 3 天，自 `42909076510` 上传起）
 - 下载入口：打开 Actions Run 页面，在页面底部 Artifacts 区域下载；GitHub 需要
   登录且有仓库读权限。若 `gh run download` 长时间无进度，改用 API + 显式代理
   `curl` 直取 artifact zip。
@@ -23,9 +23,9 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 ## 2. ISO
 
 - 文件：`paw-live-amd64.iso`
-- 字节数：`953,155,584`
+- 字节数：`930,086,912`
 - SHA256：
-  `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
+  `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f`
 - 校验文件副本：Artifact 内 `paw-live-amd64.iso.sha256`、构建日志中的
   `artifacts/iso-identity.txt`（字节数 + SHA256，不必先下载 1 GB）、以及
   `reports/evidence-v2.7/iso-identity-run-42804949796.txt`
@@ -48,9 +48,30 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 下载方式说明：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理），改用
 GitHub API artifact zip 端点 + `curl --proxy` 后完成。
 
-注意：ISO 构建**不是字节级可复现**。四次构建的 ISO 字节数同为 `953,155,584`，
-但 SHA256 各不相同（`2295eb0a…` / `17789c04…` / `2edf88a0…` / `d9fe2879…`）。
-核对哈希时必须使用**同一 Run** 的侧车文件，不能跨 Run 比较。
+### 2.2 字节级可复现（本轮新增）
+
+历史上十二次构建的 ISO 字节数同为 `953,155,584` 但 SHA256 各不相同。本轮用
+`double_build` 探针定位到原因并修掉了：
+
+- 探针先把差异从 57,134,346 字节缩小到 76,801 字节（去掉 `/etc/nvme/hostid` 等
+  构建机标识）；
+- 最后一项差异是 `apt` 在构建过程中重新生成的 `/var/cache/apt/pkgcache.bin`；
+- 构建钩子 `0650-paw-repro-cleanup` 现在删除这些文件，并写入
+  `/etc/apt/apt.conf.d/99-paw-no-cache`（`Dir::Cache::pkgcache "";`），让 apt
+  根本不再生成缓存文件。
+
+结果（Run `42909076510`，同一 runner 镜像上连续两次构建）：
+
+| | 构建 A | 构建 B |
+|---|---|---|
+| 字节数 | 930,086,912 | 930,086,912 |
+| SHA256 | `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f` | `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f` |
+
+`VERDICT: REPRO=IDENTICAL`，`diff_raw_lines=0`，`differing_entries=0`。
+
+仍要保持诚实：这证明的是**同一个构建环境（同一 runner 镜像、同一天）内可复现**。
+跨 runner 镜像版本、跨日期还没有测过，所以在给外部用户的说明里仍然写"用同一 Run 的
+侧车核对"，不承诺跨环境一致。
 
 下载后在 Windows 重新计算并核对（务必对上表或同一 Run 的侧车）：
 
@@ -88,10 +109,10 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 
 | 层级 | 状态 | 证据 |
 |---|---|---|
-| 云端构建 | PASS | Run `42804949796` |
-| ISO SHA256 | PASS（构建生成） | `d9fe2879…fb95a4476` |
-| ISO 独立复核 | PASS（四次 Run 均复核） | Run `42804949796` 的 ISO 已下载并重算：`d9fe2879…` 与侧车一致；`42795953493`（`2edf88a0…`）、`42778468039`（`17789c04…`）与 `42747871471`（`2295eb0a…`）同样复核通过 |
-| ISO 字节级可复现 | NOT PROVEN | 同尺寸、三种不同 SHA256 |
+| 云端构建 | PASS | Run `42909076510`（交付件）|
+| ISO SHA256 | PASS（构建生成） | `43488236…a34fe39939f` |
+| ISO 独立复核 | PASS（本机下载并重算） | Run `42909076510` 的 ISO 下载 1,007,613,856 字节 artifact，解压后重算 `43488236…a34fe39939f`，与侧车一致；历史 Run 的复核记录见 `PAW-V2.7.1-TEST-REPORT.md` |
+| ISO 字节级可复现 | PASS（同一构建环境） | Run `42909076510` 双构建：`REPRO=IDENTICAL`，两次都是 `43488236…a34fe39939f`；跨 runner 镜像未测 |
 | QEMU SeaBIOS/TCG 虚拟启动 | PASS（fail-closed） | `qemu-smoke-report.txt` |
 | 中文 tty1 菜单（QEMU） | PASS | 5 例 / 96 断言 |
 | 中文授权面板（真实脚本、真实字形） | PASS | `qemu-cjk-final.log`（25 断言） |
@@ -108,9 +129,9 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 
 ## 5. 使用顺序
 
-1. 取 ISO：用本机已下载的 `paw-live-amd64.iso`，或从 Run `42804949796` 的
+1. 取 ISO：用本机已下载的 `paw-live-amd64.iso`，或从 Run `42909076510` 的
    Artifact 下载。
-2. 重新计算 ISO SHA256，与 `d9fe2879…fb95a4476`（或同一 Run 的侧车）对照。
+2. 重新计算 ISO SHA256，与 `43488236…a34fe39939f`（或同一 Run 的侧车）对照。
 3. 按 `docs/PAW-V2.7.1-USER-GUIDE-ZH.md` 用 Rufus DD 模式写 TF 卡
    （`reports/TF-CARD-RUFUS-GUIDE.md` 有图形步骤）。
 4. 新电脑 Legacy/CSM 启动，按 tty1 中文菜单逐项操作。

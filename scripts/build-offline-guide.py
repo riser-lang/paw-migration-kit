@@ -68,8 +68,8 @@ def build() -> str:
     )
     parts.append("<h2>第 0 步：核对 ISO</h2>")
     parts.append(
-        "<p>ISO 必须是 <b>953,155,584</b> 字节，SHA256 必须是</p>"
-        "<pre><code>d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476</code></pre>"
+        "<p>ISO 必须是 <b>930,086,912</b> 字节，SHA256 必须是</p>"
+        "<pre><code>43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f</code></pre>"
         "<p>Windows PowerShell 里：<code>Get-FileHash -Algorithm SHA256 .\\paw-live-amd64.iso</code>；"
         "或直接跑 <code>verify-delivery.ps1</code> 核对整包。</p>"
     )

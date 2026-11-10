@@ -1,0 +1,77 @@
+PAW ISO reproducibility probe
+Executed: 2026-11-10T21:58:31Z
+Build work for the second build: /tmp/paw-repro-probe/build-b
+
+== build A
+bytes=930086912
+sha256=43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f
+
+== build B
+bytes=930086912
+sha256=43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f
+
+VERDICT: REPRO=IDENTICAL
+
+== first differing byte
+identical
+
+== ISO volume metadata (xorriso -toc)
+[a] Volume id    : 'PAW-LIVE'
+[a] Publisher Id : PAW MIGRATION PREPARATION
+[a] Creation Time: 2026110100000000
+[b] Volume id    : 'PAW-LIVE'
+[b] Publisher Id : PAW MIGRATION PREPARATION
+[b] Creation Time: 2026110100000000
+
+== /live components
+vmlinuz same=yes a=4336c75fc1a6a58e b=4336c75fc1a6a58e bytes_a=12154816 bytes_b=12154816
+initrd.img same=yes a=ca4f24ba696e3a83 b=ca4f24ba696e3a83 bytes_a=109944987 bytes_b=109944987
+filesystem.squashfs same=yes a=13085af4e4bc5417 b=13085af4e4bc5417 bytes_a=793337856 bytes_b=793337856
+
+== squashfs compression settings
+[a] Compression xz
+[a] Block size 131072
+[a] Number of fragments 2092
+[a] Number of inodes 25592
+[a] Number of ids 12
+[b] Compression xz
+[b] Block size 131072
+[b] Number of fragments 2092
+[b] Number of inodes 25592
+[b] Number of ids 12
+
+== squashfs metadata (unsquashfs -s)
+[a] Found a valid SQUASHFS 4:0 superblock on /tmp/paw-repro-probe/mix/a/filesystem.squashfs.
+[a] Creation or last append time Sun Nov  1 00:00:00 2026
+[a] Filesystem is exportable via NFS
+[a] Data is compressed
+[a] Uids/Gids (Id table) are compressed
+[a] Always-use-fragments option is not specified
+[b] Found a valid SQUASHFS 4:0 superblock on /tmp/paw-repro-probe/mix/b/filesystem.squashfs.
+[b] Creation or last append time Sun Nov  1 00:00:00 2026
+[b] Filesystem is exportable via NFS
+[b] Data is compressed
+[b] Uids/Gids (Id table) are compressed
+[b] Always-use-fragments option is not specified
+
+== squashfs file listing
+listing_lines_a=25597
+listing_lines_b=25597
+listing_differing_lines=0
+
+== content sample
+same opt/paw-migration/scripts/paw-final-confirm.sh
+same opt/paw-migration/scripts/paw-stream-clone.sh
+same opt/paw-migration/fonts/paw-cjk-16x16.psf
+same etc/paw-migration.env
+same etc/systemd/system/paw-console.service
+same usr/bin/dash
+same boot/grub/grub.cfg
+content_sample_same=7 content_sample_diff=0 skipped=0
+
+== full content diff (extract both rootfs)
+diff_raw_lines=0
+differing_entries=0
+list (up to 60):
+
+Summary: 7 sampled paths identical, 0 differ, 0 skipped, listing differences 0

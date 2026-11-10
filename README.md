@@ -12,10 +12,10 @@
 - 证据小包：`paw-test-reports`（文本报告 + 截屏，不再需要为看报告下载 1 GB）
 - 现场对照：`reports/PAW-SCREEN-EXPECTATIONS-ZH.md`（每屏应出现的原文），截图在交付包 `screens/`
 - 离线速查卡：交付包 `PAW-QUICK-CARD-ZH.html`（单文件，图片内嵌），由 `scripts/build-offline-guide.py` 生成
-- 交付 ISO 来源运行：`42804949796`（产品 HEAD `bf1a705`；此后仅测试脚本变更，产品载荷相同）
-- 当前 ISO：953,155,584 bytes，SHA256
-  `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
-- 最终证据：`reports/evidence-v2.7/iso-identity-run-42804949796.txt`（本轮），
+- 交付 ISO 来源运行：`42909076510`（HEAD `507b25a`；含构建清理钩子，两次构建字节相同）
+- 当前 ISO：930,086,912 bytes，SHA256
+  `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f`
+- 最终证据：`reports/evidence-v2.7/run-42909076510/` 与 `iso-identity-run-42909076510.txt`（本轮），
   历史记录见 `reports/PAW-V2.7-FINAL-EVIDENCE.md`
 - 交付说明：`DELIVERY.md`
 - 产物保留：3 天（本次 Artifact `13760370816` 到期 2026-11-13 11:27:18 UTC）

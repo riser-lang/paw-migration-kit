@@ -1,0 +1,100 @@
+PAW ISO payload verification
+Executed: 2026-11-10T21:58:20Z
+ISO: /home/runner/work/paw-migration-kit/paw-migration-kit/boot/custom/paw-live-amd64.iso (930086912 bytes)
+xorriso 1.5.6 : RockRidge filesystem manipulator, libburnia project.
+
+Copying of file objects from ISO image to disk filesystem is: Enabled
+xorriso : NOTE : ISO image bears MBR with  -boot_image any partition_offset=16
+xorriso : NOTE : Loading ISO image tree from LBA 0
+xorriso : UPDATE :     310 nodes read in 1 seconds
+xorriso : NOTE : Detected El-Torito boot information which currently is set to be discarded
+Drive current: -indev '/home/runner/work/paw-migration-kit/paw-migration-kit/boot/custom/paw-live-amd64.iso'
+Media current: stdio file, overwriteable
+Media status : is written , is appendable
+Boot record  : El Torito , MBR isohybrid cyl-align-on GPT APM
+Media summary: 1 session, 454144 data blocks,  887m data, 79.2g free
+Volume id    : 'PAW-LIVE'
+xorriso : UPDATE :       1 files restored ( 756.6m) in 1 seconds = 572.8xD
+Extracted from ISO image: file '/live/filesystem.squashfs'='/tmp/paw-iso-payload/filesystem.squashfs'
+[==/                                                         ]  2190/53996   4%[===-                                                        ]  3334/53996   6%[====|                                                       ]  3984/53996   7%[=====/                                                      ]  4603/53996   8%[======-                                                     ]  5597/53996  10%[=======\                                                    ]  6930/53996  12%[========|                                                   ]  7779/53996  14%[=========/                                                  ]  8265/53996  15%[=========\                                                  ]  8903/53996  16%[==========|                                                 ]  9319/53996  17%[===========/                                                ] 10603/53996  19%[===========-                                                ] 10864/53996  20%[============\                                               ] 11566/53996  21%[=============|                                              ] 12099/53996  22%[=============-                                              ] 12717/53996  23%[==============\                                             ] 13245/53996  24%[================|                                           ] 15047/53996  27%[=================/                                          ] 16125/53996  29%[==================-                                         ] 16756/53996  31%[===================-                                        ] 17425/53996  32%[====================|                                       ] 18316/53996  33%[======================/                                     ] 20209/53996  37%[================================-                           ] 29449/53996  54%[===================================\                        ] 32086/53996  59%[===================================|                        ] 32439/53996  60%[=====================================-                      ] 34736/53996  64%[========================================|                   ] 37213/53996  68%[===========================================/                ] 40227/53996  74%[==============================================-             ] 42513/53996  78%[======================================================\     ] 49665/53996  91%[=======================================================|    ] 51089/53996  94%[========================================================/   ] 51518/53996  95%[========================================================-   ] 51940/53996  96%[===========================================================-] 53996/53996 100%
+
+== scripts/paw-*
+PASS paw-console-font.sh matches the repository
+PASS paw-console-menu.sh matches the repository
+PASS paw-data-check.sh matches the repository
+PASS paw-data-prepare.sh matches the repository
+PASS paw-final-confirm.sh matches the repository
+PASS paw-finalize-reboot.sh matches the repository
+PASS paw-firstboot-check.sh matches the repository
+PASS paw-gpt-expand.sh matches the repository
+PASS paw-hardware-preflight.sh matches the repository
+PASS paw-lib.sh matches the repository
+PASS paw-live-controller.sh matches the repository
+PASS paw-live-preflight.sh matches the repository
+PASS paw-memory-test-report.sh matches the repository
+PASS paw-memtest-confirm.sh matches the repository
+PASS paw-network-bootstrap.sh matches the repository
+PASS paw-network-phase-select.sh matches the repository
+PASS paw-network-preflight.sh matches the repository
+PASS paw-offline-repair.sh matches the repository
+PASS paw-prepare-data-partition.sh matches the repository
+PASS paw-rescue-key-prepare.sh matches the repository
+PASS paw-source-discovery.sh matches the repository
+PASS paw-ssd-read-scan.sh matches the repository
+PASS paw-ssd-smart-check.sh matches the repository
+PASS paw-stream-clone.sh matches the repository
+PASS paw-stream-verify.sh matches the repository
+PASS paw-tailscale-direct-recovery.sh matches the repository
+PASS paw-tailscale-join.sh matches the repository
+PASS paw-target-discovery.sh matches the repository
+PASS paw-tty-lib.sh matches the repository
+PASS paw-xray-client-configure.sh matches the repository
+PASS paw-xray-proxy.sh matches the repository
+PASS paw-atomic-write.py matches the repository
+PASS paw-build-cjk-font.py matches the repository
+PASS paw-count-bytes.py matches the repository
+PASS paw-xray-client-configure.py matches the repository
+
+== boot binaries
+PASS bin/tailscale matches the repository
+PASS bin/tailscaled matches the repository
+PASS bin/xray matches the repository
+
+== configs
+PASS configs/source.template.json matches the repository
+PASS configs/target-ssd.template.json matches the repository
+PASS configs/xray-client.template.json matches the repository
+PASS paw-migration.env is the reviewed template
+
+== units and network
+PASS paw-preflight.service matches the repository
+PASS paw-data-init.service matches the repository
+PASS paw-console.service matches the repository
+PASS paw-console-font.service matches the repository
+PASS paw-network-bootstrap.service matches the repository
+PASS paw-xray-client.service matches the repository
+PASS paw-tailscale-join.service matches the repository
+PASS tailscaled.service matches the repository
+PASS paw-data.mount matches the repository
+PASS 20-wired.network matches the repository
+
+== boot menu
+xorriso 1.5.6 : RockRidge filesystem manipulator, libburnia project.
+
+Copying of file objects from ISO image to disk filesystem is: Enabled
+xorriso : NOTE : ISO image bears MBR with  -boot_image any partition_offset=16
+xorriso : NOTE : Loading ISO image tree from LBA 0
+xorriso : UPDATE :     310 nodes read in 1 seconds
+xorriso : NOTE : Detected El-Torito boot information which currently is set to be discarded
+Drive current: -indev '/home/runner/work/paw-migration-kit/paw-migration-kit/boot/custom/paw-live-amd64.iso'
+Media current: stdio file, overwriteable
+Media status : is written , is appendable
+Boot record  : El Torito , MBR isohybrid cyl-align-on GPT APM
+Media summary: 1 session, 454144 data blocks,  887m data, 76.7g free
+Volume id    : 'PAW-LIVE'
+xorriso : UPDATE :       1 files restored (   373b) in 1 seconds = 0.0xD
+Extracted from ISO image: file '/isolinux/memtest.cfg'='/tmp/paw-iso-payload/memtest.cfg'
+PASS isolinux/memtest.cfg matches the repository
+PASS paw-cjk-16x16.psf carries the PSF2 magic 72b5
+
+Summary: 54 passed, 0 failed

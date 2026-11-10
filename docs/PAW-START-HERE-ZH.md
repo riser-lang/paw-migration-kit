@@ -15,10 +15,10 @@ Get-FileHash -Algorithm SHA256 .\paw-live-amd64.iso
 期望值（本次交付件）：
 
 ```
-d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476
+43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f
 ```
 
-文件大小应为 **953,155,584 字节**。对不上就重新下载，不要写卡。
+文件大小应为 **930,086,912 字节**。对不上就重新下载，不要写卡。
 
 想一次核对整个交付包（推荐）：
 
@@ -90,7 +90,7 @@ powershell -ExecutionPolicy Bypass -File .\verify-delivery.ps1
 
 | 文件 | 用途 |
 |---|---|
-| `paw-live-amd64.iso` | 交付 ISO（953,155,584 字节） |
+| `paw-live-amd64.iso` | 交付 ISO（930,086,912 字节） |
 | `paw-live-amd64.iso.sha256` | ISO 哈希侧车 |
 | `SHA256SUMS.txt` | 整个交付包每个文件的哈希 |
 | `verify-delivery.ps1` | 一键核对脚本（Windows PowerShell） |

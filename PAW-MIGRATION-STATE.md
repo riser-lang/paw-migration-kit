@@ -124,8 +124,8 @@ boots to a login prompt.
   expires 2026-11-13 11:27:18 UTC
 - Verification artifacts (run 18): `13791479365` `paw-test-reports` 567,751 bytes, and
   `13791803997` `paw-live-build-test-results` 1,030,667,292 bytes, expires 2026-11-13 18:40:56 UTC
-- ISO: `paw-live-amd64.iso`, 953,155,584 bytes
-- ISO SHA256: `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
+- ISO: `paw-live-amd64.iso`, 930,086,912 bytes
+- ISO SHA256: `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f`
 - ISO layout: `MBR isohybrid cyl-align-on GPT APM`
 - Test totals (verification run): PAWDATA 12, fault injection 39, offline repair **28**,
   network 17, finalize 36, TTY 56 (static 55 + PTY 15 with the aggregate row),
@@ -185,15 +185,18 @@ work directory, and compares them layer by layer: sizes, hashes, first differing
 settings and full listing, seven file contents read out of both images, and — with
 `PAW_PROBE_DEEP=1` — a `diff -rq` over both extracted rootfs trees.
 
-What run `42892095324` established: everything structural is identical (size, volume
-metadata, vmlinuz, initrd, squashfs size and settings, 25,600-line listing with zero
-differing metadata rows, 7/7 sampled files), while the squashfs bytes and therefore the ISO
-differ. The first real content difference the deep diff surfaces is `/etc/nvme/hostid`,
-which the `nvme` package generates during the chroot build.
+The probe was used three times, each run narrowing the answer:
 
-Not yet established: that this file is the only difference, or that removing it makes the
-image reproducible. The `diff` output still needs filtering (dangling symlinks and `/dev`
-device nodes are counted today), and the removal has to be proven with a rebuild.
+| Run | What changed | Result |
+|---|---|---|
+| `42892095324` | nothing yet, deep diff added | `REPRO=DIFFERS`, 57,134,346 differing bytes, first real difference `/etc/nvme/hostid` |
+| `42897613270` | hook removes `/etc/nvme/hostid`, machine-id, random-seed | differing bytes down to 76,801; filtered diff shows **one** entry: `/var/cache/apt/pkgcache.bin` |
+| `42903949395` | hook also deletes the apt caches | cache came back: something later in the build runs apt again |
+| `42909076510` | hook writes `99-paw-no-cache` so apt never creates a cache file | **`REPRO=IDENTICAL`** — both builds `930,086,912` bytes, SHA256 `4348823662…39939f`, `diff_raw_lines=0` |
+
+Scope of the claim: two consecutive builds on the same runner image. Cross-image and
+cross-day reproducibility is still untested, and the delivery instructions keep telling the
+user to compare against the sidecar from the same run.
 
 ## ISO payload verification
 
@@ -213,7 +216,7 @@ unit name.
 ## Delivery package self-check
 
 `scripts/verify-delivery.ps1` (Windows PowerShell 5.1, because the host has no `pwsh`)
-verifies the delivered folder: ISO size against 953,155,584, ISO SHA256 against
+verifies the delivered folder: ISO size against 930,086,912, ISO SHA256 against
 `paw-live-amd64.iso.sha256`, and every line of `SHA256SUMS.txt`.
 
 Verified on this workstation, on the real folder: `DELIVERY=PASS (23 checks)`. A
@@ -234,9 +237,9 @@ payloads in the repository.
 
 ## Immediate next steps for the user
 
-1. Use the ISO at `delivery/paw-live-amd64.iso` (or download Artifact `13760370816`
-   from Run `42804949796` before 2026-11-13 11:27:18 UTC).
-2. Recompute ISO SHA256 and compare with `d9fe2879…fb95a4476`.
+1. Use the ISO at `delivery/paw-live-amd64.iso` (or download Artifact `13808328141`
+   from Run `42909076510` before 2026-11-13).
+2. Recompute ISO SHA256 and compare with `43488236…a34fe39939f`.
 3. Follow `docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md` step by step; it lists the exact
    screen text each step must show and what to do when it does not.
 4. Keep physical results separate from cloud/virtual results.

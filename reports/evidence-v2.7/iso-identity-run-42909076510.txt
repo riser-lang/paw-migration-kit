@@ -1,0 +1,18 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42909076510 (delivery, double build)
+
+Run:           42909076510 (workflow_dispatch, double_build=true)
+Head:           507b25a (fix/v2.6.2-final-readiness)
+Purpose:        delivery build + reproducibility probe
+
+ISO bytes:      930,086,912
+SHA256 (A):     43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f
+SHA256 (B):     43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f
+
+VERDICT: REPRO=IDENTICAL (same builder image, two builds in one job)
+
+Local re-download: artifact 13808328141, 1,007,613,856 bytes, extracted ISO hashed on the
+workstation to the same value.
+
+The previous delivery ISO (d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476,
+953,155,584 bytes) is superseded: this tree adds the reproducible-build cleanup hook, so the
+payload changed.

@@ -219,6 +219,8 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 | ISO（Run `42747871471`）独立复核 | `2295eb0a…39336d` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
 | ISO（Run `42778468039`）独立复核 | `17789c04…6e0363` 与侧车一致 | 本机下载后 `Get-FileHash` |
 | ISO（Run `42804949796`，交付件）独立复核 | `d9fe2879…fb95a4476` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
+| ISO 字节级可复现探针 | `REPRO=IDENTICAL`（同镜像连续两次构建） | Run `42909076510`：`iso-repro-report.txt` |
+| ISO（Run `42909076510`，交付件）独立复核 | `43488236…a34fe39939f` 与侧车一致；930,086,912 bytes | 本机下载 1,007,613,856 字节 artifact 后 `Get-FileHash` |
 
 ## 12. 本轮仍未验证（不得写成通过）
 
