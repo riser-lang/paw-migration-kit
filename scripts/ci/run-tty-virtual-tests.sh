@@ -73,6 +73,7 @@ console_scripts=(
   "$root/scripts/paw-rescue-key-prepare.sh"
   "$root/scripts/paw-target-discovery.sh"
   "$root/scripts/paw-network-phase-select.sh"
+  "$root/scripts/paw-source-discovery.sh"
 )
 implicit=0
 for script in "${console_scripts[@]}"; do
@@ -86,7 +87,8 @@ for script in "${console_scripts[@]}"; do
 done
 ((unbound == 0)) && pass 'B5b 操作员脚本统一使用可回退的 tty1 绑定'
 for marker in PAW-TTY1-FINAL-PANEL PAW-TTY1-FINAL-PROMPT PAW-TTY1-FINAL-OK PAW-TTY1-FINAL-BAD PAW-TTY1-FINAL-TIMEOUT \
-              PAW-TTY1-MEMTEST-OK PAW-TTY1-MEMTEST-TIMEOUT PAW-TTY1-RESCUE-OK PAW-TTY1-TARGET-OK PAW-TTY1-NETPHASE-OK; do
+              PAW-TTY1-MEMTEST-OK PAW-TTY1-MEMTEST-TIMEOUT PAW-TTY1-RESCUE-OK PAW-TTY1-TARGET-OK PAW-TTY1-NETPHASE-OK \
+              PAW-TTY1-SOURCE-PANEL PAW-TTY1-SOURCE-PROMPT PAW-TTY1-SOURCE-TIMEOUT; do
   grep -Rqs "$marker" "$root/scripts" && pass "B5b ASCII 屏幕标记存在：$marker" || fail "B5b 缺少 ASCII 标记：$marker"
 done
 grep -q 'paw_tty_open_optional' "$root/scripts/paw-tty-lib.sh" && grep -q 'PAW_TTY_FALLBACK' "$root/scripts/paw-tty-lib.sh" && pass 'B5b tty 库提供显式回退绑定，并标记为非实机路径' || fail 'B5b tty 库缺少回退绑定'

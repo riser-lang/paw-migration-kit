@@ -183,6 +183,16 @@ paw_tty_read_line(){
   ((PAW_TTY_READ_RC == 0))
 }
 
+# Read a value that must not be echoed on the console (e.g. the expected
+# Rescue root UUID).  Same fd and same timeout as every other prompt.
+paw_tty_read_secret(){
+  local __var="$1"
+  PAW_TTY_READ_RC=0
+  IFS= read -r -s -t "$PAW_TTY_TIMEOUT" -u "$PAW_TTY_IN_FD" "$__var" || PAW_TTY_READ_RC=$?
+  printf '\n' >&3
+  ((PAW_TTY_READ_RC == 0))
+}
+
 paw_tty_close(){
   if ((PAW_TTY_OPEN == 1)); then
     paw_tty_record close closed 'terminal released'
