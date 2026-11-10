@@ -2,7 +2,7 @@
 
 更新日期：2026-11-10
 分支：`fix/v2.6.2-final-readiness`
-本轮 HEAD：`376c35d00a943941e64ff2b38c627e9657a47cc9`
+本轮 HEAD：`91a79ea`（第二段）／`376c35d00a943941e64ff2b38c627e9657a47cc9`（第一段）
 对应测试报告：`docs/PAW-V2.7.1-TEST-REPORT.md`
 保护边界：只使用虚拟磁盘/QEMU；未触碰旧 VPS、生产 PAW、真实 TF 卡或真实硬盘。
 
@@ -21,7 +21,7 @@
 | PAW-271-B09 | 低 | vgacon 8x16 后备字体对复杂汉字可读性有限 | OPEN（已文档化） | 主路径是 fbcon 16x16；无 fb0 时才回退 |
 | PAW-271-B10 | 中 | CI QEMU 仍是虚拟硬件，不是 ASUS 实机 | OPEN | 不能把虚拟测试说成实机验收 |
 | PAW-271-B11 | 高 | 六个操作员脚本的面板只进 journal、不上屏幕 | **CLOSED（静态 55 + PTY 15，CI 绿）** | 实机屏幕仍归 B03 |
-| PAW-271-B12 | 中 | 新增授权面板的中文字形未进 QEMU CJK 截图套件 | **OPEN（下一轮）** | 只有静态断言，没有像素级证据 |
+| PAW-271-B12 | 中 | 新增授权面板的中文字形未进 QEMU CJK 截图套件 | **CLOSED（QEMU final 用例，25 断言）** | 实机屏幕仍归 B03 |
 | PAW-271-B13 | 低 | 本机换成 Windows 11，无 `termios`，PTY 无法本地执行 | **OPEN（环境）** | 由 CI `PAW_REQUIRE_PTY=1` 覆盖 |
 
 ## PAW-271-B11 操作员面板不上屏幕（第二段修复）
@@ -32,18 +32,32 @@
 - 修复：统一走 `paw_tty_open_optional()` + `paw_tty_say/paw_tty_prompt/
   paw_tty_read/paw_tty_read_secret`（300 秒超时、ASCII 标记、回退时不记录 tty1
   会话）。`paw-data-prepare.sh` 保持严格绑定。
-- 证据：本机静态 **55 passed / 0 failed**；CI Run `42778468039` TTY 套件
+- 证据：本机静态 **55 passed / 0 failed**；CI Run `42795953493` TTY 套件
   **56 passed / 0 failed / 0 blocked**（含 15 项 PTY）。
 - 仍未证明：真实 ASUS 屏幕上的字形与可读性（B03）。
 
-## PAW-271-B12 授权面板缺少像素级证据
+## PAW-271-B12 授权面板像素级证据（第二段已关闭）
 
-QEMU CJK 套件当前只驱动菜单与 PAWDATA 面板（ok/bad/timeout/render 四例、71 断言），
-新改的授权/内存/目标盘/Rescue/网络阶段/UUID 面板只有静态断言与 PTY 交互证据，
-没有 screendump 字形匹配。不能声称这些面板已在真实字形下被验证。
+新增 QEMU 用例 `final`（`tests/qemu/paw-cjk-final-probe.sh` +
+`paw-cjk-final.service`，由内核参数 `paw.final=1` 触发）在 tty1 上真实运行生产
+脚本 `paw-final-confirm.sh`：
 
-下一步：在 QEMU 套件中增加 `final` 用例，注入完整源/目标/硬件/内存 fixture，
-对授权面板做同样的逐单元格字模匹配。
+1. 造一套合成但完整的收据（readiness / source / target / hardware / memtest），
+   并创建带 `PAWDATA` 标签的 loop ext4 与 loop 目标盘；
+2. 第一次输入错误后缀 → 必须出现 `PAW-TTY1-FINAL-BAD` 与中文拒绝文案；
+3. 第二次输入目标序列号末六位 → 必须出现 `PAW-TTY1-FINAL-OK` 与中文确认文案；
+4. 用随包 PSF 字模逐单元格解码截图，断言授权面板标题、源系统、源盘组合身份、
+   固定主机指纹、目标 SSD 行（含运行时序列号）、数据来源，以及**完整的整盘
+   数据损失警告**和输入提示；并断言会话文件 `tty_path=/dev/tty1`、BAD/OK 两个标记、持有者中没有
+   getty/login。
+
+结果：Run `42795953493` — `Cases: 5 passed, 0 failed`，本例 25 断言全过。
+未做克隆：授权通过后生产脚本按设计停在 Rescue 身份复核（该环境没有端点）。
+
+三轮真实失败与修复（不隐藏）：`42784672282` 合成 source.json 缺
+`partition_number` → 生产脚本在面板前按设计拒绝；`42788769956`
+`max_holders=2` 是探针外壳自身持有 tty1 的夹具形态；`42792565444` 截图在中间行
+出现即返回导致末行未画完（竞态）。
 
 ## PAW-271-B01 中文控制台字形（CLOSED for QEMU/fbcon）
 
@@ -108,8 +122,9 @@ QEMU CJK 套件当前只驱动菜单与 PAWDATA 面板（ok/bad/timeout/render �
 ## 结论
 
 - 中文**屏幕字形**阻塞在 QEMU/fbcon 范围已关闭；这是第一段的核心修复。
-- 第二段（2026-11-10）关闭了“操作员面板不上屏幕”（B11），补充静态 55 项与
-  PTY 15 项断言；新增 B12（面板缺像素级证据）与 B13（Windows 无 termios）。
+- 第二段（2026-11-10）关闭了“操作员面板不上屏幕”（B11）与“授权面板缺像素级
+  证据”（B12）：静态 55 项、PTY 15 项、QEMU 授权面板 25 项断言在 Run
+  `42795953493` 全绿；新增 B13（Windows 无 termios）。
 - 整体仍为 **PARTIAL**：真实 ASUS、真实重启、最终发布 ISO 现场验收、真实硬件
   全部 OPEN。
 - PR #2 保持 Draft，未合并。

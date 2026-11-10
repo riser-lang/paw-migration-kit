@@ -205,31 +205,31 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 |---|---|---|
 | Run `42775846760`（HEAD `c211dc9`） | success | Actions，全部步骤通过 |
 | Run `42778468039`（HEAD `2c2a37d`） | success | Actions，20m37s，全部步骤通过 |
+| Run `42795953493`（HEAD `91a79ea`） | success | Actions，5 例 QEMU 中文用例全绿 |
 | 本机 `bash -n` 全脚本 | PASS，0 语法错误 | Git Bash 5.3.9 实跑 |
 | 本机 TTY 静态断言 | 55 passed / 0 failed | `run-tty-virtual-tests.sh` 实跑 |
 | 本机 PTY | BLOCKED（Windows Python 无 `termios`） | 不作为 PASS |
-| CI TTY 套件 | 56 passed / 0 failed / 0 blocked（含 15 PTY） | Run `42778468039` |
-| CI 其余套件 | PAWDATA 12、故障注入 35、修复 15、网络 17、finalize 36、CJK 字体 1、QEMU CJK 4 例 71 断言，均 0 failed | Run `42778468039` |
+| CI TTY 套件 | 56 passed / 0 failed / 0 blocked（含 15 PTY） | Run `42795953493` |
+| CI 其余套件 | PAWDATA 12、故障注入 35、修复 15、网络 17、finalize 36、CJK 字体 1、QEMU CJK 5 例 96 断言，均 0 failed | Run `42795953493` |
 | ISO（Run `42747871471`）独立复核 | `2295eb0a…39336d` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
-| ISO（Run `42778468039`） | `17789c04…6e0363`；953,155,584 bytes | 构建日志 `iso-identity.txt` |
+| ISO（Run `42778468039`）独立复核 | `17789c04…6e0363` 与侧车一致 | 本机下载后 `Get-FileHash` |
+| ISO（Run `42795953493`，交付件）独立复核 | `2edf88a0…bf2fc20ed` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
 
 ## 12. 本轮仍未验证（不得写成通过）
 
-- 真实 ASUS 主板屏幕与键盘上是否真的显示这些新面板（QEMU CJK 套件只覆盖菜单与
-  PAWDATA 面板，未覆盖新授权面板）。
+- 真实 ASUS 主板屏幕与键盘：QEMU 已证明授权面板与数据损失警告以真实字形出现，
+  但实机屏幕仍需现场确认。
 - 真实 TF 卡写入与回读、真实主板启动。
 - 真实 SSD SMART / 只读扫描 / 温度，真实内存 Memtest86+ 运行与目视确认。
 - 真实腾讯云 Rescue Mode SSH 与真实整盘克隆。
-- ISO 字节级可复现（两次构建同尺寸不同 SHA256）。
+- ISO 字节级可复现（三次构建同尺寸、三种不同 SHA256）。
 - 本机 PTY 执行（环境限制，由 CI 覆盖）。
 
 ## 13. 下一轮建议顺序
 
-1. 给 QEMU CJK 套件增加一个 `final` 用例：注入完整的源/目标/硬件/内存 fixture，
-   证明授权面板在 tty1 上以真实字形出现（目前只有静态断言）。
-2. 把 GRUB 修复从 stub 提升为在 loop 上真实执行 `grub-install --target=i386-pc`
+1. 把 GRUB 修复从 stub 提升为在 loop 上真实执行 `grub-install --target=i386-pc`
    （CI 已装 `grub-pc-bin`），以关闭“GRUB 修复只有模拟证据”这一项。
-3. 复核 `growpart` 对“根分区不是最后一个分区”的克隆布局，给出明确阻断而不是
+2. 复核 `growpart` 对“根分区不是最后一个分区”的克隆布局，给出明确阻断而不是
    依赖 growpart 报错。
-4. 真实硬件阶段：TF 卡写入、主板启动、SSD/内存、Rescue 与正式迁移，全部需要
+3. 真实硬件阶段：TF 卡写入、主板启动、SSD/内存、Rescue 与正式迁移，全部需要
    用户在场并单独授权。

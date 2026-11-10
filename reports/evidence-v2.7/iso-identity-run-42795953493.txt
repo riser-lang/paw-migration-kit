@@ -1,0 +1,43 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42795953493
+
+Run:           42795953493 (workflow_dispatch, PAW live build and isolated tests)
+Code HEAD:     91a79ea (fix/v2.6.2-final-readiness)
+Started:       2026-11-10T10:04:01Z
+Artifact ID:   13754343439
+Artifact name: paw-live-build-test-results
+Artifact bytes: 1,030,664,775
+Artifact TTL:  2026-11-13 10:22:46 UTC
+
+ISO file:      paw-live-amd64.iso
+ISO bytes:     953,155,584
+ISO SHA256:    2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed
+ISO layout:    System area summary: MBR isohybrid cyl-align-on GPT APM
+
+Build-side value (from the run log, artifacts/iso-identity.txt):
+  iso_bytes=953155584
+  2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed  boot/custom/paw-live-amd64.iso
+
+Independent workstation check:
+  artifact zip downloaded through the explicit local proxy
+  expanded, then Get-FileHash -Algorithm SHA256 over the extracted ISO
+  computed = 2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed
+  result   = MATCH with the build-side value and the uploaded sidecar
+
+Delivery copy:
+  D:\Personal_AI_Workspace_V1.5.1\delivery\paw-live-amd64.iso
+  re-hashed after the move: 2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed
+  D:\Personal_AI_Workspace_V1.5.1\delivery\paw-live-amd64.iso.sha256
+
+Note: the ISO build is not byte-reproducible. Runs 42747871471, 42778468039 and
+42795953493 all produced 953,155,584 bytes with three different SHA256 values, so
+a hash may only be compared against the sidecar of the same run.
+
+Scope of the tests behind this run (all 0 failed):
+  PAWDATA 12, fault injection 35, offline repair 15, network 17, finalize 36,
+  TTY 56 (static 55 + PTY 15 with the aggregate row), CJK font 1,
+  QEMU CJK 5 cases / 96 assertions (ok 26, bad 17, timeout 17, render 11,
+  final 25).
+
+Not covered by this run: real TF card write/read-back, real ASUS boot, real SSD
+SMART/scan/temperature, real Tencent Cloud Rescue SSH, real full-disk clone, real
+PAW migration, physical Memtest86+.

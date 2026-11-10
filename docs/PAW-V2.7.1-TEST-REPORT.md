@@ -176,21 +176,22 @@ PAW_ARTIFACT_DIR=$PWD/artifacts scripts/ci/run-tty-virtual-tests.sh
 ## 7. GitHub Actions 完整回归
 
 工作流：`.github/workflows/build-live-and-test.yml`
-最终成功运行：**Run ID `42778468039`**（HEAD `2c2a37d`，2026-11-10T07:53:31Z 触发，
-20m37s，全部步骤 success）
-URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42778468039
+最终成功运行：**Run ID `42795953493`**（HEAD `91a79ea`，2026-11-10T10:04:01Z 触发，
+全部步骤 success）
+URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42795953493
 
 > 说明：本轮新增 CJK 步骤后，第一次运行（`42741425053`）用于发现 CI 环境差异；
-> 交付必须引用**最新 HEAD 的成功 Run**。下表全部取自 Run `42778468039` 的日志
-> 与 Artifact，未手写猜测。
+> 新增"中文授权面板"用例后又用 `42784672282` / `42788769956` / `42792565444`
+> 三轮真实失败把夹具与断言修到正确（见 10.4），不是 flaky 重跑。交付引用**最新
+> HEAD 的成功 Run**。下表全部取自 Run `42795953493` 的日志与 Artifact，未手写猜测。
 
-CI 实际计数（Run `42778468039`，HEAD `2c2a37d`）：
+CI 实际计数（Run `42795953493`，HEAD `91a79ea`）：
 
 | 套件 | 实际结果 |
 |---|---|
-| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 627 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
+| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 682 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
 | Debian 签名 / Xray / Tailscale | PASS。Debian Live `13.7.0-amd64-standard`：分离签名 PASS（Debian CD key `DF9B9C49EAA9298432589D76DA87E80D6294BE9B`）、manifest hash PASS、SHA256 `040a44f3…c14e17ec`；Tailscale 1.104.5（签名 stable 仓库）；Xray v26.3.27，archive SHA2-256 `23cd9af9…`；二进制 SHA256 记录在 `software-manifest.txt` |
-| ISO 构建 / SeaBIOS+TCG | PASS。ISO `953,155,584` bytes，SHA256 `17789c04…6e0363`；`System area summary: MBR isohybrid cyl-align-on GPT APM`；QEMU SeaBIOS 1.16 + TCG（未用 KVM）启动到 readiness gate，按缺失实机条件保持 `BLOCKED`，`clone_started=false` |
+| ISO 构建 / SeaBIOS+TCG | PASS。ISO `953,155,584` bytes，SHA256 `2edf88a0…bf2fc20ed`；`System area summary: MBR isohybrid cyl-align-on GPT APM`；QEMU SeaBIOS + TCG（未用 KVM）启动到 readiness gate，按缺失实机条件保持 `BLOCKED`，`clone_started=false` |
 | PAWDATA 12 项 | `Summary: 12 passed, 0 failed` |
 | 克隆/故障注入 35 项 | `Summary: 35 passed, 0 failed` |
 | 离线修复 15 项 | `Summary: 15 passed, 0 failed` |
@@ -198,7 +199,7 @@ CI 实际计数（Run `42778468039`，HEAD `2c2a37d`）：
 | Finalize 36 项 | `Summary: 36 passed, 0 failed` |
 | TTY 静态 55 项 + PTY | `Static tty assertions: 55 passed, 0 failed`；`Summary: 15 passed, 0 failed`（PTY，`PAW_REQUIRE_PTY=1`）；套件合计 `56 passed, 0 failed, 0 blocked` |
 | CJK 字体校验 | `Summary: 1 passed, 0 failed`；PSF2 512 槽 / 480 映射 / 384 个非 ASCII 运行时字符全覆盖 |
-| QEMU CJK 4 例/71 断言 | `Cases: 4 passed, 0 failed, 0 blocked`；四例断言 26 + 17 + 17 + 11 = 71，0 failed |
+| QEMU CJK 5 例/96 断言 | `Cases: 5 passed, 0 failed, 0 blocked`；五例断言 26 + 17 + 17 + 11 + 25 = 96，0 failed（第五例为中文授权面板） |
 
 ## 8. 未执行 / BLOCKED / OPEN
 
@@ -258,7 +259,7 @@ paw_tty_read/paw_tty_read_secret`，带 300 秒输入超时与 ASCII 屏幕标�
 
 ### 10.2 本轮验证
 
-| 项 | 本机（Windows） | CI Run `42778468039` |
+| 项 | 本机（Windows） | CI Run `42795953493` |
 |---|---|---|
 | `bash -n` 全部脚本 | PASS（0 语法错误） | PASS |
 | TTY 静态断言 | **55 passed / 0 failed** | `Static tty assertions: 55 passed, 0 failed` |
@@ -270,14 +271,43 @@ paw_tty_read/paw_tty_read_secret`，带 300 秒输入超时与 ASCII 屏幕标�
 
 ### 10.3 ISO 独立复核（本轮实际执行）
 
-两次构建的 ISO 都在工作站上实际下载、解压、重算哈希：
+三次构建的 ISO 都在工作站上实际下载、解压、重算哈希：
 
 | Run | Artifact | 下载字节 | ISO 字节 | 计算 SHA256 | 与侧车 |
 |---|---|---|---|---|---|
-| `42778468039`（交付件） | `13744904698` | 1,009,075,181 | 953,155,584 | `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363` | 一致 |
+| `42795953493`（交付件） | `13754343439` | 1,030,664,775 | 953,155,584 | `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed` | 一致 |
+| `42778468039`（对照） | `13744904698` | 1,009,075,181 | 953,155,584 | `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363` | 一致 |
 | `42747871471`（对照） | `13731684896` | 1,009,073,518 | 953,155,584 | `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d` | 一致 |
 
 - 下载方式：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理卡住），
-  改用 GitHub API artifact zip 端点 + `curl --proxy` 后约 9 分钟完成。
-- 两次 ISO 字节数相同但 SHA256 不同，**字节级可复现仍未证明**；核对哈希必须使用
-  同一 Run 的侧车文件。
+  改用 GitHub API artifact zip 端点 + `curl --proxy` 后完成。
+- 三次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
+  使用同一 Run 的侧车文件。
+
+### 10.4 中文授权面板的像素级证据（新增，第五例）
+
+上一轮的控制台修复只有静态断言与 PTY 证据，授权面板没有截图级证明。本轮新增
+QEMU 用例 `final`：
+
+- `tests/qemu/paw-cjk-final-probe.sh`：测试专用探针，由 `paw.final=1` 内核参数
+  触发，写一套合成但完整的收据（readiness / source / target / hardware /
+  memtest），创建带 `PAWDATA` 标签的 loop ext4 与 loop 目标盘，然后在 tty1 上
+  真实运行**生产脚本** `paw-final-confirm.sh` 两次：先错后缀（必须拒绝），再正确
+  后缀（必须接受）。不做任何克隆：授权通过后生产脚本停在 Rescue 身份复核，
+  该环境没有端点。
+- 断言：授权面板标记与标题、源系统行、源盘组合身份、固定主机指纹、目标 SSD 行
+  （含运行时序列号）、数据来源、**完整的整盘数据损失警告**、输入提示；随后
+  `FINAL-BAD` + 中文拒绝文案，`FINAL-OK` + 中文确认文案；会话文件记录
+  `tty_path=/dev/tty1`、BAD/OK 两个标记，且持有者只有探针外壳与授权脚本本身，
+  **没有任何 getty/login 进程抢占 tty1**。
+- 结果：`Cases: 5 passed, 0 failed`，本例 **25 断言全过**。
+
+该用例并非一次写成，三轮 CI 都以真实失败暴露了问题，全部按缺陷修复后重跑：
+
+| Run | 失败项 | 根因 | 修复 |
+|---|---|---|---|
+| `42784672282` | 面板未出现，两次都是 rc=1 | 合成 `source.json` 缺 `partition_number`，生产脚本按设计在面板之前就拒绝 | 补齐字段 |
+| `42788769956` | `max_holders=2` | 探针单元本身 `StandardInput=tty`，驱动外壳也持有 tty1；2 个持有者是测试夹具形态，不是抢占 | 断言改为"至多这两个进程且无 getty/login" |
+| `42792565444` | 面板末行文本缺失 | 截图在中间行出现时立刻返回，末行还没画完（竞态） | 改为等最后一行再断言 |
+
+三次失败都保留在流程记录中，不隐藏、不重跑掩盖。

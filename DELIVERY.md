@@ -2,19 +2,19 @@
 
 交付更新时间：2026-11-10 UTC（第二轮接管）
 分支：`fix/v2.6.2-final-readiness`
-代码 HEAD（本次 ISO 与全部测试证据对应）：`2c2a37d`
-文档 HEAD（仅文档，无代码/ISO 变化）：`908f2a6` 及之后的文档提交
+代码 HEAD（本次 ISO 与全部测试证据对应）：`91a79ea`
+文档 HEAD（仅文档，无代码/ISO 变化）：`91a79ea` 之后的文档提交
 PR #2：<https://github.com/riser-lang/paw-migration-kit/pull/2>（Draft，未合并）
 PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未改动）
 
 ## 1. 最终构建
 
-- Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42778468039>
-- 结论：success（20m37s，全部步骤通过）
-- Artifact ID：`13744904698`
+- Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42795953493>
+- 结论：success（全部步骤通过，含 5 例 QEMU 中文用例）
+- Artifact ID：`13754343439`
 - Artifact 名称：`paw-live-build-test-results`
-- Artifact 大小：1,009,075,181 bytes
-- 过期时间：2026-11-13 08:14:16 UTC（保留 3 天）
+- Artifact 大小：1,030,664,775 bytes
+- 过期时间：2026-11-13 10:22:46 UTC（保留 3 天）
 - 下载入口：打开 Actions Run 页面，在页面底部 Artifacts 区域下载；GitHub 需要
   登录且有仓库读权限。若 `gh run download` 长时间无进度，改用 API + 显式代理
   `curl` 直取 artifact zip。
@@ -24,29 +24,31 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 - 文件：`paw-live-amd64.iso`
 - 字节数：`953,155,584`
 - SHA256：
-  `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363`
-- 校验文件副本：`reports/evidence-v2.7/paw-live-amd64.iso.sha256`（旧 Run 副本，
-  见下）、Artifact 内 `paw-live-amd64.iso.sha256`、以及构建日志中的
-  `artifacts/iso-identity.txt`（字节数 + SHA256，不必先下载 1 GB）
+  `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`
+- 校验文件副本：Artifact 内 `paw-live-amd64.iso.sha256`、构建日志中的
+  `artifacts/iso-identity.txt`（字节数 + SHA256，不必先下载 1 GB）、以及
+  `reports/evidence-v2.7/iso-identity-run-42795953493.txt`
 - 分区结构：`MBR isohybrid cyl-align-on GPT APM`，Legacy BIOS 可启动，
   含 Memtest86+ 独立 ISOLINUX 菜单项
 
 ### 2.1 已完成的独立复核
 
-本轮两次构建的 ISO 都在工作站上实际下载并重算哈希：
+本轮三次构建的 ISO 都在工作站上实际下载并重算哈希：
 
-- Run `42778468039`（交付件）：Artifact `13744904698` 下载 1,009,075,181 bytes，
+- Run `42795953493`（交付件）：Artifact `13754343439` 下载 1,030,664,775 bytes，
   解压后 `Get-FileHash -Algorithm SHA256` =
-  `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363`，
+  `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`，
   与 Artifact 内 `paw-live-amd64.iso.sha256` **完全一致**；ISO `953,155,584` bytes。
+- Run `42778468039`：Artifact `13744904698` 下载并复核，
+  `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363` 与侧车一致。
 - Run `42747871471`：Artifact `13731684896` 同样下载并复核，
   `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d` 与侧车一致。
 
 下载方式说明：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理），改用
-GitHub API artifact zip 端点 + `curl --proxy` 后约 9 分钟完成。
+GitHub API artifact zip 端点 + `curl --proxy` 后完成。
 
-注意：ISO 构建**不是字节级可复现**。Run `42747871471` 与 `42778468039` 的 ISO
-字节数同为 `953,155,584`，但 SHA256 不同（`2295eb0a…` / `17789c04…`）。
+注意：ISO 构建**不是字节级可复现**。三次构建的 ISO 字节数同为 `953,155,584`，
+但 SHA256 各不相同（`2295eb0a…` / `17789c04…` / `2edf88a0…`）。
 核对哈希时必须使用**同一 Run** 的侧车文件，不能跨 Run 比较。
 
 下载后在 Windows 重新计算并核对（务必对上表或同一 Run 的侧车）：
@@ -69,7 +71,7 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 - 接管报告：`reports/PAW-V2.7-TAKEOVER.md`
 - P0 实现记录：`reports/PAW-V2.7-P0-IMPLEMENTATION.md`
 - 最终证据（上一轮）：`reports/PAW-V2.7-FINAL-EVIDENCE.md`
-- 测试报告：`docs/PAW-V2.7.1-TEST-REPORT.md`（第 7 节为 Run `42778468039` 实际计数）
+- 测试报告：`docs/PAW-V2.7.1-TEST-REPORT.md`（第 7 节为 Run `42795953493` 实际计数）
 - 阻断清单：`PAW-MIGRATION-BLOCKERS.md`、`docs/PAW-V2.7.1-BLOCKERS.md`
 - 软件清单：`software-packages.txt`、`software-packages.lock`、`software-manifest.txt`
 - 构建来源：`build-provenance.txt`
@@ -79,12 +81,13 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 
 | 层级 | 状态 | 证据 |
 |---|---|---|
-| 云端构建 | PASS | Run `42778468039` |
-| ISO SHA256 | PASS（构建生成） | `17789c04…6e0363` |
-| ISO 独立复核 | PASS（两次 Run 均复核） | Run `42778468039` 的 ISO 已下载并重算：`17789c04…6e0363` 与侧车一致；Run `42747871471` 的 ISO 同样复核通过（`2295eb0a…`） |
-| ISO 字节级可复现 | NOT PROVEN | 同尺寸不同 SHA256 |
+| 云端构建 | PASS | Run `42795953493` |
+| ISO SHA256 | PASS（构建生成） | `2edf88a0…bf2fc20ed` |
+| ISO 独立复核 | PASS（三次 Run 均复核） | Run `42795953493` 的 ISO 已下载并重算：`2edf88a0…` 与侧车一致；`42778468039`（`17789c04…`）与 `42747871471`（`2295eb0a…`）同样复核通过 |
+| ISO 字节级可复现 | NOT PROVEN | 同尺寸、三种不同 SHA256 |
 | QEMU SeaBIOS/TCG 虚拟启动 | PASS（fail-closed） | `qemu-smoke-report.txt` |
-| 中文 tty1 菜单（QEMU） | PASS | 4 例 / 71 断言 |
+| 中文 tty1 菜单（QEMU） | PASS | 5 例 / 96 断言 |
+| 中文授权面板（真实脚本、真实字形） | PASS | `qemu-cjk-final.log`（25 断言） |
 | PAWDATA 虚拟介质 | 12/12 PASS | `pawdata-virtual-test-report.txt` |
 | 虚拟克隆/故障注入 | 35/35 PASS | `virtual-fault-injection-report.txt` |
 | 离线修复/回滚 | 15/15 PASS | `repair-virtual-test-report.txt` |
@@ -98,9 +101,9 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 
 ## 5. 使用顺序
 
-1. 取 ISO：用本机已下载的 `paw-live-amd64.iso`，或从 Run `42778468039` 的
+1. 取 ISO：用本机已下载的 `paw-live-amd64.iso`，或从 Run `42795953493` 的
    Artifact 下载。
-2. 重新计算 ISO SHA256，与 `17789c04…6e0363`（或同一 Run 的侧车）对照。
+2. 重新计算 ISO SHA256，与 `2edf88a0…bf2fc20ed`（或同一 Run 的侧车）对照。
 3. 按 `docs/PAW-V2.7.1-USER-GUIDE-ZH.md` 用 Rufus DD 模式写 TF 卡
    （`reports/TF-CARD-RUFUS-GUIDE.md` 有图形步骤）。
 4. 新电脑 Legacy/CSM 启动，按 tty1 中文菜单逐项操作。
