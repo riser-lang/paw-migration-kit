@@ -26,7 +26,9 @@ pass=0
 fail=0
 log() { printf '%s\n' "$*" | tee -a "$report" >/dev/null; }
 check() {
-  local label="$1" expected="$2" actual="$3"
+  local label="$1" expected="${2#\\}" actual="${3#\\}"
+  # sha256sum prefixes a backslash when the file name contains one (the mount unit is
+  # var-lib-paw\x2dmigration.mount), so strip it before comparing.
   if [[ "$expected" == "$actual" ]]; then
     pass=$((pass + 1))
     printf 'PASS %s\n' "$label" >>"$report"
