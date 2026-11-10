@@ -151,7 +151,7 @@ jobs:
         run: |
           set -euo pipefail
           # A second build needs the same root privileges as the first one.
-          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/repro-probe.sh
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" PAW_PROBE_DEEP=1 scripts/ci/repro-probe.sh
           sudo chown "$(id -u):$(id -g)" artifacts/iso-repro-report.txt
 
       - name: Validate generated CJK console font

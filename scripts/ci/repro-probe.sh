@@ -80,8 +80,8 @@ fi
 say ""
 say "== ISO volume metadata (xorriso -toc)"
 for side in a b; do
-  xorriso -indev "$work/iso-$side.iso" -toc 2>&1 |
-    grep -E 'Volume id|Volume set id|Creation|Modification|Expiration|Effective' |
+  xorriso -indev "$work/iso-$side.iso" -pvd_info 2>&1 |
+    grep -E 'Volume id|Volume set id|Creation|Modification|Expiration|Effective|System id|Publisher' |
     sed "s/^/[$side] /" >>"$report" || true
 done
 
@@ -106,6 +106,14 @@ for item in vmlinuz initrd.img filesystem.squashfs; do
 done
 
 # --- 5. squashfs metadata and listing --------------------------------------------------
+say ""
+say "== squashfs compression settings"
+for side in a b; do
+  unsquashfs -s "$mix/$side/filesystem.squashfs" 2>/dev/null |
+    grep -E 'Compression|Compressor|Block size|Number of fragments|Number of inodes|Number of ids|Number of duplicates' |
+    sed "s/^/[$side] /" >>"$report" || true
+done
+
 say ""
 say "== squashfs metadata (unsquashfs -s)"
 for side in a b; do
@@ -144,8 +152,8 @@ diff_count=0
 skip_count=0
 empty_hash="$(printf '' | sha256sum | cut -d' ' -f1)"
 for path in "${sample_paths[@]}"; do
-  hash_a="$(unsquashfs -cat "$mix/a/filesystem.squashfs" "$path" 2>/dev/null | sha256sum | cut -d' ' -f1)"
-  hash_b="$(unsquashfs -cat "$mix/b/filesystem.squashfs" "$path" 2>/dev/null | sha256sum | cut -d' ' -f1)"
+  hash_a="$( { unsquashfs -cat "$mix/a/filesystem.squashfs" "$path" 2>/dev/null || true; } | sha256sum | cut -d' ' -f1)"
+  hash_b="$( { unsquashfs -cat "$mix/b/filesystem.squashfs" "$path" 2>/dev/null || true; } | sha256sum | cut -d' ' -f1)"
   if [[ "$hash_a" == "$hash_b" ]]; then
     same_count=$((same_count + 1))
     say "same $path"
@@ -159,6 +167,28 @@ for path in "${sample_paths[@]}"; do
   fi
 done
 say "content_sample_same=$same_count content_sample_diff=$diff_count skipped=$skip_count"
+
+# --- 7. full content diff --------------------------------------------------------------
+# The listing (path/size/mtime/owner) is identical between builds, so any difference has to
+# be file *content*. Extracting both trees answers that directly; it is the slowest step,
+# so it only runs when PAW_PROBE_DEEP=1.
+if [[ "${PAW_PROBE_DEEP:-0}" == "1" ]]; then
+  say ""
+  say "== full content diff (extract both rootfs)"
+  for side in a b; do
+    rm -rf "$work/root-$side"
+    unsquashfs -q -d "$work/root-$side" "$mix/$side/filesystem.squashfs" >/dev/null 2>&1 || {
+      say "FAIL could not extract rootfs $side"
+      exit 1
+    }
+  done
+  diff -rq "$work/root-a" "$work/root-b" >"$work/content-diff.txt" 2>&1 || true
+  entries="$(wc -l <"$work/content-diff.txt")"
+  say "differing_entries=$entries"
+  say "first 25 differences:"
+  head -n 25 "$work/content-diff.txt" >>"$report" || true
+  rm -rf "$work/root-a" "$work/root-b"
+fi
 
 say ""
 say "Summary: ${same_count} sampled paths identical, ${diff_count} differ, ${skip_count} skipped, listing differences ${listing_diff:-0}"
