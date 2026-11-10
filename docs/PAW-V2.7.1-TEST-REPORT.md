@@ -24,14 +24,14 @@ PR #2：保持 Draft，未合并。
 | Python compile | PASS | 见 CI 表 | 所有 `.py` |
 | PowerShell 语法 | 未执行（无 pwsh） | 见 CI 表 | CI 专用 |
 | Public safety | PASS | 见 CI 表 | 无密钥/凭据/二进制 |
-| Public history | PASS | 见 CI 表 | 682 objects |
+| Public history | PASS | 见 CI 表 | 728 objects |
 | Finalize 36 项 | **36 passed / 0 failed** | 见 CI 表 | 未改 finalizer 核心 |
 | TTY 静态检查 | **55 passed / 0 failed** | 见 CI 表 | 6 个操作员脚本 + 字体断言 |
 | PTY 交互 | **BLOCKED**（Windows Python 无 `termios`） | 见 CI 表 | CI `PAW_REQUIRE_PTY=1`，15 passed |
 | CJK 字体校验 | **PASS**（480 映射，385 非 ASCII 全覆） | 见 CI 表 | PSF2/PSF1 |
 | QEMU CJK 显示器/键盘 | **5 cases / 96 assertions / 0 failed** | 见 CI 表 | 真实 QEMU + PSF 字形匹配 |
 | PAWDATA 12 项 | BLOCKED（本机无 root/loop） | 见 CI 表 | CI sudo loop |
-| 克隆/故障注入 35 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
+| 克隆/故障注入 39 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
 | 离线修复 15 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
 | 网络 17 项 | BLOCKED（同上） | 见 CI 表 | CI sudo loop |
 | 真实 ASUS 显示器/键盘 | 未执行 | 未执行 | **OPEN** |
@@ -177,24 +177,24 @@ PAW_ARTIFACT_DIR=$PWD/artifacts scripts/ci/run-tty-virtual-tests.sh
 ## 7. GitHub Actions 完整回归
 
 工作流：`.github/workflows/build-live-and-test.yml`
-最终成功运行：**Run ID `42795953493`**（HEAD `91a79ea`，2026-11-10T10:04:01Z 触发，
+最终成功运行：**Run ID `42804949796`**（HEAD `bf1a705`，2026-11-10T11:08:06Z 触发，
 全部步骤 success）
-URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42795953493
+URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796
 
 > 说明：本轮新增 CJK 步骤后，第一次运行（`42741425053`）用于发现 CI 环境差异；
 > 新增"中文授权面板"用例后又用 `42784672282` / `42788769956` / `42792565444`
 > 三轮真实失败把夹具与断言修到正确（见 10.4），不是 flaky 重跑。交付引用**最新
-> HEAD 的成功 Run**。下表全部取自 Run `42795953493` 的日志与 Artifact，未手写猜测。
+> HEAD 的成功 Run**。下表全部取自 Run `42804949796` 的日志与 Artifact，未手写猜测。
 
-CI 实际计数（Run `42795953493`，HEAD `91a79ea`）：
+CI 实际计数（Run `42804949796`，HEAD `bf1a705`）：
 
 | 套件 | 实际结果 |
 |---|---|
-| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 682 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
+| ShellCheck / Bash / Python / PowerShell / Public safety / Public history | PASS。ShellCheck `--severity=error` 无命中；`bash -n` 全通过；`Python source compile PASS`；`PowerShell parse PASS (1 files)`；`JSON, workflow YAML, and systemd unit structure PASS`；`PUBLIC-SAFETY=PASS`；`PUBLIC-HISTORY=PASS`（扫描 728 个可达 Git 对象）；`ENTRYPOINTS=21 MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0` |
 | Debian 签名 / Xray / Tailscale | PASS。Debian Live `13.7.0-amd64-standard`：分离签名 PASS（Debian CD key `DF9B9C49EAA9298432589D76DA87E80D6294BE9B`）、manifest hash PASS、SHA256 `040a44f3…c14e17ec`；Tailscale 1.104.5（签名 stable 仓库）；Xray v26.3.27，archive SHA2-256 `23cd9af9…`；二进制 SHA256 记录在 `software-manifest.txt` |
-| ISO 构建 / SeaBIOS+TCG | PASS。ISO `953,155,584` bytes，SHA256 `2edf88a0…bf2fc20ed`；`System area summary: MBR isohybrid cyl-align-on GPT APM`；QEMU SeaBIOS + TCG（未用 KVM）启动到 readiness gate，按缺失实机条件保持 `BLOCKED`，`clone_started=false` |
+| ISO 构建 / SeaBIOS+TCG | PASS。ISO `953,155,584` bytes，SHA256 `d9fe2879…fb95a4476`；`System area summary: MBR isohybrid cyl-align-on GPT APM`；QEMU SeaBIOS + TCG（未用 KVM）启动到 readiness gate，按缺失实机条件保持 `BLOCKED`，`clone_started=false` |
 | PAWDATA 12 项 | `Summary: 12 passed, 0 failed` |
-| 克隆/故障注入 35 项 | `Summary: 35 passed, 0 failed` |
+| 克隆/故障注入 39 项 | `Summary: 39 passed, 0 failed` |
 | 离线修复 15 项 | `Summary: 15 passed, 0 failed` |
 | 网络 17 项 | `Summary: 17 passed, 0 failed` |
 | Finalize 36 项 | `Summary: 36 passed, 0 failed` |
@@ -260,7 +260,7 @@ paw_tty_read/paw_tty_read_secret`，带 300 秒输入超时与 ASCII 屏幕标�
 
 ### 10.2 本轮验证
 
-| 项 | 本机（Windows） | CI Run `42795953493` |
+| 项 | 本机（Windows） | CI Run `42804949796` |
 |---|---|---|
 | `bash -n` 全部脚本 | PASS（0 语法错误） | PASS |
 | TTY 静态断言 | **55 passed / 0 failed** | `Static tty assertions: 55 passed, 0 failed` |
@@ -272,17 +272,18 @@ paw_tty_read/paw_tty_read_secret`，带 300 秒输入超时与 ASCII 屏幕标�
 
 ### 10.3 ISO 独立复核（本轮实际执行）
 
-三次构建的 ISO 都在工作站上实际下载、解压、重算哈希：
+四次构建的 ISO 都在工作站上实际下载、解压、重算哈希：
 
 | Run | Artifact | 下载字节 | ISO 字节 | 计算 SHA256 | 与侧车 |
 |---|---|---|---|---|---|
-| `42795953493`（交付件） | `13754343439` | 1,030,664,775 | 953,155,584 | `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed` | 一致 |
+| `42804949796`（交付件） | `13760370816` | 1,030,665,391 | 953,155,584 | `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476` | 一致 |
+| `42795953493`（对照） | `13754343439` | 1,030,664,775 | 953,155,584 | `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed` | 一致 |
 | `42778468039`（对照） | `13744904698` | 1,009,075,181 | 953,155,584 | `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363` | 一致 |
 | `42747871471`（对照） | `13731684896` | 1,009,073,518 | 953,155,584 | `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d` | 一致 |
 
 - 下载方式：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理卡住），
   改用 GitHub API artifact zip 端点 + `curl --proxy` 后完成。
-- 三次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
+- 四次 ISO 字节数相同但 SHA256 各不相同，**字节级可复现仍未证明**；核对哈希必须
   使用同一 Run 的侧车文件。
 
 ### 10.4 中文授权面板的像素级证据（新增，第五例）
@@ -312,3 +313,21 @@ QEMU 用例 `final`：
 | `42792565444` | 面板末行文本缺失 | 截图在中间行出现时立刻返回，末行还没画完（竞态） | 改为等最后一行再断言 |
 
 三次失败都保留在流程记录中，不隐藏、不重跑掩盖。
+
+### 10.5 GPT 扩容守卫（本轮新增，Run `42804949796`）
+
+`growpart` 只能吃掉分区**之后**的空白。若克隆出来的根分区后面还有分区，扩容根本
+不可能成功，而旧代码会先执行 `sgdisk --move-second-header`（已经改了 GPT），再让
+`growpart` 抛出难以理解的错误。
+
+现在 `paw-gpt-expand.sh` 在**动任何东西之前**比较根分区与磁盘上最大的分区起始
+偏移；若根分区不是最后一个就拒绝，并明确写出"后面的分区会冲突"和"没有改动任何
+内容"；只有 `lsblk` 拿不到 START 时才记一条 WARN 跳过守卫（不静默）。
+
+虚拟套件新增一个双分区 GPT loop：断言拒绝、断言两句话都在、并断言拒绝前后
+`sfdisk` 导出的分区表**逐字节相同**（证明没有发生 GPT 手术）。故障注入套件因此从
+35 项增到 **39 项**。
+
+该守卫第一版有一处断言写错（用 `lsblk` 的 START 与 `sfdisk` 字段比较，与守卫本身
+无关），Run `42801453637` 以 38 passed / 1 failed 暴露；改为整表比较后 Run
+`42804949796` 39 passed / 0 failed。

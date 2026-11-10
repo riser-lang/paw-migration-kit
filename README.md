@@ -4,17 +4,17 @@
 
 ## 当前版本
 
-- 开发分支：`fix/v2.6.2-final-readiness`（HEAD `91a79ea`）
+- 开发分支：`fix/v2.6.2-final-readiness`（HEAD `bf1a705`）
 - Draft PR：#2
 - 基线：v2.6.1 `0128110`
 - 构建运行：GitHub Actions → `PAW live build and isolated tests` → Run workflow
-- 最终云端成功运行：`42795953493`（2026-11-10 UTC，全部步骤通过，含 5 例 QEMU 中文用例）
+- 最终云端成功运行：`42804949796`（2026-11-10 UTC，全部步骤通过，含 5 例 QEMU 中文用例）
 - 当前 ISO：953,155,584 bytes，SHA256
-  `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`
-- 最终证据：`reports/evidence-v2.7/iso-identity-run-42795953493.txt`（本轮），
+  `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
+- 最终证据：`reports/evidence-v2.7/iso-identity-run-42804949796.txt`（本轮），
   历史记录见 `reports/PAW-V2.7-FINAL-EVIDENCE.md`
 - 交付说明：`DELIVERY.md`
-- 产物保留：3 天（本次 Artifact `13754343439` 到期 2026-11-13 10:22:46 UTC）
+- 产物保留：3 天（本次 Artifact `13760370816` 到期 2026-11-13 11:27:18 UTC）
 - 自动克隆：**不会自动开始**；必须完成 PAWDATA、源盘、目标盘、硬件/内存和中文最终授权。
 
 ## 云端构建会做什么

@@ -1,24 +1,24 @@
 # PAW Migration Acceptance
 
 Updated: 2026-11-10 UTC (second takeover round)
-Final green run: `42795953493` — success — HEAD `91a79ea`
+Final green run: `42804949796` — success — HEAD `bf1a705`
 Branch: `fix/v2.6.2-final-readiness`
 
 ## A. Cloud build acceptance
 
-- [x] Workflow runs on the v2.6.2 branch and completes successfully (`42795953493`).
+- [x] Workflow runs on the v2.6.2 branch and completes successfully (`42804949796`).
 - [x] Debian Live ISO `paw-live-amd64.iso` is produced (953,155,584 bytes).
 - [x] Build-generated ISO SHA256 sidecar is uploaded:
-      `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`.
+      `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`.
 - [x] `artifacts/iso-identity.txt` gives ISO byte size and SHA256 directly in the
       build log, so a delivery check no longer needs the 1 GB artifact download.
 - [x] Debian base signature/hash verification is PASS.
 - [x] Tailscale and Xray provenance/digest checks are PASS.
 - [x] Software package list and build provenance are present.
-- [x] Artifact is retained for 3 days (expires 2026-11-13 10:22:46 UTC).
-- [x] ISO from Run `42795953493` (the delivery artifact) was independently
+- [x] Artifact is retained for 3 days (expires 2026-11-13 11:27:18 UTC).
+- [x] ISO from Run `42804949796` (the delivery artifact) was independently
       re-downloaded and re-hashed on the workstation: computed value equals the
-      uploaded sidecar `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`
+      uploaded sidecar `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
       (953,155,584 bytes).
 - [x] ISO from Run `42778468039` was independently re-downloaded and re-hashed:
       computed `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363`
@@ -26,9 +26,12 @@ Branch: `fix/v2.6.2-final-readiness`
 - [x] ISO from Run `42747871471` was independently re-downloaded and re-hashed:
       computed `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d`
       matched the uploaded sidecar exactly.
+- [x] ISO from Run `42795953493` was independently re-downloaded and re-hashed:
+      computed `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`
+      matched the uploaded sidecar exactly.
 - [ ] Two builds of the same code tree produce the same ISO SHA256. Runs
-      `42747871471`, `42778468039` and `42795953493` produced identical size
-      (953,155,584) but three different SHA256 values; byte-for-byte
+      `42747871471`, `42778468039`, `42795953493` and `42804949796` produced
+      identical size (953,155,584) but four different SHA256 values; byte-for-byte
       reproducibility remains unproven.
 
 ## B. Virtual boot acceptance
@@ -62,7 +65,7 @@ Branch: `fix/v2.6.2-final-readiness`
 - [x] Offline repair and rollback test passes on a loop ext4 root.
 - [x] First-boot gate rejects incomplete/wrong-target receipts in virtual flow.
 
-Test totals (Run `42795953493`): PAWDATA 12/12; fault injection 35/35;
+Test totals (Run `42804949796`): PAWDATA 12/12; fault injection 39/39;
 repair/rollback 15/15; network 17/17; finalize 36/36; TTY 56 (static 55 + PTY,
 0 blocked); CJK font 1/1; QEMU CJK 5 cases / 96 assertions.
 
@@ -98,7 +101,7 @@ be marked complete from cloud/virtual results.
 ## E. Public repository acceptance
 
 - [x] No private keys, tokens, credentials, real server IPs or personal paths in current committed files.
-- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`, 682 objects).
+- [x] Reachable Git history scan passes (`PUBLIC-HISTORY=PASS`, 728 objects).
 - [x] Final Actions log/report reviewed; raw `live-build.log` excluded from repository because it contains Debian mirror IPv4 addresses.
 - [x] Repository visibility unchanged (Public).
 - [x] Existing runs and artifacts not deleted.

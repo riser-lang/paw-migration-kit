@@ -71,7 +71,7 @@
 | `scripts/paw-ssd-read-scan.sh` | `badblocks -sv` 只读扫描 + timeout | 基本可用；真实 SSD 未验证 |
 | `scripts/paw-memory-test-report.sh` | 读取 `memtest-attestation.json`，但一律 WARN | **与 P0-1 冲突：没有人工确认入口，也没有可用状态** |
 | `scripts/paw-offline-repair.sh` | 只读 fsck、挂载、备份、替换 netplan、禁用 cloud-init 网络、machine-id/SSH host key、清理 Tailscale 状态、update-initramfs/grub | 真实适配逻辑较完整；模拟模式只做 fsck，未测试实际改写；未执行 `grub-install`；Netplan 仅匹配 `en*` |
-| `scripts/paw-gpt-expand.sh` | `sgdisk --move-second-header`、`growpart`、`e2fsck`、`resize2fs` | 基本正确；需增加失败回滚/边界测试 |
+| `scripts/paw-gpt-expand.sh` | `sgdisk --move-second-header`、`growpart`、`e2fsck`、`resize2fs` | 已加“根分区不是最后一个”前置守卫（拒绝且不改 GPT），虚拟套件 4 项断言覆盖 |
 
 ### 3.5 网络
 
@@ -205,15 +205,15 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 |---|---|---|
 | Run `42775846760`（HEAD `c211dc9`） | success | Actions，全部步骤通过 |
 | Run `42778468039`（HEAD `2c2a37d`） | success | Actions，20m37s，全部步骤通过 |
-| Run `42795953493`（HEAD `91a79ea`） | success | Actions，5 例 QEMU 中文用例全绿 |
+| Run `42804949796`（HEAD `bf1a705`） | success | Actions，5 例 QEMU 中文用例 + GPT 扩容守卫全绿 |
 | 本机 `bash -n` 全脚本 | PASS，0 语法错误 | Git Bash 5.3.9 实跑 |
 | 本机 TTY 静态断言 | 55 passed / 0 failed | `run-tty-virtual-tests.sh` 实跑 |
 | 本机 PTY | BLOCKED（Windows Python 无 `termios`） | 不作为 PASS |
-| CI TTY 套件 | 56 passed / 0 failed / 0 blocked（含 15 PTY） | Run `42795953493` |
-| CI 其余套件 | PAWDATA 12、故障注入 35、修复 15、网络 17、finalize 36、CJK 字体 1、QEMU CJK 5 例 96 断言，均 0 failed | Run `42795953493` |
+| CI TTY 套件 | 56 passed / 0 failed / 0 blocked（含 15 PTY） | Run `42804949796` |
+| CI 其余套件 | PAWDATA 12、故障注入 35、修复 15、网络 17、finalize 36、CJK 字体 1、QEMU CJK 5 例 96 断言，均 0 failed | Run `42804949796` |
 | ISO（Run `42747871471`）独立复核 | `2295eb0a…39336d` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
 | ISO（Run `42778468039`）独立复核 | `17789c04…6e0363` 与侧车一致 | 本机下载后 `Get-FileHash` |
-| ISO（Run `42795953493`，交付件）独立复核 | `2edf88a0…bf2fc20ed` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
+| ISO（Run `42804949796`，交付件）独立复核 | `d9fe2879…fb95a4476` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
 
 ## 12. 本轮仍未验证（不得写成通过）
 
@@ -229,7 +229,5 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 
 1. 把 GRUB 修复从 stub 提升为在 loop 上真实执行 `grub-install --target=i386-pc`
    （CI 已装 `grub-pc-bin`），以关闭“GRUB 修复只有模拟证据”这一项。
-2. 复核 `growpart` 对“根分区不是最后一个分区”的克隆布局，给出明确阻断而不是
-   依赖 growpart 报错。
-3. 真实硬件阶段：TF 卡写入、主板启动、SSD/内存、Rescue 与正式迁移，全部需要
-   用户在场并单独授权。
+2. 真实硬件阶段：TF 卡写入、主板启动、SSD/内存、Rescue 与正式迁移，全部需要
+   用户在场并单独授权，按 `docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md` 逐步执行。

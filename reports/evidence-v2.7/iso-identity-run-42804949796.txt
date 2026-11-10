@@ -1,0 +1,44 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42804949796
+
+Run:           42804949796 (workflow_dispatch, PAW live build and isolated tests)
+Code HEAD:     bf1a705 (fix/v2.6.2-final-readiness, GPT expansion guard)
+Started:       2026-11-10T11:08:06Z
+Artifact ID:   13760370816
+Artifact name: paw-live-build-test-results
+Artifact bytes: 1,030,665,391
+Artifact TTL:  2026-11-13 11:27:18 UTC
+
+ISO file:      paw-live-amd64.iso
+ISO bytes:     953,155,584
+ISO SHA256:    d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476
+ISO layout:    System area summary: MBR isohybrid cyl-align-on GPT APM
+
+Build-side value (from the run log, artifacts/iso-identity.txt):
+  iso_bytes=953155584
+  d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476  boot/custom/paw-live-amd64.iso
+
+Independent workstation check:
+  artifact zip downloaded through the explicit local proxy (1,030,665,391 bytes)
+  expanded, then Get-FileHash -Algorithm SHA256 over the extracted ISO
+  computed = d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476
+  result   = MATCH with the build-side value and the uploaded sidecar
+
+Delivery copy:
+  D:\Personal_AI_Workspace_V1.5.1\delivery\paw-live-amd64.iso
+  re-hashed after the move: d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476
+  D:\Personal_AI_Workspace_V1.5.1\delivery\paw-live-amd64.iso.sha256
+
+Note: the ISO build is not byte-reproducible. Runs 42747871471, 42778468039,
+42795953493 and 42804949796 all produced 953,155,584 bytes with four different
+SHA256 values, so a hash may only be compared against the sidecar of the same run.
+
+Scope of the tests behind this run (all 0 failed):
+  PAWDATA 12, fault injection 39 (includes the new GPT-expansion guard assertions),
+  offline repair 15, network 17, finalize 36,
+  TTY 56 (static 55 + PTY 15 with the aggregate row), CJK font 1,
+  QEMU CJK 5 cases / 96 assertions (ok 26, bad 17, timeout 17, render 11, final 25).
+
+Not covered by this run: real TF card write/read-back, real ASUS boot, real SSD
+SMART/scan/temperature, real Tencent Cloud Rescue SSH, real full-disk clone, real
+PAW migration, physical Memtest86+, and the chroot variant of grub-install (the
+offline-repair suite still uses a compiled stub).
