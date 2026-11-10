@@ -210,12 +210,12 @@ Python 3.11、Git Bash 5.3.9（cygwin）、OpenSSH。
 | Run `42816492016`（HEAD `b4bfd84`） | success | Actions，新增 chroot 形态用例，修复套件 22/22 |
 | Run `42838392058`（HEAD `daef72f`） | success | Actions，新增修复盘 QEMU 启动链用例，修复套件 28/28；其间 42821382664 / 42827723019 / 42833112745 三次失败均已修复并记录 |
 | Run `42845816766`（HEAD `e4ec96c`） | success | Actions，新增 `paw-test-reports` 文本证据小包（18 KB），全部套件复跑仍全绿 |
-| Run `42851716734`（HEAD `6554c06`） | success | Actions，CI 校验交付自检脚本（`PowerShell parse PASS (2 files)`），套件仍全绿 |
+| Run `42857316370`（HEAD `adb3e16`） | success | Actions，CI 校验交付自检脚本（`PowerShell parse PASS (2 files)`），套件仍全绿 |
 | 本机 `bash -n` 全脚本 | PASS，0 语法错误 | Git Bash 5.3.9 实跑 |
 | 本机 TTY 静态断言 | 55 passed / 0 failed | `run-tty-virtual-tests.sh` 实跑 |
 | 本机 PTY | BLOCKED（Windows Python 无 `termios`） | 不作为 PASS |
 | CI TTY 套件 | 56 passed / 0 failed / 0 blocked（含 15 PTY） | Run `42804949796` |
-| CI 其余套件 | PAWDATA 12、故障注入 39、修复 28、网络 17、finalize 36、CJK 字体 1、QEMU CJK 5 例 96 断言，均 0 failed | Run `42851716734` |
+| CI 其余套件 | PAWDATA 12、故障注入 39、修复 28、网络 17、finalize 36、CJK 字体 1、QEMU CJK 5 例 96 断言，均 0 failed | Run `42857316370` |
 | ISO（Run `42747871471`）独立复核 | `2295eb0a…39336d` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |
 | ISO（Run `42778468039`）独立复核 | `17789c04…6e0363` 与侧车一致 | 本机下载后 `Get-FileHash` |
 | ISO（Run `42804949796`，交付件）独立复核 | `d9fe2879…fb95a4476` 与侧车一致；953,155,584 bytes | 本机下载后 `Get-FileHash` |

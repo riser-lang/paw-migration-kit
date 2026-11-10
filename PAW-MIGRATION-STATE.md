@@ -7,7 +7,7 @@ Two heads matter, and neither is `main`:
 
 - **Product head / delivery ISO**: `bf1a705` — every production script inside the
   delivered ISO comes from this commit.
-- **Latest verification head**: `6554c06` — adds CI suites (real `grub-install`
+- **Latest verification head**: `adb3e16` — adds CI suites (real `grub-install`
   host-side and in chroot, a QEMU boot of a repaired disk), a text-only evidence
   artifact, and the delivery self-check script. No production script or ISO input
   changed.
@@ -19,7 +19,7 @@ PR #2 is a Draft and is not merged; PR #1 was not touched.
 
 The delivered ISO, its SHA256 and all runtime test counts come from Run
 `42804949796` on product head `bf1a705`. Runs `42810087226` (`d640712`), `42816492016` (`b4bfd84`), `42838392058` (`daef72f`)
-`42845816766` (`e4ec96c`) and `42851716734` (`6554c06`) re-ran the whole matrix with the new GRUB suites and are green too; they rebuilt the
+`42845816766` (`e4ec96c`) and `42857316370` (`adb3e16`) re-ran the whole matrix with the new GRUB suites and are green too; they rebuilt the
 ISO from an identical product payload, which is why they report the same byte size and
 different SHA256 values (builds are not byte-reproducible).
 
@@ -118,11 +118,11 @@ boots to a login prompt.
 - Delivery run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
   (product head `bf1a705`, success)
 - Verification run: <https://github.com/riser-lang/paw-migration-kit/actions/runs/42810087226>
-  (`6554c06`, success, repair suite 28/28)
+  (`adb3e16`, success, repair suite 28/28)
 - Delivery artifact: `13760370816`, `paw-live-build-test-results`, 1,030,665,391 bytes,
   expires 2026-11-13 11:27:18 UTC
-- Verification artifacts (run 17): `13782402242` `paw-test-reports` 18,576 bytes, and
-  `13781194823` `paw-live-build-test-results` 1,030,666,224 bytes, expires 2026-11-13 16:34:11 UTC
+- Verification artifacts (run 18): `13785706107` `paw-test-reports` 567,106 bytes, and
+  `13784094644` `paw-live-build-test-results` 1,030,665,603 bytes, expires 2026-11-13 17:09:31 UTC
 - ISO: `paw-live-amd64.iso`, 953,155,584 bytes
 - ISO SHA256: `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
 - ISO layout: `MBR isohybrid cyl-align-on GPT APM`
@@ -131,7 +131,7 @@ boots to a login prompt.
   CJK font 1, QEMU CJK 5 cases / 96 assertions — all 0 failed.
 - Static: ShellCheck `--severity=error` clean, `bash -n` clean, Python compile PASS,
   PowerShell parse PASS, JSON/YAML/unit structure PASS, `PUBLIC-SAFETY=PASS`,
-  `PUBLIC-HISTORY=PASS` (940 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
+  `PUBLIC-HISTORY=PASS` (903 reachable Git objects), `ENTRYPOINTS=21 MISSING=0`.
 - QEMU SeaBIOS + TCG (no KVM): boot reached the readiness gate, readiness
   `BLOCKED`, `clone_started=false`.
 

@@ -2,7 +2,7 @@
 
 Updated: 2026-11-10 UTC (second takeover round)
 Delivery run: `42804949796` (product head `bf1a705`)
-Verification run: `42851716734` (`6554c06`, tests-only changes)
+Verification run: `42857316370` (`adb3e16`, tests-only changes)
 
 | ID | Status | Blocker | Exit condition |
 |---|---|---|---|
@@ -15,7 +15,7 @@ Verification run: `42851716734` (`6554c06`, tests-only changes)
 | P1-2 | VIRTUALLY_VERIFIED | Offline repair simulation did not exercise adaptation | Loop ext4 adaptation and update-grub rollback 15/15, plus real `grub-install` in both host-side and chroot shape on a GPT loop disk and a QEMU boot of the repaired disk (see GRUB-REPAIR and BOOT-CHAIN), 28/28. Real Ubuntu boot still open. |
 | P1-3 | VIRTUALLY_VERIFIED | No virtual tests for Xray bad config, Tailscale wait, network failure | Xray/Rescue/Restored/Tailscale suite 17/17, mock only. Real network still open. |
 | P1-4 | OPEN | Real hardware checks not performed | User must run on target hardware; see `docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md`; reports remain unverified until then. |
-| BUILD | PASS | Run `42804949796` success, artifact ID `13760370816`; verification Run `42851716734`, artifacts `13782402242` (text reports) and `13781194823` (full bundle) | ISO 953,155,584 bytes, SHA256 `d9fe2879…fb95a4476`; delivery artifact expires 2026-11-13 11:27:18 UTC, verification artifacts expire 2026-11-13 16:34:11 UTC. |
+| BUILD | PASS | Run `42804949796` success, artifact ID `13760370816`; verification Run `42857316370`, artifacts `13785706107` (text reports) and `13784094644` (full bundle) | ISO 953,155,584 bytes, SHA256 `d9fe2879…fb95a4476`; delivery artifact expires 2026-11-13 11:27:18 UTC, verification artifacts expire 2026-11-13 17:09:31 UTC. |
 | REPRO | OPEN | Cloud builds of the same code tree produce the same ISO size but different SHA256 (`2295eb0a…`, `17789c04…`, `2edf88a0…`, `d9fe2879…`, `aff7a807…`, `35f0baff…`, `910aa4ea…`, `b68b5dbd…`, `273f1ad3…`) | Byte-for-byte reproducibility not claimed; investigate before treating a double build as a release gate. |
 | CONSOLE | CLOSED (QEMU/static) | Six operator scripts printed panels to the journal only (`StandardOutput=journal`) | Panels, prompts and markers use the tty1 binding; 55 static and 15 PTY assertions pass, and the authorization panel is proven on fbcon with glyph matching. Real ASUS screen still open (see P1-4). |
 | GROWPART | CLOSED (virtual) | `growpart` assumed the root partition could grow; a layout whose root is not last would only fail at runtime | `paw-gpt-expand.sh` refuses before touching the GPT when a later partition exists, says nothing was changed, and the virtual suite proves the `sfdisk` table is identical afterwards (4 new assertions). |
