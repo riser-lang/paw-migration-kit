@@ -63,6 +63,9 @@ class Qemu:
         )
         if args.case == "render":
             masks += " systemd.mask=paw-data-init.service systemd.mask=paw-console.service paw.render=1"
+        if args.case == "final":
+            # The authorization panel probe replaces both boot-time units.
+            masks += " systemd.mask=paw-data-init.service systemd.mask=paw-console.service paw.final=1"
         cmdline = (
             "root=/dev/vda rw console=tty1 console=ttyS0,115200n8 fbcon=nodefer "
             f"paw.case={args.case} paw.timeout={args.timeout} loglevel=5 {masks}"
@@ -226,6 +229,90 @@ def run_case(args, font: Psffont) -> None:
         return
     result = {"case": args.case, "status": "FAIL", "assertions": RESULTS}
     try:
+        if args.case == "final":
+            # The probe announces the synthetic target identity on the serial
+            # console; the panel must show the same value on the framebuffer.
+            serial = ""
+            for _ in range(120):
+                for line in qemu.serial().splitlines():
+                    if "PAW-CJK-FINAL-SETUP" in line:
+                        for field in line.split():
+                            if field.startswith("serial="):
+                                serial = field.split("=", 1)[1]
+                if serial:
+                    break
+                if qemu.proc.poll() is not None:
+                    break
+                time.sleep(0.5)
+            suffix = serial[-6:] if len(serial) >= 6 else ""
+            say(len(suffix) == 6,
+                "final: guest produced a >=6 character synthetic target serial", serial)
+
+            decoded, text = qemu.wait_screen("PAW-TTY1-FINAL-PANEL", 300, font,
+                                             os.path.join(out, "screen-final-panel"))
+            panel_ok = "PAW-TTY1-FINAL-PANEL" in text
+            say(panel_ok, "final: authorization panel reached fbcon",
+                text[-500:] + "\nSERIAL TAIL:\n" + qemu.serial()[-2000:])
+            if not panel_ok:
+                result["serial_tail"] = qemu.serial()[-8000:]
+                return
+            decoded, text = qemu.wait_screen("数据损失", 20, font,
+                                             os.path.join(out, "screen-final-panel-cjk"))
+            expected = [
+                "PAW 最终迁移授权（请完整阅读后再确认）",
+                "源系统：Rescue Mode",
+                "源盘组合身份：",
+                "固定 SSH 主机指纹：",
+                "目标 SSD：设备=",
+                "数据来源：固定 SSH 主机指纹的 Rescue Mode 整盘流",
+                "数据损失：目标 SSD 的整盘内容将被源盘覆盖，目标盘原有分区和数据会全部丢失。",
+                "如确认覆盖，请输入目标 SSD 序列号最后 6 位：",
+            ]
+            if serial:
+                expected.append(f"目标序列号：{serial}")
+            check_cjk(decoded, expected, "final-panel")
+
+            # Attempt 1 must be rejected: wrong suffix.
+            qemu.send("000000\n")
+            decoded, text = qemu.wait_screen("PAW-TTY1-FINAL-BAD", 60, font,
+                                             os.path.join(out, "screen-final-bad"))
+            say("PAW-TTY1-FINAL-BAD" in text, "final: wrong suffix rejected on tty1", text[-400:])
+            decoded, text = qemu.wait_screen("确认值与目标 SSD 序列号不匹配", 20, font,
+                                             os.path.join(out, "screen-final-bad-cjk"))
+            check_cjk(decoded, ["错误：确认值与目标 SSD 序列号不匹配，已安全停止，没有写入任何数据。"],
+                      "final-bad")
+            say("PAW-TTY1-FINAL-OK" not in text, "final: no acceptance marker after rejection")
+
+            # Attempt 2 must be accepted: correct suffix.
+            decoded, text = qemu.wait_screen("PAW-TTY1-FINAL-PANEL", 150, font,
+                                             os.path.join(out, "screen-final-panel2"))
+            say("PAW-TTY1-FINAL-PANEL" in text, "final: panel reappeared for the second attempt")
+            qemu.send((suffix or "123456") + "\n")
+            decoded, text = qemu.wait_screen("PAW-TTY1-FINAL-OK", 60, font,
+                                             os.path.join(out, "screen-final-ok"))
+            say("PAW-TTY1-FINAL-OK" in text, "final: correct suffix accepted on tty1", text[-400:])
+            decoded, text = qemu.wait_screen("开始整盘覆盖迁移", 20, font,
+                                             os.path.join(out, "screen-final-ok-cjk"))
+            check_cjk(decoded, ["输入已确认；开始整盘覆盖迁移，请不要断电。"], "final-ok")
+            qemu.poweroff()
+            session = dump_guest_json(
+                args.image, "/opt/paw-migration/tests/final/state/reports/final-confirm.json")
+            if session:
+                say(session.get("tty_path") == "/dev/tty1",
+                    "final: authorization session records /dev/tty1", str(session.get("tty_path")))
+                markers = [str(item) for item in session.get("markers", [])]
+                say("PAW-TTY1-FINAL-BAD" in markers and "PAW-TTY1-FINAL-OK" in markers,
+                    "final: both rejection and acceptance markers were recorded",
+                    str([m for m in markers if m.startswith("PAW-TTY1-FINAL")]))
+                say(int(session.get("max_holders", 99)) <= 1,
+                    "final: tty1 had no competing owner while the panel was open",
+                    f"max_holders={session.get('max_holders')}")
+                result["final_session"] = session
+            else:
+                say(False, "final: authorization session file is readable",
+                    "missing final-confirm.json")
+            result["serial_tail"] = qemu.serial()[-8000:]
+            return
         if args.case == "render":
             decoded, text = qemu.wait_screen("PAW 迁移成功", 300, font,
                                              os.path.join(out, "screen-complete"))
@@ -352,7 +439,7 @@ def run_case(args, font: Psffont) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--case", required=True, choices=["ok", "bad", "timeout", "render"])
+    ap.add_argument("--case", required=True, choices=["ok", "bad", "timeout", "render", "final"])
     ap.add_argument("--image", required=True)
     ap.add_argument("--kernel", required=True)
     ap.add_argument("--initrd", required=True)

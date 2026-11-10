@@ -55,7 +55,9 @@ add_file "$root/tests/qemu/qemu-data-init-dropin.conf" /etc/systemd/system/paw-d
 add_file "$root/tests/qemu/qemu-paw-env" /etc/paw-migration.env 100644
 add_file "$root/tests/qemu/paw-cjk-render-probe.sh" /opt/paw-migration/paw-cjk-render-probe.sh 100755
 add_file "$root/tests/qemu/paw-cjk-render.service" /etc/systemd/system/paw-cjk-render.service 100644
-for unit in paw-data-init.service paw-console.service paw-console-font.service paw-cjk-render.service; do
+add_file "$root/tests/qemu/paw-cjk-final-probe.sh" /opt/paw-migration/paw-cjk-final-probe.sh 100755
+add_file "$root/tests/qemu/paw-cjk-final.service" /etc/systemd/system/paw-cjk-final.service 100644
+for unit in paw-data-init.service paw-console.service paw-console-font.service paw-cjk-render.service paw-cjk-final.service; do
   echo "rm /etc/systemd/system/multi-user.target.wants/$unit" >>"$cmds"
   echo "symlink /etc/systemd/system/multi-user.target.wants/$unit ../$unit" >>"$cmds"
 done
@@ -81,6 +83,7 @@ run_case ok 60
 run_case bad 60
 run_case timeout 5
 run_case render 60
+run_case final 90
 
 printf 'Cases: %s passed, %s failed, %s blocked\n' "$passed" "$failed" "$blocked" >>"$report"
 printf 'Font: %s\nFont SHA256: %s\n' "$font" "$(sha256sum "$font" | awk '{print $1}')" >>"$report"
