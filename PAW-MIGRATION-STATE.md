@@ -72,9 +72,20 @@ suffix accepted) and matches the screendump against the shipped PSF glyphs
   `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d` equals its sidecar.
 - ISO from Run `42795953493` (the delivery artifact) was downloaded and re-hashed
   the same way; see `reports/evidence-v2.7/iso-identity-run-42795953493.txt`.
-- Local `bash -n` over all shell scripts on the new workstation: PASS.
-- Local TTY static assertions: 55 passed / 0 failed.
+- Local `bash -n` over all shell scripts on the new workstation: PASS (0 failures).
+- Local TTY static assertions: 55 passed / 1 failed, the failure being the PTY case
+  that cannot run on Windows (`ModuleNotFoundError: No module named 'termios'`).
 - Local `scripts/ci/check-public-safety.py`: `PUBLIC-SAFETY=PASS`.
+- Local `scripts/ci/check-public-history.py`: `PUBLIC-HISTORY=PASS` (714 reachable
+  Git objects) on the current branch tip, which contains only documentation and the
+  copied run reports on top of the code HEAD.
+- Local Python source compile over `scripts/**/*.py` and `tests/qemu/*.py`: PASS.
+- `scripts/windows-static-check.ps1` was **not** run locally: the workstation has
+  Windows PowerShell 5.1 but no `pwsh`, so that parse check remains CI-only
+  (`PowerShell parse PASS (1 files)` in the run log).
+- Local `scripts/ci/check-public-safety.py` is the exact file CI executes, which is
+  why documentation-only commits after the code HEAD are validated this way instead
+  of spending another full build that would change the ISO hash.
 - Three builds produced the same ISO byte size but different SHA256, so
   byte-for-byte reproducibility is still unproven.
 
