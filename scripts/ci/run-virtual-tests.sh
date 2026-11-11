@@ -93,16 +93,36 @@ export PAW_MOCK_LSBLK_JSON="$root/tests/virtual/ci-source-lsblk.json"
 
 write_configs(){
   local source_dev="$1" target_dev="$2" serial="${3:-CI-LOOP-ONLY}"
+  rm -f "$PAW_REPORT_DIR/migration-transaction.json" "$PAW_REPORT_DIR/CLONE-INCOMPLETE"
   python3 - "$PAW_CONFIG_DIR" "$source_dev" "$target_dev" "$serial" "$test_uuid" <<'PY'
-import json,sys
+import datetime,hashlib,json,subprocess,sys,uuid
 p,src,dst,serial,test_uuid=sys.argv[1:]
-json.dump({"source_mode":"rescue","device_path":src,"root_uuid":test_uuid,"ssh_host":"rescue.invalid","ssh_port":22,"ssh_user":"root","identity_file":"/run/paw-network/rescue_ed25519","known_hosts_file":"/run/paw-network/known_hosts"},open(p+"/source.json","w"))
-json.dump({"approved":True,"device_path":dst,"serial":serial,"capacity_bytes":int(__import__("subprocess").check_output(["/usr/bin/lsblk","-dnbo","SIZE",dst]))},open(p+"/target-ssd.json","w"))
+composite=hashlib.sha256(f"{src}|{test_uuid}|CI Virtual Disk|CI-SOURCE-ONLY".encode()).hexdigest()
+source={"source_mode":"rescue","device_path":src,"root_uuid":test_uuid,
+        "model":"CI Virtual Disk","serial":"CI-SOURCE-ONLY","capacity_bytes":8*1024*1024,
+        "composite_identity_sha256":composite,
+        "ssh_host_key_fingerprint":"SHA256:ciMockHostKeyFingerprint000000000000000000000",
+        "ssh_host":"rescue.invalid","ssh_port":22,"ssh_user":"root",
+        "identity_file":"/run/paw-network/rescue_ed25519",
+        "known_hosts_file":"/run/paw-network/known_hosts"}
+json.dump(source,open(p+"/source.json","w"))
+target={"approved":True,"device_path":dst,"model":"CI Virtual Target","serial":serial,
+        "capacity_bytes":int(subprocess.check_output(["/usr/bin/lsblk","-dnbo","SIZE",dst]))}
+json.dump(target,open(p+"/target-ssd.json","w"))
 json.dump({"status":"PASS"},open(p+"/../reports/source-discovery.json","w"))
-import datetime
 now=datetime.datetime.now(datetime.timezone.utc)
-json.dump({"status":"AUTHORIZED","target_device":dst,"target_serial":serial,"authorized_at":now.isoformat(),"expires_at":(now+datetime.timedelta(hours=1)).isoformat()},open(p+"/../reports/operator-authorization.json","w"))
+json.dump({"status":"AUTHORIZED","migration_id":str(uuid.uuid4()),
+           "authorization_id":str(uuid.uuid4()),"target_device":dst,
+           "target_serial":serial,"source_composite_identity_sha256":composite,
+           "authorized_at":now.isoformat(),
+           "expires_at":(now+datetime.timedelta(hours=1)).isoformat()},
+          open(p+"/../reports/operator-authorization.json","w"))
 PY
+  python3 "$root/scripts/paw-transaction.py" init \
+    --transaction "$PAW_REPORT_DIR/migration-transaction.json" \
+    --authorization "$PAW_REPORT_DIR/operator-authorization.json" \
+    --source-config "$PAW_CONFIG_DIR/source.json" \
+    --target-config "$PAW_CONFIG_DIR/target-ssd.json" >/dev/null
   printf '{"status":"PASS"}\n' >"$PAW_REPORT_DIR/paw-hardware-health-report.json"
 }
 
@@ -177,9 +197,11 @@ write_configs "$source_loop" "$target_loop"
 expect_fail 'Interrupted SSH stream' env PAW_TEST_SSH_MODE=interrupt "$root/scripts/paw-stream-clone.sh" "$source_loop" "$target_loop"
 [[ -f "$PAW_REPORT_DIR/CLONE-INCOMPLETE" ]] && pass 'Interrupted stream retained CLONE-INCOMPLETE' || { echo 'FAIL interrupted stream marker missing' >>"$report"; failed=$((failed+1)); }
 dd if=/dev/zero of="$target_loop" bs=1M count=16 conv=notrunc status=none
+write_configs "$source_loop" "$target_loop"
 expect_fail 'Short SSH stream' env PAW_TEST_SSH_MODE=short "$root/scripts/paw-stream-clone.sh" "$source_loop" "$target_loop"
 [[ -f "$PAW_REPORT_DIR/CLONE-INCOMPLETE" ]] && pass 'Short SSH stream retained CLONE-INCOMPLETE' || { echo 'FAIL short stream marker missing' >>"$report"; failed=$((failed+1)); }
 dd if=/dev/zero of="$target_loop" bs=1M count=16 conv=notrunc status=none
+write_configs "$source_loop" "$target_loop"
 "$root/scripts/paw-stream-clone.sh" "$source_loop" "$target_loop"
 stream_bytes="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["ssh_stream_bytes"])' "$PAW_REPORT_DIR/stream-transfer-report.json")"
 ((stream_bytes < 7340032)) && pass 'Remote zstd reduced mixed-data SSH payload below 7 MiB for an 8 MiB source' || { echo 'FAIL compressed SSH payload was not smaller than source' >>"$report"; failed=$((failed+1)); }
