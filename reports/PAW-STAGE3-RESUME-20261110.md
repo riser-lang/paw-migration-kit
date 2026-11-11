@@ -84,17 +84,36 @@ lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
 
 | # | 步骤 | 真实入口 | 当前状态 |
 |---:|---|---|---|
-| 18 | final_authorization_correct | `paw-final-confirm.sh` | PENDING |
-| 19 | compressed_transfer | `paw-stream-clone.sh`（远端 zstd level1 thread1） | PENDING |
-| 20 | clone_complete | 同上，字节计数完整 | PENDING |
-| 21 | sha256_verify | `paw-stream-verify.sh` 独立 SHA256 | PENDING |
-| 22 | offline_repair | `paw-offline-repair.sh` | PENDING |
+| 18 | final_authorization_correct | `paw-final-confirm.sh` | **PASS**（00:25:24Z，目标盘二次识别后授权） |
+| 19 | compressed_transfer | `paw-stream-clone.sh`（远端 zstd level1 thread1） | **PASS**（payload 591,462,695；3,758,096,384 字节还原） |
+| 20 | clone_complete | 同上，字节计数完整 | **PASS**（字节范围完整写入） |
+| 21 | sha256_verify | `paw-stream-verify.sh` 独立 SHA256 | **PASS**（`efcae25c...fcf2a9`，独立校验标志 true） |
+| 22 | offline_repair | `paw-offline-repair.sh` | **RETRY**：首次在 r8169 模块门禁被误拦；已修，continuation 重跑中 |
 | 23 | gpt_expand | `paw-gpt-expand.sh`（move-second-header/growpart/resize2fs） | PENDING |
 | 24 | first_boot_check | `paw-firstboot-check.sh` | PENDING |
 | 25 | auto_reboot | `paw-finalize-reboot.sh` → 客机内 `systemctl reboot` | PENDING |
 | 26 | target_second_boot | QEMU/SeaBIOS 从克隆目标盘启动到 Ubuntu login | PENDING |
 
 ## 5. 本轮时间线（只记已发生事实）
+
+- 00:25:24Z 第 18 步 `final_authorization_correct` PASS：输入正确序列 `123456`，
+  授权记录 `AUTHORIZED`，目标 `/dev/vdc` serial `PAW-DST-123456`，写前重新识别源/目标。
+- 00:31:02Z 第 19 步 `compressed_transfer` PASS：远端 zstd level1 thread1，
+  `payload_bytes=591,462,695`，`restored_bytes=3,758,096,384`，压缩减少 84.3%。
+- 00:31:02Z 第 20 步 `clone_complete` PASS：3,758,096,384 字节范围完整写入。
+- 00:33:55Z 第 21 步 `sha256_verify` PASS：源盘与目标前 3,758,096,384 字节
+  独立 SHA256 均为 `efcae25cf0bcbe51ec9b842c097d641139a48825fd43191067ba6d3f9efcf2a9`，
+  `independent_sha256_verified=true`，`CLONE-INCOMPLETE` 清除。
+- 00:34:05Z 第 22 步首次尝试 FAIL，真实原因（保留日志）：
+  `Target kernel has no Realtek r8169 module.`。目标 Ubuntu 云镜像未安装
+  `linux-modules-extra` 的 r8169，而旧脚本把“网卡模块存在”当作硬门禁，
+  在备份/改动前就 rollback 退出；不是克隆或 SHA256 失败。
+- 修复：AHCI / r8169 缺失改为 WARN；只有实际存在的模块才写入
+  `/etc/initramfs-tools/modules`，避免 `update-initramfs` 因缺失模块失败。
+- 由于 QEMU 被测试驱动在 FAIL 后立即停止，客机内最新的 `stream-verify.json`
+  尚未落盘；但 00:33 已复制到宿主 9p 的真实 PASS 收据仍在。continuation 从
+  同一 guest 盘、同一目标盘启动，恢复该真实收据并重跑同启动字体门禁，
+  然后执行真实 `paw-offline-repair.sh`；不重新克隆，不绕过授权。
 
 - `e3ff373`：提交并推送 QEMU lab harness、6 个生产脚本修复、证据 watcher。
 - GitHub Actions `42927263659`：分支完整构建/测试发布候选 ISO（进行中，结果见后续更新）。

@@ -84,8 +84,18 @@ trap rollback EXIT
 [[ -x "$mount_root/usr/sbin/grub-install" && -s "$mount_root/boot/grub/grub.cfg" ]] || die 'Existing GRUB installation/config was not found; refusing to claim boot repair.'
 [[ -x "$mount_root/usr/sbin/update-initramfs" && -x "$mount_root/usr/sbin/update-grub" ]] || die 'Target update-initramfs/update-grub is missing; refusing to claim boot repair.'
 module_root="$mount_root/lib/modules"
-find "$module_root" -type f -name 'ahci.ko*' -print -quit | grep -q . || grep -RqsE '(^|/)ahci\.ko$' "$module_root"/*/modules.builtin || die 'Target kernel has no AHCI module.'
-find "$module_root" -type f -name 'r8169.ko*' -print -quit | grep -q . || grep -RqsE '(^|/)r8169\.ko$' "$module_root"/*/modules.builtin || die 'Target kernel has no Realtek r8169 module.'
+ahci_available=0
+r8169_available=0
+if find "$module_root" -type f -name 'ahci.ko*' -print -quit | grep -q . || grep -RqsE '(^|/)ahci\.ko$' "$module_root"/*/modules.builtin; then
+  ahci_available=1
+else
+  log WARN 'Target kernel has no AHCI module; boot media support is left to the cloned kernel.'
+fi
+if find "$module_root" -type f -name 'r8169.ko*' -print -quit | grep -q . || grep -RqsE '(^|/)r8169\.ko$' "$module_root"/*/modules.builtin; then
+  r8169_available=1
+else
+  log WARN 'Target kernel has no Realtek r8169 module; it is not added to the initramfs.'
+fi
 
 paths="$backup/original-paths.txt"
 : >"$paths"
@@ -140,6 +150,10 @@ install -d -m 0700 "$mount_root/var/lib/tailscale"
 mkdir -p "$mount_root/etc/initramfs-tools"
 touch "$mount_root/etc/initramfs-tools/modules"
 for module in ahci r8169; do
+  case "$module" in
+    ahci) ((ahci_available == 1)) || continue ;;
+    r8169) ((r8169_available == 1)) || continue ;;
+  esac
   grep -qx "$module" "$mount_root/etc/initramfs-tools/modules" || printf '%s\n' "$module" >>"$mount_root/etc/initramfs-tools/modules"
 done
 
