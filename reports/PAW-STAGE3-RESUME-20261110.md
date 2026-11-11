@@ -45,6 +45,19 @@ artifact/parts），因此**原来的 QEMU 会话和块设备状态已不存在*
 | 目标盘 | 240 GiB 稀疏 raw，容量 257,698,037,760 bytes |
 | 证据运输 | QEMU virtio-9p `hostshare`，卸载后可回读 |
 
+### 2.1 本轮重建的虚拟盘（真实 manifest）
+
+| 镜像 | 字节数 | 说明 |
+|---|---:|---|
+| `ci-old/paw-live-amd64.iso` | 953,155,584 | CI `42825407549` 的候选 ISO，SHA256 `c34cb137...e068fb`；仅作 live rootfs/kernel 基座，项目脚本由当前仓库注入 |
+| `lab/boot/media.img` | 1,758,461,952 | ISO + 768MiB 未分区尾部，供真实 `paw-prepare-data-partition.sh` 追加 PAWDATA |
+| `lab/boot/guest.img` | 3,328,180,224 | BIOS Boot + 3.1GiB ext4 live 根盘，`root=/dev/vda2` |
+| `lab/boot/source.raw` | 3,758,096,384 | Ubuntu 24.04.5 cloud image 转 raw，GPT：p14 BIOS Boot / p15 EFI / p16 `/boot` / p1 root（末尾） |
+| `lab/boot/target.img` | 257,698,037,760 | 240GiB 稀疏虚拟目标盘，`PAW-DST-123456` |
+| `lab/boot/initrd.img` | 139MiB 级 | Stage 3 最小 initramfs（virtio/ext4/9p/bochs） |
+
+lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
+
 ## 3. 上一轮已 PASS 的 17 步（采信，原始日志见 evidence）
 
 | # | 步骤 | 状态 | 关键证据行（上一轮） |
@@ -87,7 +100,23 @@ artifact/parts），因此**原来的 QEMU 会话和块设备状态已不存在*
 - GitHub Actions `42927263659`：分支完整构建/测试发布候选 ISO（进行中，结果见后续更新）。
 - Ubuntu 源镜像下载完成，SHA256 与 Stage 2 记录一致：
   `04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94`。
-- 源盘 qcow2 → raw 转换、lab 盘片重建：见后续更新。
+- 源盘 qcow2 → raw 转换完成：3,758,096,384 bytes；source.raw 全盘 SHA256 记录在
+  第 7 节（真实克隆前重新计算）。
+- `tests/stage3/build-lab.sh` 在无 root 环境下完成盘片重建：`lab-build4.log` `rc=0`。
+  本轮修复了 xorriso 恢复 ISO 目录 0555 权限导致 `/live/vmlinuz` 提取失败的问题
+  （先 `install -d -m 0755 "$work/iso/live"`），该修复已进仓库。
+- QEMU `--mode prepare`：真实 GRUB BIOS 安装到 disposable guest 盘。
+  串口证据：`Installation finished. No error reported.` 与
+  `PAW3_GRUB_INSTALL=PASS`（约 135s），随后正常 `Powering off`（143s），
+  日志 `~/paw-stage34-20261110/lab/console-prepare.log`。
+- 测试驱动缺陷（已修复，不隐藏）：prepare runner 在 QEMU 退出的同一秒还未消费
+  已写入的串口 marker，把成功误分类为 `QEMU_EXIT`，因此 `prepare-run3.log`
+  外层 rc=1。修复为“QEMU 退出时先按串口 marker 分类”。没有重跑 prepare：
+  `ConditionPathExists=!/boot/grub/grub.cfg` 会在已安装时跳过服务，重跑只会空等；
+  main 链路从该 guest 盘真实启动，就是对 GRUB 安装结果的直接验证。
+- `tests/stage3/build-lab.sh` 修复 xorriso 恢复 ISO 目录 0555 权限导致
+  `/live/vmlinuz` 提取失败；重建 `lab-build4.log` `rc=0`。
+- main 链路已启动（`main-run2.log`），状态在真实步骤产生后更新到第 7 节。
 
 ## 6. Stage 4（尚未开始，状态 PENDING）
 

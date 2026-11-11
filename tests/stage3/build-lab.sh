@@ -11,6 +11,9 @@ repo="$(cd "$(dirname "$0")/../.." && pwd)"
 xorriso="${XORRISO:-xorriso}"
 
 mkdir -p "$work"/{iso,rootfs,boot}
+# xorriso restores ISO directory permissions (0555 for /live).  Create the
+# destination directory writable first so the three extracted files can land.
+install -d -m 0755 "$work/iso/live"
 if [[ ! -s "$work/iso/live/filesystem.squashfs" ]]; then
   echo "[stage3] extracting ISO live files"
   "$xorriso" -osirrox on -indev "$iso" \

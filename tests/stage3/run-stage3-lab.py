@@ -253,9 +253,6 @@ def run_prepare(args):
     deadline = time.time() + args.timeout
     result = "TIMEOUT"
     while time.time() < deadline:
-        if proc.poll() is not None:
-            result = "QEMU_EXIT"
-            break
         text = tail.snapshot()
         if "PAW3_GRUB_INSTALL=PASS" in text:
             result = "GRUB_INSTALL_PASS"
@@ -264,6 +261,13 @@ def run_prepare(args):
                 proc.wait(timeout=60)
             except subprocess.TimeoutExpired:
                 pass
+            break
+        if proc.poll() is not None:
+            # The guest may power off in the same second the marker is written;
+            # classify by the marker in the captured serial log, not by the
+            # QEMU exit race.
+            result = "GRUB_INSTALL_PASS" if "PAW3_GRUB_INSTALL=PASS" in text else "QEMU_EXIT"
+            break
         time.sleep(1)
     if proc.poll() is None:
         proc.terminate()
