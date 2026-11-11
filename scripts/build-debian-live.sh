@@ -33,6 +33,10 @@ cp "$src"/scripts/paw-*.py "$work/config/includes.chroot/opt/paw-migration/scrip
 chmod 0755 "$work/config/includes.chroot/opt/paw-migration/scripts/"*.sh \
   "$work/config/includes.chroot/opt/paw-migration/scripts/"*.py
 cp -a "$src/boot/bin" "$work/config/includes.chroot/opt/paw-migration/"
+xray_bin="$work/config/includes.chroot/opt/paw-migration/bin/xray"
+xray_sha="$(sha256sum "$xray_bin" | awk '{print $1}')"
+[[ "$xray_sha" == 8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed ]] || { echo "Bundled Xray SHA256 mismatch: $xray_sha" >&2; exit 2; }
+[[ "$("$xray_bin" version 2>/dev/null | head -n1)" == 'Xray 26.3.27 '* ]] || { echo 'Bundled Xray is not v26.3.27.' >&2; exit 2; }
 cp "$src/configs/source.template.json" "$src/configs/target-ssd.template.json" "$src/configs/xray-client.template.json" "$work/config/includes.chroot/opt/paw-migration/configs/"
 cp "$src/boot/paw-preflight.service" "$src/boot/paw-data-init.service" "$src/boot/paw-console.service" "$src/boot/paw-console-font.service" "$src/boot/paw-network-bootstrap.service" "$src/boot/paw-xray-client.service" "$src/boot/paw-tailscale-join.service" "$work/config/includes.chroot/etc/systemd/system/"
 cp "$src/boot/20-wired.network" "$work/config/includes.chroot/etc/systemd/network/20-wired.network"

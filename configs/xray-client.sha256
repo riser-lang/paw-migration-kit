@@ -1,0 +1,7 @@
+# PAW bundled Xray client provenance (do not substitute silently).
+version=Xray 26.3.27
+release=https://github.com/XTLS/Xray-core/releases/tag/v26.3.27
+asset=Xray-linux-64.zip
+asset_sha256=23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae
+binary=xray
+binary_sha256=8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed

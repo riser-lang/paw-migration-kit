@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$(dirname "$0")/paw-lib.sh"
-action="${1:-status}"; bin="${PAW_XRAY_BIN:-/opt/paw-migration/bin/xray}"; cfg="${PAW_XRAY_CONFIG:-/run/paw-network/xray-client.json}"
+action="${1:-status}"; bin="${PAW_XRAY_BIN:-/opt/paw-migration/bin/xray}"; run_root="${PAW_RUN_ROOT:-/run}"; ram_dir="$run_root/paw-network"; cfg="${PAW_XRAY_CONFIG:-$ram_dir/xray-client.json}"
 unit="paw-xray-client.service"
 case "$action" in
   start)
-    [[ "$cfg" == /run/paw-network/xray-client.json ]] || die 'Xray client config must be the approved RAM-only path.'
+    [[ "$cfg" == "$ram_dir/xray-client.json" ]] || die 'Xray client config must be the approved RAM-only path.'
     [[ -x "$bin" && -r "$cfg" ]] || die 'Xray binary or RAM-only client config missing.'
-    [[ "$(stat -c %u "$cfg")" == 0 && ( "$(stat -c %a "$cfg")" == 600 || "$(stat -c %a "$cfg")" == 400 ) ]] || die 'Client config must be root-owned and mode 0600/0400.'
+    cfg_uid="$(stat -c %u "$cfg")"
+    [[ "${PAW_TEST_MODE:-0}" == 1 && "$cfg_uid" == "$(id -u)" ]] || [[ "$cfg_uid" == 0 ]] || die 'Client config must be root-owned (test mode permits the invoking uid).'
+    [[ "$(stat -c %a "$cfg")" == 600 || "$(stat -c %a "$cfg")" == 400 ]] || die 'Client config must be mode 0600/0400.'
     python3 - "$cfg" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1])); ins=d.get('inbounds',[])
 assert any(x.get('protocol')=='socks' and x.get('listen')=='127.0.0.1' and x.get('port')==10808 for x in ins)
 assert any(x.get('protocol')=='http' and x.get('listen')=='127.0.0.1' and x.get('port')==10809 for x in ins)
 PY
-    install -d -m 700 /run/paw-network
+    install -d -m 700 "$ram_dir"
     "$bin" run -test -config "$cfg" >/dev/null 2>&1 || die 'Xray configuration check failed; detail withheld.'
     systemctl start "$unit"
     for _ in $(seq 1 20); do systemctl is-active --quiet "$unit" && break; sleep 1; done

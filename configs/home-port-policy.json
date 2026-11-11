@@ -1,0 +1,19 @@
+{
+  "schema": "paw.home-port-policy.v1",
+  "default_no_public_ipv4": true,
+  "default_no_router_port_forward": true,
+  "ports": {
+    "22": {"proto": "tcp", "bind": ["tailnet", "lan"], "public": false, "purpose": "SSH administration; prefer Tailscale SSH or LAN, never expose to the internet by default"},
+    "80": {"proto": "tcp", "bind": [], "public": false, "purpose": "No home HTTP listener; ACME uses DNS or is not needed"},
+    "443": {"proto": "tcp", "bind": ["tailnet"], "public": false, "via": ["tailscale-serve", "tailscale-funnel"], "purpose": "Tailnet HTTPS; optional Funnel public ingress does not require a home port forward"},
+    "8080": {"proto": "tcp", "bind": ["loopback"], "public": false, "purpose": "Internal API only"},
+    "8800": {"proto": "tcp", "bind": ["loopback", "tailnet"], "public": false, "purpose": "PAW Gateway / MCP control plane; never bind 0.0.0.0"},
+    "41641": {"proto": "udp", "bind": ["outbound"], "public": false, "listen_wildcard_allowed": true, "purpose": "Tailscale direct path; outbound UDP, no inbound forward required"},
+    "3478": {"proto": "udp", "bind": ["outbound"], "public": false, "purpose": "Tailscale STUN; outbound UDP, no inbound forward required"},
+    "10808": {"proto": "tcp", "bind": ["loopback"], "public": false, "purpose": "Temporary Xray SOCKS5"},
+    "10809": {"proto": "tcp", "bind": ["loopback"], "public": false, "purpose": "Temporary Xray HTTP proxy for tailscaled"}
+  },
+  "funnel": {"requires_home_public_ipv4": false, "requires_router_port_forward": false, "public_ingress": "tailscale-funnel"},
+  "gpt_tunnel": {"direction": "outbound", "requires_home_public_ipv4": false, "requires_router_port_forward": false},
+  "cloud_mcp": {"tailnet_private_address_assumed_reachable": false, "must_use_funnel_or_public_tunnel": true}
+}

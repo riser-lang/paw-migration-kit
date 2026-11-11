@@ -60,10 +60,18 @@ SRC_DEV="$(cmdline_value paw3.src || true)"
 DST_DEV="$(cmdline_value paw3.dst || true)"
 MEDIA_DEV="$(cmdline_value paw3.media || true)"
 MEDIA_SERIAL="$(cmdline_value paw3.media_serial || true)"
-SRC_DEV="${SRC_DEV:-/dev/sda}"
-DST_DEV="${DST_DEV:-/dev/sdb}"
-MEDIA_DEV="${MEDIA_DEV:-/dev/sdc}"
-MEDIA_SERIAL="${MEDIA_SERIAL:-PAW-MEDIA-123456}"
+# Linux enumerates the virtio-scsi removable medium before the AHCI disks on
+# this QEMU machine, so /dev/sda is not a stable role name.  Resolve every
+# disposable lab disk by its QEMU serial; never let the test silently measure
+# a different physical role.
+resolve_lab_disk(){
+  lsblk -nrpo NAME,SERIAL 2>/dev/null | awk -v s="$1" '$0 ~ ("[[:space:]]" s "$") {print $1; exit}'
+}
+SRC_DEV="$(resolve_lab_disk PAW-SRC-123456)"
+DST_DEV="$(resolve_lab_disk PAW-DST-123456)"
+MEDIA_DEV="$(resolve_lab_disk PAW-MEDIA-123456)"
+MEDIA_SERIAL="PAW-MEDIA-123456"
+[[ -n "$SRC_DEV" && -n "$DST_DEV" && -n "$MEDIA_DEV" ]] || fail device_roles "could not resolve lab disks by serial (src=${SRC_DEV:-none} dst=${DST_DEV:-none} media=${MEDIA_DEV:-none})"
 
 # Remove stale disposable artifacts from earlier failed lab runs before the
 # first evidence copy; an 8 GiB loop image must never be rsynced over 9p.
@@ -99,13 +107,26 @@ media_bytes="$(blockdev --getsize64 "$MEDIA_DEV")"
 [[ "$dst_bytes" == 240000000000 ]] || fail sata_capacity "target capacity $dst_bytes != 240000000000"
 src_tran="$(lsblk -dn -o TRAN "$SRC_DEV" | xargs)"
 dst_tran="$(lsblk -dn -o TRAN "$DST_DEV" | xargs)"
-[[ "$src_tran" == sata && "$dst_tran" == sata ]] || fail sata_transport "expected sata/sata, got $src_tran/$dst_tran"
+# QEMU's ich9-ahci with ide-hd is a libata/AHCI substitute and reports "ata",
+# not a physical SATA link.  Accept ata for the disposable lab, but label it as
+# virtual and keep the ASUS B85M-G Plus SATA path PHYSICAL_OPEN.
+case "$src_tran/$dst_tran" in
+  sata/sata|ata/ata) ;;
+  *) fail sata_transport "expected sata/sata or ata/ata, got $src_tran/$dst_tran" ;;
+esac
+transport_class='virtual_ata_ahci_not_physical_sata'
 grep -qi 'ahci' /proc/modules || fail sata_ahci 'ahci module is not loaded'
 grep -qiE 'ahci|AHCI' <(dmesg) || fail sata_ahci 'dmesg has no AHCI controller line'
-step sata PASS "source=$SRC_DEV bytes=$src_bytes tran=$src_tran target=$DST_DEV bytes=$dst_bytes tran=$dst_tran media_bytes=$media_bytes controller=ich9-ahci"
+step sata PASS "source=$SRC_DEV bytes=$src_bytes tran=$src_tran target=$DST_DEV bytes=$dst_bytes tran=$dst_tran media_bytes=$media_bytes controller=ich9-ahci transport_class=$transport_class"
 copy_out
 
-src_root="$(lsblk -b -nrpo NAME,FSTYPE,PARTN "$SRC_DEV" | awk '$2=="ext4"{print $1}' | tail -n1)"
+# Pick the largest ext4 partition (the Ubuntu root), not the last ext4
+# partition: cloud images also carry a small XBOOTLDR/ESP.  Prefer the
+# cloudimg-rootfs label when present so a reordered disk cannot mislead us.
+src_root="$(lsblk -b -nrpo NAME,FSTYPE,SIZE,LABEL "$SRC_DEV" | awk '$2=="ext4" && $4=="cloudimg-rootfs"{print $1; exit}')"
+if [[ -z "$src_root" ]]; then
+  src_root="$(lsblk -b -nrpo NAME,FSTYPE,SIZE "$SRC_DEV" | awk '$2=="ext4"{if($3>max){max=$3; dev=$1}} END{print dev}')"
+fi
 [[ -n "$src_root" ]] || fail source_os 'no ext4 root partition on source disk'
 mkdir -p /mnt/paw-source
 mount -o ro "$src_root" /mnt/paw-source || fail source_os "cannot mount $src_root read-only"

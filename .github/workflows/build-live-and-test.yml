@@ -195,6 +195,20 @@ jobs:
           set -euo pipefail
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-network-virtual-tests.sh
 
+      - name: Run P0 and P1 audit-remediation suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-p0-remediation-tests.sh
+          env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-p1-remediation-tests.sh
+
+      - name: Run VLESS/Tailscale network-bootstrap suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-vless-network-tests.sh \
+            | tee artifacts/vless-network-test-report.txt
+
       - name: Run finalize/reboot and tty1 virtual suites
         shell: bash
         run: |
@@ -212,6 +226,9 @@ jobs:
             artifacts/virtual-fault-injection-report.txt \
             artifacts/repair-virtual-test-report.txt \
             artifacts/network-virtual-test-report.txt \
+            artifacts/p0-remediation-report.txt \
+            artifacts/p1-remediation-report.txt \
+            artifacts/vless-network-test-report.txt \
             artifacts/finalize-virtual-test-report.txt \
             artifacts/tty-virtual-test-report.txt \
             artifacts/cjk-font-test-report.txt \
@@ -247,6 +264,9 @@ jobs:
             artifacts/virtual-fault-injection-report.txt
             artifacts/repair-virtual-test-report.txt
             artifacts/network-virtual-test-report.txt
+            artifacts/p0-remediation-report.txt
+            artifacts/p1-remediation-report.txt
+            artifacts/vless-network-test-report.txt
             artifacts/finalize-virtual-test-report.txt
             artifacts/tty-virtual-test-report.txt
             artifacts/pty-tty-test.log
