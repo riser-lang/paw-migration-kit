@@ -9,17 +9,28 @@ mkdir -p "$out"
 export PAW_ARTIFACT_DIR="$out"
 export PAW_ROOT="$root"
 rc=0
+mkdir -p /run/paw-network
 for suite in virtual network; do
   case "$suite" in
     virtual) script="$root/scripts/ci/run-virtual-tests.sh" ;;
     network) script="$root/scripts/ci/run-network-virtual-tests.sh" ;;
   esac
   log="$out/$suite-suite.log"
-  if bash "$script" >"$log" 2>&1; then
+  netdir="$(mktemp -d /run/paw-selftest-net.XXXXXX)"
+  # The suites write placeholder Rescue endpoint/key files at the production
+  # RAM path.  Run each in a private mount namespace with a temporary
+  # /run/paw-network so cleanup can never delete the live chain's credentials.
+  if unshare -m true 2>/dev/null; then
+    run=(unshare -m bash -c 'mount --make-rprivate /; mount --bind "$1" /run/paw-network; shift; exec "$@"' _ "$netdir" env "PAW_SELFTEST_OUT=$out" "PAW_ROOT=$root" bash "$script")
+  else
+    run=(env "PAW_SELFTEST_OUT=$out" "PAW_ROOT=$root" bash "$script")
+  fi
+  if "${run[@]}" >"$log" 2>&1; then
     printf 'PAW_PREHW_SELFTEST=%s PASS %s\n' "$suite" "$(tail -n1 "$log")"
   else
     printf 'PAW_PREHW_SELFTEST=%s FAIL rc=%s %s\n' "$suite" "$?" "$(tail -n1 "$log")"
     rc=1
   fi
+  rm -rf "$netdir"
 done
 exit "$rc"

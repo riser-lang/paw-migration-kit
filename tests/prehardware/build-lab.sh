@@ -39,6 +39,8 @@ cp -a "$repo/scripts/." "$rootfs/opt/paw-migration/scripts/"
 cp -a "$repo/configs/." "$rootfs/opt/paw-migration/configs/"
 cp -a "$repo/tests/prehardware/." "$rootfs/opt/paw-migration/tests/prehardware/"
 chmod 0755 "$rootfs/opt/paw-migration/tests/prehardware/"*.sh
+install -d "$rootfs/opt/paw-migration/boot"
+install -m 0644 "$repo/boot/20-wired.network" "$rootfs/opt/paw-migration/boot/20-wired.network"
 install -m 0644 "$repo/tests/prehardware/paw-prehardware-chain.service" "$rootfs/etc/systemd/system/paw-prehardware-chain.service"
 ln -sfn /etc/systemd/system/paw-prehardware-chain.service "$rootfs/etc/systemd/system/multi-user.target.wants/paw-prehardware-chain.service"
 install -m 0644 "$work/iso/live/vmlinuz" "$rootfs/boot/vmlinuz"

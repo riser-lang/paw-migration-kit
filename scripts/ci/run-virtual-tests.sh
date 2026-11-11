@@ -47,6 +47,13 @@ cat >"$mock/ssh" <<'MOCKSSH'
 cmd="${!#}"
 [[ "${PAW_TEST_SSH_MODE:-ok}" != fail_all ]] || exit 255
 case "$cmd" in
+  *'base64 -d | python3 - '*)
+    if [[ "${PAW_TEST_RW_MOUNT:-0}" == 1 ]]; then
+      printf '{"status":"BLOCKED","reason":"READ_WRITE_MOUNT","read_write_mounts":1}\n'
+    else
+      printf '{"status":"PASS","schema":"paw.source-mount-check.v1","read_write_mounts":0}\n'
+    fi
+    exit 0 ;;
   *'lsblk --json --bytes --output'*) cat "$PAW_MOCK_LSBLK_JSON"; exit 0 ;;
   *'findmnt --noheadings --raw --source'*) [[ "${PAW_TEST_RW_MOUNT:-0}" == 1 ]] && echo rw,relatime; exit 0 ;;
   *'lsblk -nrpo MOUNTPOINTS'*) exit 0 ;;

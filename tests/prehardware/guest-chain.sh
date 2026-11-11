@@ -171,6 +171,19 @@ PY2
 step console_font PASS "mode=fbcon schema=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["schema"])' "$PAW_REPORT_DIR/console-font.json") tty=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["tty"])' "$PAW_REPORT_DIR/console-font.json")"
 copy_out
 
+# Loop-backed fault-injection suites run inside the guest before Rescue
+# credentials are created.  They write placeholder /run/paw-network files, so
+# they must never run after the real RAM-only endpoint/key exist.
+selftest_out=/mnt/paw3-host/prehw-selftests
+if ! mountpoint -q /mnt/paw3-host; then
+  step fault_injection WARN "9p hostshare is unavailable; in-guest fault suites not run"
+elif PAW_SELFTEST_OUT="$selftest_out" bash "$PAW_ROOT/tests/prehardware/run-selftests.sh" 2>&1 | tee "$PAW_LOG_DIR/prehw-selftests.log"; then
+  step fault_injection PASS "run-virtual-tests.sh and run-network-virtual-tests.sh completed inside guest; reports in $selftest_out"
+else
+  step fault_injection FAIL "one or more in-guest fault-injection suites failed; see $selftest_out"
+fi
+copy_out
+
 # ---------------------------------------------------------------------------
 # Rescue SSH: real sshd on loopback, source disk attached to this guest.
 # ---------------------------------------------------------------------------
@@ -747,17 +760,6 @@ pipeline_watch(){
   done
 }
 
-# Loop-backed fault-injection suites run inside the guest, after the clone and
-# before final confirmation, so they cannot perturb the migration source.
-selftest_out=/mnt/paw3-host/prehw-selftests
-if ! mountpoint -q /mnt/paw3-host; then
-  step_once fault_injection WARN "9p hostshare is unavailable; in-guest fault suites not run"
-elif PAW_SELFTEST_OUT="$selftest_out" bash "$PAW_ROOT/tests/prehardware/run-selftests.sh" 2>&1 | tee "$PAW_LOG_DIR/prehw-selftests.log"; then
-  step_once fault_injection PASS "run-virtual-tests.sh and run-network-virtual-tests.sh completed inside guest; reports in $selftest_out"
-else
-  step_once fault_injection FAIL "one or more in-guest fault-injection suites failed; see $selftest_out"
-fi
-copy_out
 
 chvt 1 2>/dev/null || true
 flush_tty_input
