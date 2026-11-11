@@ -22,7 +22,7 @@
 | PAW-271-B01 | 高 | 中文控制台字形无法显示 | **CLOSED（QEMU/fbcon 已验证）** | 发布前仍需实机 B03 |
 | PAW-271-B02 | 低 | 本机工具沙箱禁止 pty / sudo / loop attach | **OPEN（环境，已定根因）** | 本机 root/PTY 测试 BLOCKED；CI 真实执行 |
 | PAW-271-B03 | 高 | 真实 ASUS B85M-G Plus 显示器/键盘未验证 | **OPEN（实机验收）** | QEMU 只证明虚拟 VGA + PS/2 键盘 |
-| PAW-271-B04 | 中 | 最终发布 ISO 未构建/未复核哈希 | **OPEN（后续段）** | CI 构建的是测试 Live ISO |
+| PAW-271-B04 | 中 | 最终发布 ISO 尚未完成下载复核 | **IN_PROGRESS** | Run `42941005270`（`24c13f7`）成功后下载 artifact，从 ISO 文件重算 SHA256，不采用 ZIP 哈希 |
 | PAW-271-B05 | 中 | 真实 `systemctl reboot` 未执行 | **OPEN（设计边界）** | 只验证 mock/注入 reboot |
 | PAW-271-B06 | 中 | 原有 79 项 loop/虚拟套件本机未执行 | **OPEN（环境；CI 执行）** | 本机无 CAP_SYS_ADMIN，不能 attach loop |
 | PAW-271-B07 | 低 | tty1 占用为阶段性快照 | 已缓解 | 交互前后与菜单阶段 `max_holders=1` |

@@ -108,7 +108,7 @@ SHA256 一致、`setfont` 返回 0、且报告为 `PASS`，才允许破坏性磁
   clone 入口和完整 `paw-offline-repair.sh` 仍未执行，故记为
   **VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN**。证据：
   `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`。
-- 第三/四阶段尚未完成；见 `PAW-MIGRATION-BLOCKERS.md`。
+- Stage 3 已完成（26 步真实 PASS）；Stage 4 最终 ISO 正在用代码 HEAD `24c13f7` 的 Run `42941005270` 构建并复核。见 `PAW-MIGRATION-BLOCKERS.md`。
 
 ## 1. 本轮做了什么（历史，`fix/v2.6.2-final-readiness`）
 

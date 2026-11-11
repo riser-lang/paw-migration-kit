@@ -1,7 +1,16 @@
 # Stage 2：Ubuntu 24.04 克隆盘真实启动证据（2026-11-10）
 
-状态：**VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN**
-（真实 QEMU + SeaBIOS 启动通过；生产块设备/SSH 克隆入口尚未在本机执行）
+状态（本报告历史范围）：**VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN**
+（真实 QEMU + SeaBIOS 启动通过；当时生产块设备/SSH 克隆入口尚未执行）
+
+> **2026-11-11 更新：该缺口已由 Stage 3 关闭（虚拟块设备范围）。**
+> Stage 3 在重建的 Ubuntu 24.04 目标盘上真实执行了
+> `paw-stream-clone.sh`（`mode=remote-zstd-level1-thread1`，真实 loopback SSH，
+> 无 `PAW_SIMULATION` 标志）、`paw-stream-verify.sh`、完整
+> `paw-offline-repair.sh`、`paw-gpt-expand.sh`、`paw-firstboot-check.sh`、
+> `paw-finalize-reboot.sh`，并由 SeaBIOS 二次启动到 `ubuntu login:`。证据：
+> `reports/PAW-STAGE3-RESUME-20261110.md`。本报告第 2–6 节保留当时的
+> simulation 记录，不再作为当前 Stage 2 状态。真实 SSD/TF 卡仍 OPEN。
 
 本报告只记录实际执行过的命令和日志。所有磁盘都是 `/home/agentuser` 下的
 虚拟镜像文件；没有写入真实 TF 卡、SSD、生产磁盘或腾讯云 VPS。
