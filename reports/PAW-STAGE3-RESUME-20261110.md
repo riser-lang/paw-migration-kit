@@ -88,11 +88,11 @@ lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
 | 19 | compressed_transfer | `paw-stream-clone.sh`（远端 zstd level1 thread1） | **PASS**（payload 591,462,695；3,758,096,384 字节还原） |
 | 20 | clone_complete | 同上，字节计数完整 | **PASS**（字节范围完整写入） |
 | 21 | sha256_verify | `paw-stream-verify.sh` 独立 SHA256 | **PASS**（`efcae25c...fcf2a9`，独立校验标志 true） |
-| 22 | offline_repair | `paw-offline-repair.sh` | **RETRY**：首次在 r8169 模块门禁被误拦；已修，continuation 重跑中 |
-| 23 | gpt_expand | `paw-gpt-expand.sh`（move-second-header/growpart/resize2fs） | PENDING |
-| 24 | first_boot_check | `paw-firstboot-check.sh` | PENDING |
-| 25 | auto_reboot | `paw-finalize-reboot.sh` → 客机内 `systemctl reboot` | PENDING |
-| 26 | target_second_boot | QEMU/SeaBIOS 从克隆目标盘启动到 Ubuntu login | PENDING |
+| 22 | offline_repair | `paw-offline-repair.sh` | **PASS**（01:20:23Z；r8169 缺失改为 WARN 后真实备份+修复完成） |
+| 23 | gpt_expand | `paw-gpt-expand.sh`（move-second-header/growpart/resize2fs） | **PASS**（01:26:04Z；分区 239G，ext4 62,652,155 blocks） |
+| 24 | first_boot_check | `paw-firstboot-check.sh` | **PASS**（01:26:17Z） |
+| 25 | auto_reboot | `paw-finalize-reboot.sh` → 客机内 `systemctl reboot` | **PASS**（01:37:21Z；状态先持久化，swap bootindex 后真实重启） |
+| 26 | target_second_boot | QEMU/SeaBIOS 从克隆目标盘启动到 Ubuntu login | **PASS**（独立 QEMU 无 direct-kernel，SeaBIOS 从 target.img 启动；`Ubuntu 24.04.5 LTS ubuntu ttyS0` / `ubuntu login:`） |
 
 ## 5. 本轮时间线（只记已发生事实）
 
@@ -137,7 +137,98 @@ lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
   `/live/vmlinuz` 提取失败；重建 `lab-build4.log` `rc=0`。
 - main 链路已启动（`main-run2.log`），状态在真实步骤产生后更新到第 7 节。
 
-## 6. Stage 4（尚未开始，状态 PENDING）
+### 4.1 后段三步的真实故障与修复（不隐藏）
+
+- **offline_repair 首次 FAIL（00:34:05Z）**：`Target kernel has no Realtek r8169 module.`
+  目标 Ubuntu 云镜像没有安装 `linux-modules-extra`，r8169 不存在；旧脚本把网卡模块
+  当作硬门禁，在备份/改动前 rollback。修复为 AHCI/r8169 缺失只 WARN，且只把实际
+  存在的模块写入 initramfs 列表。真实修复于 01:20:23Z PASS（备份
+  `offline-repair-20261111T011718Z`，用户 authorized_keys 与 PAW 数据未动）。
+- **gpt_expand 首次 FAIL（01:02:21Z）**：`growpart` 已把分区从
+  `5,240,799` sectors 扩到 `501,217,247`，随后 `e2fsck` 报
+  `/dev/vdc1 is in use`（同一启动内 offline repair 挂载后内核仍持有该节点）。
+  `resize2fs` 因此未执行。
+- 修复 1：`growpart` 的 `NOCHANGE`（重跑时分区已最大）返回 1，旧脚本直接退出；
+  现在识别 `NOCHANGE` 并继续。
+- 修复 2：`gpt-expand` 在 growpart 后 `udevadm settle` 最多 120s、e2fsck 重试
+  30 次（2s 间隔），并扫描 `/proc/*/fd` 记录持有者；真实持有者不是可见 mount/fd。
+- 修复 3（本轮验证路径）：offline repair 完成后先做一次**干净 continuation boot**，
+  再跑 gpt-expand。01:26:04Z 的干净启动中 `growpart` NOCHANGE、e2fsck 恢复
+  journal、`resize2fs` 成功，`gpt-expand.json` PASS。
+- **finalize 首次/二次重试问题**：`systemctl reboot` 会立即终止 finalize，旧代码
+  在命令之后才写 `reboot-status.json`，导致下一次启动看不到 PASS 并可能重复重启；
+  同时授权已被消费时 finalize 再次消费失败。修复为：重启状态**先原子写入并 sync**
+  再执行 reboot；授权 `CONSUMED` 视为已消费、幂等继续。
+- `gpt-expand.json` 中 `grew=false` 是诚实的：分区在 01:02 的首次尝试中已经扩到
+  239G，01:26 这次只完成文件系统扩容；`filesystem_before_blocks` /
+  `filesystem_after_blocks` 记录 62,652,155 blocks。首次 `CHANGED` 行保留在
+  `console-main.log`（old size=5,240,799 → new size=501,217,247）。
+- 00:33:55Z 的真实 `stream-verify.json` 在 QEMU 被 FAIL 立即停止前已复制到宿主，
+  continuation 恢复的是该真实 PASS 收据；没有重新计算被 journal replay 改变过的
+  目标前 3.75GB 原始哈希，也没有伪造 `verified_at`。
+- finalize 消费授权后，后续 continuation 只做幂等收尾；没有再次扩盘或重复消费。
+
+## 6. Stage 4（进行中）
+
 
 最终发布 ISO 构建、ISO 文件本身 SHA256 复核、全部中文交付文档和最终交付报告
 在 Stage 3 链路完成后执行；五项真实硬件项保持 OPEN。
+
+## 7. 本阶段证据与独立哈希
+
+### 7.1 克隆与目标
+
+- 源盘：`source.raw` 3,758,096,384 bytes，全盘 SHA256
+  `efcae25cf0bcbe51ec9b842c097d641139a48825fd43191067ba6d3f9efcf2a9`。
+- 目标：`target.img` 257,698,037,760 bytes（240 GiB sparse），serial
+  `PAW-DST-123456`；克隆范围 3,758,096,384 bytes。
+- 真实 `paw-stream-verify.sh` 收据（00:33:55Z）：`status=PASS`，
+  `sha256=efcae25c...fcf2a9`，`bytes_verified=3758096384`，
+  `independent_sha256_verified=true`。
+- 说明：offline repair 首次挂载触发 ext4 journal replay 后，目标前 3.75GB 的
+  **原始字节** SHA256 变为 `22ffecbe...0dc2ce`；这是挂载后的正常元数据变化，
+  不是克隆损坏。独立校验结论以挂载前的 00:33:55Z 收据为准，未重复伪造。
+
+### 7.2 目标盘首次启动
+
+- 独立 QEMU（无 `-kernel`/`-initrd`，SeaBIOS 从 `target.img` 启动）：
+  `target-boot2.log`，SHA256
+  `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565`。
+- 串口证据：
+  `Welcome to Ubuntu 24.04.5 LTS!`、
+  `Ubuntu 24.04.5 LTS ubuntu ttyS0`、`ubuntu login:`。
+- 该启动的内核为 `6.8.0-147-generic`，与目标 `/boot` 中的 Ubuntu 内核一致；
+  不是 live ISO 的 `6.12.113+deb13-amd64`。
+
+### 7.3 最终报告文件（宿主 evidence 副本）
+
+宿主目录 `~/paw-stage34-20261110/evidence/`，`SHA256SUMS`：
+
+| 文件 | SHA256 |
+|---|---|
+| `stage3-target-second-boot.log` | `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565` |
+| `migration-completion.json` | `25f2ceba00fe03995e50040bb3de13d19ff9b4988daab01ab6d486333d72b9d6` |
+| `reboot-status.json` | `484db593b378819a63bfc4f719fd38c00ce5dbe350e2414291b12f1bce09cbc8` |
+| `gpt-expand.json` | `ceed76504c084d0cccf117e0b9cb3959f8f60bac28399ff6129dd008e94bf8ef` |
+| `firstboot-check.json` | `4e1445660718f1356775e0232df5dd2e4eafdffff73a39420e4debed39ad0b16` |
+| `offline-repair.json` | `a83095eb4af083c213335447fb47e62e7fc25bd68264ff2b11cc2fbcc5de77a3` |
+| `stream-verify.json` | `1fd2fab23ab83299d944ff1f7ac8588d63de88548ce5addb05095864cff8d9db` |
+| `operator-authorization.json` | `3613d4c06eb61487ca72487e0959e023ea0598a2a627fc5992f03e290a37e78f` |
+
+### 7.4 生产脚本修复清单（本阶段验证并进入仓库）
+
+- `paw-offline-repair.sh`：AHCI/r8169 缺失改为 WARN；initramfs 只加入实际存在的
+  模块；depmod 缺失只 WARN。
+- `paw-gpt-expand.sh`：`growpart` NOCHANGE 视为成功；growpart 后 settle 120s、
+  e2fsck 30 次重试；记录 `/proc/*/fd` 持有者；报告增加文件系统块数增长字段。
+- `paw-finalize-reboot.sh`：reboot-status 先持久化并 sync 再执行重启；授权
+  `CONSUMED` 幂等，不重复消费。
+- 测试驱动：prepare 退出分类、direct-kernel/initrd/append-extra/fw-cfg、target
+  login 检测由实际串口行驱动；continuation 使用真实入口，不绕过 gate。
+
+## 8. 结论
+
+Stage 3 后段 9 步（18–26）全部有真实 PASS 证据；目标盘已由 SeaBIOS 从克隆盘启动
+到 Ubuntu 24.04.5 LTS 的 `ubuntu login:`。五项真实硬件项仍为 OPEN，未在本阶段
+触碰。Stage 4 的最终发布 ISO、ISO 文件本身 SHA256 复核、中文交付文档和最终报告
+在后续提交中完成。

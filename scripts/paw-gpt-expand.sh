@@ -21,16 +21,38 @@ else
   log WARN 'lsblk did not report partition start offsets; the last-partition guard was skipped.'
 fi
 before_bytes="$(blockdev --getsize64 "$part")"
+fs_before_blocks="$(dumpe2fs -h "$part" 2>/dev/null | awk '/^Block count:/{print $3; exit}')"
 table="$PAW_REPORT_DIR/gpt-before-expand-$(basename "$disk").txt"
 sfdisk --dump "$disk" >"$table"
 chmod 0600 "$table"
 sgdisk --move-second-header "$disk"
-growpart "$disk" "$n"
+growpart_rc=0
+growpart_out="$(growpart "$disk" "$n" 2>&1)" || growpart_rc=$?
+printf '%s\n' "$growpart_out"
+if ((growpart_rc != 0)); then
+  if ((growpart_rc == 1)) && [[ "$growpart_out" == *NOCHANGE* ]]; then
+    log INFO 'Partition is already at its maximum size; continuing to the filesystem check.'
+  else
+    die "growpart failed with rc=$growpart_rc"
+  fi
+fi
 # udev workers and partition-table probes can briefly hold the resized node;
 # e2fsck opens it O_EXCL and reports "is in use" until those probes finish.
-command -v udevadm >/dev/null 2>&1 && udevadm settle --timeout=30 || true
+command -v udevadm >/dev/null 2>&1 && udevadm settle --timeout=120 || true
 rc=0
-for attempt in $(seq 1 10); do
+scan_holders(){
+  local fd target found=0
+  for fd in /proc/[0-9]*/fd/*; do
+    target="$(readlink "$fd" 2>/dev/null)" || continue
+    if [[ "$target" == "$part" ]]; then
+      log WARN "Partition is still held by pid=${fd#/proc/} target=$target"
+      found=1
+    fi
+  done
+  ((found == 1)) || log INFO 'No process file descriptor points at the target partition.'
+}
+scan_holders
+for attempt in $(seq 1 30); do
   mounted_now="$(lsblk -nrpo MOUNTPOINT "$part" 2>/dev/null | sed '/^$/d' | paste -sd, -)"
   if [[ -n "$mounted_now" ]]; then
     log WARN "Target root was mounted after partition growth at: $mounted_now; unmounting it before the mandatory filesystem check."
@@ -39,18 +61,19 @@ for attempt in $(seq 1 10); do
   if e2fsck -f -p "$part"; then rc=0; break; fi
   rc=$?
   ((rc == 1)) && break
-  sleep 1
+  sleep 2
 done
 ((rc == 0 || rc == 1)) || die 'Filesystem check after partition growth failed; no resize2fs was run.'
 resize2fs "$part"
 unset rc
 after_bytes="$(blockdev --getsize64 "$part")"
-python3 - "$PAW_REPORT_DIR/gpt-expand.json" "$disk" "$part" "$n" "$before_bytes" "$after_bytes" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$PAW_REPORT_DIR/gpt-expand.json"
+fs_after_blocks="$(dumpe2fs -h "$part" 2>/dev/null | awk '/^Block count:/{print $3; exit}')"
+python3 - "$PAW_REPORT_DIR/gpt-expand.json" "$disk" "$part" "$n" "$before_bytes" "$after_bytes" "${fs_before_blocks:-0}" "${fs_after_blocks:-0}" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$PAW_REPORT_DIR/gpt-expand.json"
 import datetime,json,sys
-path,disk,part,number,before,after=sys.argv[1:]
+path,disk,part,number,before,after,fs_before,fs_after=sys.argv[1:]
 document={"schema":"paw.gpt-expand.v1","status":"PASS","disk":disk,"partition":part,
  "partition_number":int(number),"before_bytes":int(before),"after_bytes":int(after),
- "grew":int(after)>int(before),"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+ "grew":int(after)>int(before),"filesystem_before_blocks":int(fs_before),"filesystem_after_blocks":int(fs_after),"filesystem_grew":int(fs_after)>int(fs_before),"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
 sys.stdout.write(json.dumps(document,indent=2)+"\n")
 PY
 log INFO 'GPT backup header repaired and ext4 root partition/filesystem expanded.'

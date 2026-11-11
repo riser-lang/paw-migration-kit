@@ -120,6 +120,15 @@ PY
 
 if [[ -n "$authorization" ]]; then
   [[ -r "$authorization" ]] || fail_finalize FAIL '授权记录' "授权文件缺失：$authorization"
+  auth_state="$(python3 - "$authorization" <<'PY'
+import json,sys
+try: print(json.load(open(sys.argv[1],encoding="utf-8")).get("status",""))
+except Exception: print("")
+PY
+)"
+  if [[ "$auth_state" == CONSUMED ]]; then
+    log INFO '授权记录已是 CONSUMED；重试不会再次消费，继续执行最终门禁。'
+  elif [[ "$auth_state" == AUTHORIZED ]]; then
   if ! python3 - "$authorization" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$authorization"
 import datetime,json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
@@ -131,6 +140,9 @@ sys.stdout.write(json.dumps(d,ensure_ascii=False,indent=2)+"\n")
 PY
   then
     fail_finalize FAIL '授权记录' '无法原子消费授权记录'
+  fi
+  else
+    fail_finalize FAIL '授权记录' "授权状态不是 AUTHORIZED/CONSUMED：$auth_state"
   fi
 fi
 
@@ -173,6 +185,12 @@ fi
 
 read -r -a reboot_argv <<<"$reboot_cmd"
 say "正在执行自动重启：${reboot_cmd}"
+# Persist the successful reboot decision before issuing it.  systemctl reboot
+# can terminate this process as soon as shutdown starts, so writing the status
+# afterwards leaves no durable evidence and a later boot could reboot again.
+write_reboot_status PASS '自动重启命令即将下发；状态已先行持久化' true '{"status_persisted_before_reboot":true}'
+sync || true
+sleep 2
 set +e
 "${reboot_argv[@]}"
 rc=$?
