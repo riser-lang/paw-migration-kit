@@ -194,9 +194,20 @@ The probe was used three times, each run narrowing the answer:
 | `42903949395` | hook also deletes the apt caches | cache came back: something later in the build runs apt again |
 | `42909076510` | hook writes `99-paw-no-cache` so apt never creates a cache file | **`REPRO=IDENTICAL`** — both builds `930,086,912` bytes, SHA256 `4348823662…39939f`, `diff_raw_lines=0` |
 
-Scope of the claim: two consecutive builds on the same runner image. Cross-image and
-cross-day reproducibility is still untested, and the delivery instructions keep telling the
-user to compare against the sidecar from the same run.
+Then the claim was tested from the outside and did not survive:
+
+| Run | Question | Result |
+|---|---|---|
+| `42916115491` | ordinary rebuild of the same head | `da8c7066…`, not the delivered `4348823662…` |
+| `42920739454` | rebuild and diff against run `42909076510`'s ISO | identical size/listing/samples, **three** differing files: `/etc/nvme/hostnqn`, `/etc/.resolv.conf.systemd-resolved.bak`, `/run/systemd/resolve/stub-resolv.conf` — all the builder's own network identity |
+| `42927955908` | after removing those three (new UTC day) | the three are gone from the new build, but 16 `/var/lib/apt/lists/*` entries are now **only in the reference** and the ISO shrank to 897,581,056 bytes |
+
+So what is proven is narrow and must be stated narrowly: **two consecutive builds inside one
+job are byte-identical**. Across jobs the build-host network identity leaked into the image
+(now fixed by the cleanup hook) and the presence of apt package indices varies between runs,
+which changes both the squashfs and the ISO size. Full cross-run reproducibility is NOT
+proven, and the delivery instructions keep telling the user to compare against the sidecar
+from the same run.
 
 ## ISO payload verification
 

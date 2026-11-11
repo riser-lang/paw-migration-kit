@@ -41,14 +41,19 @@ Branch: `fix/v2.6.2-final-readiness`
 - [x] ISO from Run `42795953493` was independently re-downloaded and re-hashed:
       computed `2edf88a09684ebbb88680c79a73a29ea77fbc794aa168243649b2b67b2fc20ed`
       matched the uploaded sidecar exactly.
-- [x] Two builds of the same code tree produce the same ISO SHA256 (same builder image).
+- [x] Two builds of the same code tree **inside one job** produce the same ISO SHA256.
       Run `42909076510` was dispatched with `double_build=true`: build A and build B are both
       930,086,912 bytes with SHA256 `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f`;
       `scripts/ci/repro-probe.sh` reports `VERDICT: REPRO=IDENTICAL`, `diff_raw_lines=0`
       and `differing_entries=0`.
-- [ ] Reproducibility across a different runner image or a different day. The probe has
-      only compared two builds inside one job on one `ubuntu-24.04` image; nothing yet
-      claims that a build next month produces the same bytes.
+- [ ] Reproducibility across separate jobs. Tested and **failed**: run `42916115491` rebuilt
+      the same head and produced `da8c7066…`; the drift check showed the builder's network
+      identity (`/etc/nvme/hostnqn`, `/etc/.resolv.conf.systemd-resolved.bak`,
+      `/run/systemd/resolve/stub-resolv.conf`) leaking into the image. Those are removed now.
+- [ ] Reproducibility after that fix. Rebuilt on the next UTC day (`42927955908`): the three
+      leaked files are gone, but 16 `/var/lib/apt/lists/*` entries are missing from the new
+      build, so the ISO is 897,581,056 bytes with `0494bf14…`. The remaining variable is apt
+      index retention, not the toolkit payload.
 
 ## B. Virtual boot acceptance
 

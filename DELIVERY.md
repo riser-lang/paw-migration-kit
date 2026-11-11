@@ -34,7 +34,7 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 
 ### 2.1 已完成的独立复核
 
-本轮四次构建的 ISO 都在工作站上实际下载并重算哈希：
+本轮及上轮的 ISO 都在工作站上实际下载并重算哈希：
 
 - Run `42804949796`（交付件）：Artifact `13760370816` 下载 1,030,665,391 bytes，
   解压后 `Get-FileHash -Algorithm SHA256` =
@@ -48,36 +48,21 @@ PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未�
 下载方式说明：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理），改用
 GitHub API artifact zip 端点 + `curl --proxy` 后完成。
 
-### 2.2 字节级可复现（本轮新增）
+### 2.2 字节级可复现（测到哪里，写到哪里）
 
-历史上十二次构建的 ISO 字节数同为 `953,155,584` 但 SHA256 各不相同。本轮用
-`double_build` 探针定位到原因并修掉了：
+历史上十二次构建同尺寸、不同哈希。本轮做了四层实验，结论是**部分成立**：
 
-- 探针先把差异从 57,134,346 字节缩小到 76,801 字节（去掉 `/etc/nvme/hostid` 等
-  构建机标识）；
-- 最后一项差异是 `apt` 在构建过程中重新生成的 `/var/cache/apt/pkgcache.bin`；
-- 构建钩子 `0650-paw-repro-cleanup` 现在删除这些文件，并写入
-  `/etc/apt/apt.conf.d/99-paw-no-cache`（`Dir::Cache::pkgcache "";`），让 apt
-  根本不再生成缓存文件。
-
-结果（Run `42909076510`，同一 runner 镜像上连续两次构建）：
-
-| | 构建 A | 构建 B |
+| Run | 问题 | 结果 |
 |---|---|---|
-| 字节数 | 930,086,912 | 930,086,912 |
-| SHA256 | `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f` | `43488236624bd91725dc2c569c378fb2504de3a376630d3268c4aa34fe39939f` |
+| `42909076510` | 同一个 job 内连续两次构建是否相同 | **是**：两次都 930,086,912 字节、`4348823662…`，`REPRO=IDENTICAL` |
+| `42916115491` | 换一个 job 重建是否相同 | **否**：`da8c7066…` |
+| `42920739454` | 差在哪 | 3 个文件，全是构建机的网络身份：`/etc/nvme/hostnqn`、`/etc/.resolv.conf.systemd-resolved.bak`、`/run/systemd/resolve/stub-resolv.conf` |
+| `42927955908` | 去掉这 3 个后再跨 UTC 日重建 | 这 3 个没了；但 16 个 `/var/lib/apt/lists/*` 这次缺失，ISO 变成 897,581,056 字节 / `0494bf14…` |
 
-`VERDICT: REPRO=IDENTICAL`，`diff_raw_lines=0`，`differing_entries=0`。
+已经修掉的：构建机标识（machine-id、NVMe hostid/hostnqn、resolv.conf 备份、`/run/systemd/resolve/*`）与 apt 缓存文件。仍未修的：apt 索引在镜像里保留与否随运行变化。
 
-仍要保持诚实：这证明的是**同一个构建环境（同一 runner 镜像、同一天）内可复现**。
-跨 runner 镜像版本、跨日期还没有测过，所以在给外部用户的说明里仍然写"用同一 Run 的
-侧车核对"，不承诺跨环境一致。
+因此本交付**不承诺**"重建即同哈希"：核对时一律用**同一 Run** 的侧车文件。这句话写在这里，是为了不让任何人把"同一个 job 内可复现"误读成"可复现构建"。
 
-下载后在 Windows 重新计算并核对（务必对上表或同一 Run 的侧车）：
-
-```powershell
-Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
-```
 
 ## 3. 交付内容
 
