@@ -58,6 +58,7 @@ scan_holders(){
     fi
   done
   ((found == 1)) || log INFO 'No process file descriptor points at the target partition.'
+  lsblk -nrpo NAME,MAJ:MIN,MOUNTPOINT "$disk" "$part" 2>/dev/null | sed '/^$/d' | while IFS= read -r line; do log INFO "lsblk: $line"; done
 }
 scan_holders
 for attempt in $(seq 1 30); do
@@ -66,12 +67,33 @@ for attempt in $(seq 1 30); do
     log WARN "Target root was mounted after partition growth at: $mounted_now; unmounting it before the mandatory filesystem check."
     while IFS= read -r mnt; do [[ -n "$mnt" ]] && umount "$mnt" || die "Could not unmount $mnt after growth."; done < <(lsblk -nrpo MOUNTPOINT "$part" 2>/dev/null | sed '/^$/d')
   fi
-  if e2fsck -f -p "$part"; then rc=0; break; fi
+  command -v udevadm >/dev/null 2>&1 && udevadm settle --timeout=30 || true
+  set +e
+  fsck_out="$(e2fsck -f -p "$part" 2>&1)"
   rc=$?
-  ((rc == 1)) && break
-  sleep 2
+  set -e
+  printf '%s\n' "$fsck_out" | sed '/^$/d' | tail -n 20
+  if ((rc == 0)); then
+    break
+  fi
+  # A transient udev/partition-probe holder makes e2fsck abort with
+  # "is in use" or "Device or resource busy".  Retry explicitly instead of
+  # treating that as a corrected-filesystem success (which would let
+  # resize2fs run against a busy node and fail).
+  if [[ "$fsck_out" == *'is in use'* || "$fsck_out" == *'Device or resource busy'* || "$fsck_out" == *'resource busy'* ]]; then
+    log WARN "Target partition is transiently busy (e2fsck rc=$rc, attempt=$attempt/30); waiting before retry."
+    sleep 3 || true
+    continue
+  fi
+  if ((rc == 1)); then
+    break
+  fi
+  die "Filesystem check after partition growth failed with rc=$rc; no resize2fs was run."
 done
-((rc == 0 || rc == 1)) || die 'Filesystem check after partition growth failed; no resize2fs was run.'
+if ((rc != 0 && rc != 1)); then die 'Filesystem check after partition growth did not complete; no resize2fs was run.'; fi
+if [[ "$fsck_out" == *'is in use'* || "$fsck_out" == *'Device or resource busy'* || "$fsck_out" == *'resource busy'* ]]; then
+  die 'Target partition was still busy after retries; expansion stopped before resize2fs.'
+fi
 resize2fs "$part"
 unset rc
 after_bytes="$(blockdev --getsize64 "$part")"
