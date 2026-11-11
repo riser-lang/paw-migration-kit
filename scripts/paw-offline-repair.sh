@@ -147,8 +147,14 @@ binds=1
 for item in dev proc sys; do mount --rbind "/$item" "$mount_root/$item"; mount --make-rslave "$mount_root/$item"; done
 # Rebuild libkmod indexes after adding modules; update-initramfs/dracut uses
 # modules.dep.bin, not the text modules.dep, so an injected module is otherwise
-# reported as missing even though the .ko file exists.
-chroot "$mount_root" sh -c 'for k in /lib/modules/*; do [ -d "$k" ] && depmod -a "$(basename "$k")"; done'
+# reported as missing even though the .ko file exists.  Minimal fixtures and
+# unusual targets may have no depmod; that is a warning, not a boot-repair
+# failure, because update-initramfs can still run from its own dependency data.
+if chroot "$mount_root" sh -c 'command -v depmod >/dev/null 2>&1'; then
+  chroot "$mount_root" sh -c 'for k in /lib/modules/*; do [ -d "$k" ] && depmod -a "$(basename "$k")"; done'
+else
+  log WARN 'Target has no depmod; module dependency indexes were not rebuilt.'
+fi
 chroot "$mount_root" update-initramfs -u -k all
 if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
   grub_install_result='simulation_skipped'
