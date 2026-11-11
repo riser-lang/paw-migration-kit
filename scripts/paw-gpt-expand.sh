@@ -21,13 +21,26 @@ n="$(lsblk -dn -o PARTN "$part" | xargs)"; [[ "$n" =~ ^[0-9]+$ ]] || die 'Cannot
 # starts later on the disk, the extension is impossible and the only symptom would be
 # a cryptic growpart error after the GPT backup header was already moved. Refuse up
 # front, before anything on the disk is touched.
+command -v udevadm >/dev/null 2>&1 && udevadm settle --timeout=30 || true
 part_start="$(lsblk -bnr -o START "$part" 2>/dev/null | xargs || true)"
 last_start="$(lsblk -bnr -o START "$disk" 2>/dev/null | awk 'NF{print $1}' | sort -n | tail -n1 || true)"
-if [[ -n "$part_start" && -n "$last_start" ]]; then
-  ((part_start == last_start)) || die 'Root partition is not the last partition on the target disk; a later partition would collide, so nothing was changed. Remove or shrink the later partition, then rerun.'
-else
-  log WARN 'lsblk did not report partition start offsets; the last-partition guard was skipped.'
+if [[ -z "$part_start" || -z "$last_start" ]]; then
+  # Loop/partition nodes can appear a moment before lsblk reports START.
+  # Give udev/partprobe a second chance, then fall back to the on-disk table
+  # rather than silently skipping the collision guard.
+  sleep 1
+  udevadm settle --timeout=30 2>/dev/null || true
+  part_start="$(lsblk -bnr -o START "$part" 2>/dev/null | xargs || true)"
+  last_start="$(lsblk -bnr -o START "$disk" 2>/dev/null | awk 'NF{print $1}' | sort -n | tail -n1 || true)"
 fi
+if [[ -z "$part_start" ]]; then
+  part_start="$(sfdisk -d "$disk" 2>/dev/null | awk -v n="$n" '{path=$1; sub(/:$/,"",path); if (path ~ ("[^0-9]" n "$")) { if (match($0,/start= *[0-9]+/)) { v=substr($0,RSTART+6,RLENGTH-6); gsub(/ /,"",v); print v; exit } }}')"
+fi
+if [[ -z "$last_start" ]]; then
+  last_start="$(sfdisk -d "$disk" 2>/dev/null | sed -n 's/.*start= *\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n1)"
+fi
+[[ -n "$part_start" && -n "$last_start" ]] || die 'Cannot determine partition start offsets; refusing to expand because the later-partition collision guard cannot be proven.'
+((part_start == last_start)) || die 'Root partition is not the last partition on the target disk; a later partition would collide, so nothing was changed. Remove or shrink the later partition, then rerun.'
 before_bytes="$(blockdev --getsize64 "$part")"
 fs_before_blocks="$(dumpe2fs -h "$part" 2>/dev/null | awk '/^Block count:/{print $3; exit}')"
 table="$PAW_REPORT_DIR/gpt-before-expand-$(basename "$disk").txt"

@@ -344,8 +344,8 @@ if [[ -b "$notlast_part" ]]; then
   out="$("$root/scripts/paw-gpt-expand.sh" "$notlast_loop" "$notlast_part" 2>&1)"; rc=$?
   set -e
   ((rc != 0)) && pass 'Non-last root partition expansion is refused' || { echo 'FAIL non-last root partition expansion was not refused' >>"$report"; failed=$((failed+1)); }
-  grep -q 'not the last partition' <<<"$out" && pass 'Refusal explains the later-partition collision' || { echo 'FAIL refusal did not explain the collision' >>"$report"; failed=$((failed+1)); }
-  grep -q 'nothing was changed' <<<"$out" && pass 'Refusal states that nothing was changed' || { echo 'FAIL refusal did not state that nothing changed' >>"$report"; failed=$((failed+1)); }
+  if grep -q 'not the last partition' <<<"$out"; then pass 'Refusal explains the later-partition collision'; else echo 'FAIL refusal did not explain the collision' >>"$report"; printf 'nonlast_expand_output=%s\n' "$out" >>"$report"; failed=$((failed+1)); fi
+  if grep -q 'nothing was changed' <<<"$out"; then pass 'Refusal states that nothing was changed'; else echo 'FAIL refusal did not state that nothing changed' >>"$report"; printf 'nonlast_expand_output=%s\n' "$out" >>"$report"; failed=$((failed+1)); fi
   after_table="$(sfdisk -d "$notlast_loop")"
   [[ "$after_table" == "$before_table" ]] && pass 'Partition table unchanged by the refusal' || { echo 'FAIL partition table changed by the refusal' >>"$report"; failed=$((failed+1)); }
 else
