@@ -23,6 +23,14 @@ grep -q 'DEBIAN_FRONTEND=noninteractive' "$root/scripts/paw-offline-repair.sh" &
 grep -q 'lsinitramfs' "$root/scripts/paw-offline-repair.sh" && pass 'P1 initramfs module inclusion is independently listed' || fail 'P1 no lsinitramfs verification'
 grep -q 'fstab/GRUB UUID identity checked' "$root/scripts/paw-offline-repair.sh" && pass 'P1 fstab/GRUB UUID check is recorded' || fail 'P1 fstab/GRUB check missing'
 grep -q 'i915' "$root/scripts/paw-offline-repair.sh" && pass 'P1 HD4600 i915 availability is classified' || fail 'P1 i915 detection missing'
+grep -q 'Target kernel has no AHCI driver' "$root/scripts/paw-offline-repair.sh" && pass 'P1 missing AHCI driver is a hard pre-boot block' || fail 'P1 missing AHCI still only warns'
+grep -q 'Target kernel has no Realtek r8169 driver' "$root/scripts/paw-offline-repair.sh" && pass 'P1 missing r8169 driver is a hard pre-boot block' || fail 'P1 missing r8169 still only warns'
+grep -q 'grub-pc/install_devices multiselect' "$root/scripts/paw-offline-repair.sh" \
+  && grep -q 'dpkg-reconfigure -f noninteractive grub-pc' "$root/scripts/paw-offline-repair.sh" \
+  && pass 'P1 grub-pc install_devices pinned via noninteractive debconf' \
+  || fail 'P1 grub-pc debconf pin missing'
+grep -q 'grub_install_devices_stable' "$root/scripts/paw-offline-repair.sh" && pass 'P1 grub install-device stability is recorded' || fail 'P1 grub stability evidence missing'
+grep -q 'debconf-show grub-pc' "$root/scripts/paw-offline-repair.sh" && pass 'P1 grub-pc install_devices is read back after reconfigure' || fail 'P1 grub debconf readback missing'
 
 # Reboot media order and firstboot semantics.
 grep -q 'boot_order_control' "$root/scripts/paw-reboot-media-check.sh" && pass 'P1 BIOS media-order limitation is recorded' || fail 'P1 media-order check missing'
@@ -31,7 +39,7 @@ grep -q 'post_boot' "$root/scripts/paw-firstboot-check.sh" && pass 'P1 real firs
 
 # SMART PASS/WARN/FAIL classification with a fake smartctl.
 smartdir="$work/smart"; mkdir -p "$smartdir/bin" "$smartdir/reports"
-cat >"$smartdir/bin/smartctl" <<'SMART'
+cat >"$smartdir/bin/smartctl" <<'SMART_SCRIPT'
 #!/usr/bin/env bash
 case "$*" in
   *"-x"*) cat <<'OUT'
@@ -51,7 +59,7 @@ OUT
   *"-t short"*) echo 'Short self-test routine started.' ;;
   *) echo 'unsupported fake invocation' >&2; exit 1 ;;
 esac
-SMART
+SMART_SCRIPT
 chmod 0755 "$smartdir/bin/smartctl"
 if PATH="$smartdir/bin:$PATH" PAW_STATE_DIR="$smartdir/state" PAW_REPORT_DIR="$smartdir/reports" \
    PAW_SMART_POLL_SECONDS=1 PAW_ROOT="$root" bash "$root/scripts/paw-ssd-smart-check.sh" /dev/sr0 \
@@ -63,14 +71,14 @@ PY
 else
   fail "P1 SMART PASS path failed: $(tail -5 "$smartdir/run.log")"
 fi
-cat >"$smartdir/bin/smartctl" <<'SMART'
+cat >"$smartdir/bin/smartctl" <<'SMART_SCRIPT'
 #!/usr/bin/env bash
 case "$*" in
   *"-x"*) echo 'SMART support is: Available - device has SMART capability.'; echo 'SMART overall-health self-assessment test result: PASSED' ;;
   *"-H"*) echo 'SMART overall-health self-assessment test result: FAILED!' ;;
   *) echo 'x' ;;
 esac
-SMART
+SMART_SCRIPT
 chmod 0755 "$smartdir/bin/smartctl"
 if PATH="$smartdir/bin:$PATH" PAW_STATE_DIR="$smartdir/state" PAW_REPORT_DIR="$smartdir/reports" PAW_ROOT="$root" \
    bash "$root/scripts/paw-ssd-smart-check.sh" /dev/sr0 >"$smartdir/fail.log" 2>&1; then
@@ -79,6 +87,24 @@ else
   python3 - "$smartdir/reports/smart-sr0.json" <<'PY' && pass 'P1 SMART FAIL health classified, never PASS' || fail 'P1 SMART FAIL classification wrong'
 import json,sys
 d=json.load(open(sys.argv[1])); assert d["status"]=="FAIL" and d["classification"]=="SMART_HEALTH_FAILED", d
+PY
+fi
+cat >"$smartdir/bin/smartctl" <<'SMART_SCRIPT'
+#!/usr/bin/env bash
+case "$*" in
+  *"-x"*) echo 'SMART support is: Available - device has SMART capability.'; echo 'SMART overall-health self-assessment test result: PASSED' ;;
+  *"-H"*) echo 'SMART overall-health self-assessment test result: PASSED'; exit 16 ;;
+  *) echo 'x'; exit 1 ;;
+esac
+SMART_SCRIPT
+chmod 0755 "$smartdir/bin/smartctl"
+if PATH="$smartdir/bin:$PATH" PAW_STATE_DIR="$smartdir/state" PAW_REPORT_DIR="$smartdir/reports" PAW_ROOT="$root" \
+   bash "$root/scripts/paw-ssd-smart-check.sh" /dev/sr0 >"$smartdir/nonzero.log" 2>&1; then
+  fail 'P1 SMART PASS-with-nonzero-rc returned 0 instead of WARN'
+else
+  python3 - "$smartdir/reports/smart-sr0.json" <<'PY' && pass 'P1 SMART PASS with non-zero smartctl mask is WARN, not false FAIL/PASS' || fail 'P1 SMART non-zero-rc classification wrong'
+import json,sys
+d=json.load(open(sys.argv[1])); assert d["status"]=="WARN" and d["classification"]=="SMART_HEALTH_PASSED_NONZERO_RC", d
 PY
 fi
 

@@ -96,12 +96,18 @@ r8169_available=0
 if find "$module_root" -type f -name 'ahci.ko*' -print -quit | grep -q . || grep -RqsE '(^|/)ahci\.ko$' "$module_root"/*/modules.builtin; then
   ahci_available=1
 else
-  log WARN 'Target kernel has no AHCI module; boot media support is left to the cloned kernel.'
+  # Without AHCI the cloned kernel cannot see the SATA SSD at all.  This is a
+  # pre-boot blocker, not a warning: never emit a completion receipt that would
+  # let the operator reboot into a target with no root disk.
+  die 'Target kernel has no AHCI driver (module or builtin); refusing to claim a bootable target.'
 fi
 if find "$module_root" -type f -name 'r8169.ko*' -print -quit | grep -q . || grep -RqsE '(^|/)r8169\.ko$' "$module_root"/*/modules.builtin; then
   r8169_available=1
 else
-  log WARN 'Target kernel has no Realtek r8169 module; it is not added to the initramfs.'
+  # The target motherboard uses a Realtek NIC.  A clone that cannot bring up
+  # its network cannot be taken over remotely, so block instead of pretending
+  # the repair is complete.
+  die 'Target kernel has no Realtek r8169 driver (module or builtin); network takeover would be unverified.'
 fi
 # Haswell HD Graphics 4600 needs i915 for the graphical console.  If the
 # cloned kernel does not ship it, keep the text console usable instead of
@@ -227,8 +233,40 @@ if ((${#initramfs_modules[@]})); then
 fi
 if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
   grub_install_result='simulation_skipped'
+  grub_install_device="$disk"
+  grub_debconf_pinned='simulation_skipped'
 else
-  chroot "$mount_root" env DEBIAN_FRONTEND=noninteractive grub-install --target=i386-pc --recheck --no-floppy "$disk"
+  # Pin grub-pc to the stable by-id name, not /dev/sdX.  A later kernel package
+  # upgrade otherwise re-runs grub-install against a device name that may now
+  # point at a different disk.  The live /dev tree is bind-mounted below, so
+  # the udev by-id links are visible inside the chroot.
+  grub_install_device="$disk"
+  while IFS= read -r candidate; do
+    [[ "$(readlink -f "$candidate" 2>/dev/null || true)" == "$disk" ]] || continue
+    grub_install_device="$candidate"
+    break
+  done < <(find /dev/disk/by-id -maxdepth 1 -type l -print 2>/dev/null | sort)
+  if [[ "$grub_install_device" == "$disk" ]]; then
+    log WARN "No /dev/disk/by-id symlink resolved to $disk; grub-pc cannot be pinned to a stable name."
+    grub_debconf_pinned='no_by_id_symlink'
+  elif chroot "$mount_root" sh -c 'dpkg -s grub-pc >/dev/null 2>&1'; then
+    printf 'grub-pc grub-pc/install_devices multiselect %s\ngrub-pc grub-pc/install_devices_empty boolean false\n' "$grub_install_device" \
+      | chroot "$mount_root" debconf-set-selections
+    timeout 180 chroot "$mount_root" env DEBIAN_FRONTEND=noninteractive GRUB_DISABLE_OS_PROBER=true \
+      dpkg-reconfigure -f noninteractive grub-pc \
+      || die 'Noninteractive grub-pc reconfigure failed; refusing an unpinned boot loader.'
+    pinned_value="$(chroot "$mount_root" debconf-show grub-pc 2>/dev/null | sed -n 's/^[[:space:]]*grub-pc\/install_devices:[[:space:]]*//p' | head -n1)"
+    [[ "$pinned_value" == "$grub_install_device" ]] \
+      || die "grub-pc/install_devices readback '$pinned_value' does not match '$grub_install_device'."
+    grub_debconf_pinned='debconf_noninteractive'
+  else
+    # The disposable lab / minimal images carry grub-install without the
+    # grub-pc debconf package; production Ubuntu has it.  Record the absence
+    # instead of claiming the debconf pin was applied.
+    grub_debconf_pinned='grub-pc_not_installed'
+  fi
+  chroot "$mount_root" env DEBIAN_FRONTEND=noninteractive \
+    grub-install --target=i386-pc --recheck --no-floppy "$grub_install_device"
   grub_install_result='i386-pc'
 fi
 chroot "$mount_root" env DEBIAN_FRONTEND=noninteractive GRUB_DISABLE_OS_PROBER=true update-grub
@@ -270,9 +308,9 @@ trap - EXIT
 if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
   transaction_event REPAIRED
 fi
-python3 - "$PAW_REPORT_DIR/offline-repair.json" "$backup" "$grub_install_result" "${PAW_SIMULATION:-0}" "${initramfs_modules[*]:-}" "$initramfs_verified" "$initramfs_missing" "$i915_available" <<'PY'
+python3 - "$PAW_REPORT_DIR/offline-repair.json" "$backup" "$grub_install_result" "${PAW_SIMULATION:-0}" "${initramfs_modules[*]:-}" "$initramfs_verified" "$initramfs_missing" "$i915_available" "$grub_install_device" "$grub_debconf_pinned" <<'PY'
 import json,os,sys,datetime
-path,backup,grub,simulation,modules,verified,missing,i915=sys.argv[1:]
+path,backup,grub,simulation,modules,verified,missing,i915,grub_device,grub_pinned=sys.argv[1:]
 status="SIMULATION_PASS" if simulation=="1" else "PASS"
 changes=["netplan DHCP matched to e* (eth0/en*/r8169) with no fixed MAC","cloud-init network disabled","old Tencent/MAC udev overrides disabled","machine-id regenerated","SSH host keys regenerated","clone-local Tailscale state cleared"]
 if modules:
@@ -280,8 +318,14 @@ if modules:
     elif verified=="FAIL": changes.append(f"initramfs modules requested but NOT all present: {modules}; missing={missing}")
     else: changes.append(f"initramfs modules requested: {modules}; inclusion {verified}")
 changes += ["initramfs regenerated","GRUB config regenerated with DEBIAN_FRONTEND=noninteractive","fstab/GRUB UUID identity checked"]
+if grub_pinned=="debconf_noninteractive":
+    changes.append(f"grub-pc install_devices pinned to {grub_device} via noninteractive debconf")
+elif grub_pinned=="grub-pc_not_installed":
+    changes.append(f"grub-pc debconf package absent; GRUB installed to {grub_device} without a debconf pin")
+elif grub_pinned=="no_by_id_symlink":
+    changes.append(f"no by-id symlink; GRUB installed to mutable name {grub_device} (flagged)")
 with open(path,"w",encoding="utf-8") as handle:
-    json.dump({"status":status,"changes":changes,"grub_install":grub,"simulation":simulation=="1","initramfs_modules_requested":modules.split(",") if modules else [],"initramfs_modules_verified":verified,"initramfs_modules_missing":missing.split(",") if missing else [],"hd4600_i915_available":i915=="1","grub_noninteractive":True,"fstab_uuid_checked":True,"backup_path":backup,"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"authorized_keys_touched":False,"PAW_application_data_touched":False},handle,indent=2)
+    json.dump({"status":status,"changes":changes,"grub_install":grub,"grub_install_device":grub_device,"grub_debconf_pinned":grub_pinned,"grub_install_devices_stable":grub_pinned=="debconf_noninteractive","simulation":simulation=="1","initramfs_modules_requested":modules.split(",") if modules else [],"initramfs_modules_verified":verified,"initramfs_modules_missing":missing.split(",") if missing else [],"hd4600_i915_available":i915=="1","grub_noninteractive":True,"fstab_uuid_checked":True,"backup_path":backup,"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"authorized_keys_touched":False,"PAW_application_data_touched":False},handle,indent=2)
     os.chmod(path,0o600)
 PY
 

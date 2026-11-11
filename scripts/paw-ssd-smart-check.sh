@@ -42,10 +42,19 @@ health="$(smartctl -H "$dev" 2>&1)"
 health_rc=$?
 set -e
 printf '%s\n' "$health" >>"$report"
-if ((health_rc != 0)) || ! grep -Eiq 'SMART overall-health.*(PASSED|OK)|SMART Health Status:[[:space:]]*OK' <<<"$health"; then
+if ! grep -Eiq 'SMART overall-health.*(PASSED|OK)|SMART Health Status:[[:space:]]*OK' <<<"$health"; then
   smart_status='FAIL'; smart_class='SMART_HEALTH_FAILED'; smart_reason='SMART overall-health did not report PASS.'
   log ERROR 'SMART overall health did not report PASS.'
   exit 1
+fi
+# smartctl returns a bitmask, not a plain 0/1.  A valid "PASSED" line with a
+# non-zero mask (for example an unsupported attribute log) must not be turned
+# into a false FAIL, but it also must not be claimed as an unqualified PASS.
+if ((health_rc != 0)); then
+  smart_status='WARN'; smart_class='SMART_HEALTH_PASSED_NONZERO_RC'
+  smart_reason="SMART overall-health reported PASS but smartctl exit mask was $health_rc; manual review required."
+  log WARN "$smart_reason"
+  exit 2
 fi
 
 capabilities="$(smartctl -c "$dev" 2>&1 || true)"

@@ -232,7 +232,8 @@ root_uuid="$(lsblk -b -nrpo NAME,FSTYPE,SIZE,PARTN "$SRC_DEV" \
 [[ -n "$root_uuid" ]] || fail source_presence 'no ext4 root partition on source disk'
 root_uuid="$(blkid -s UUID -o value "$root_uuid")"
 [[ "$root_uuid" =~ ^[0-9a-fA-F-]{36}$ ]] || fail source_presence 'source root UUID unreadable'
-export PAW_EXPECTED_SOURCE_BYTES="$(blockdev --getsize64 "$SRC_DEV")"
+PAW_EXPECTED_SOURCE_BYTES="$(blockdev --getsize64 "$SRC_DEV")"
+export PAW_EXPECTED_SOURCE_BYTES
 
 # Negative: a UUID that does not exist must stop with no source registration.
 rm -f "$PAW_CONFIG_DIR/source.json" /run/paw-network/source-discovery-session.json
@@ -279,10 +280,19 @@ if ! mountpoint -q /run/live/medium; then
     || { cat "$PAW_LOG_DIR/media-mount.log" >&2; fail pawdata 'could not mount virtual live medium'; }
 fi
 chvt 1 2>/dev/null || true
-prompt pawdata_serial_suffix
+# Start the UI first and announce the prompt only after paw_tty_open and the
+# serial-suffix read loop are ready.  Keys injected at process start were
+# otherwise cleared by terminal setup (same race as the final confirmation UI).
+rm -f "$PAW_REPORT_DIR/data-init.json"
 PAW_INTERACTIVE_TTY=/dev/tty1 PAW_INPUT_TIMEOUT=180 \
-  "$PAW_ROOT/scripts/paw-data-prepare.sh" auto >"$PAW_LOG_DIR/pawdata.log" 2>&1
-rc=$?
+  "$PAW_ROOT/scripts/paw-data-prepare.sh" auto >"$PAW_LOG_DIR/pawdata.log" 2>&1 &
+pawdata_pid=$!
+for _ in $(seq 1 300); do
+  grep -q '"PAW-TTY1-PROMPT"' "$PAW_REPORT_DIR/data-init.json" 2>/dev/null && break
+  sleep 0.2
+done
+prompt pawdata_serial_suffix
+wait "$pawdata_pid"; rc=$?
 if ((rc != 0)); then
   tail -n 80 "$PAW_LOG_DIR/pawdata.log" >&2 || true
   fail pawdata "paw-data-prepare.sh exit=$rc"
@@ -662,7 +672,7 @@ PY
 )"
     if [[ -n "$t_fields" ]]; then
       IFS=$'\t' read -r t_status t_src t_wire t_restored t_mode t_ratio <<<"$t_fields"
-      step_once compressed_transfer PASS "mode=$t_mode source_bytes=$t_src payload_bytes=$t_wire restored_bytes=$t_restored compression_reduction=${t_ratio}%"
+      step_once compressed_transfer PASS "status=$t_status mode=$t_mode source_bytes=$t_src payload_bytes=$t_wire restored_bytes=$t_restored compression_reduction=${t_ratio}%"
       step_once clone_complete PASS "restored_bytes=$t_restored; target byte range written; independent SHA256 still pending"
     fi
   fi
@@ -682,9 +692,15 @@ PY
     fi
   fi
   if [[ -s "$PAW_REPORT_DIR/offline-repair.json" ]]; then
-    local r_status
+    local r_status r_grub r_pin
     r_status="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1],encoding="utf-8")).get("status",""))' "$PAW_REPORT_DIR/offline-repair.json" 2>/dev/null || true)"
-    [[ "$r_status" == PASS ]] && step_once offline_repair PASS "offline-repair.json status=PASS; configs backed up before adaptation"
+    r_grub="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1],encoding="utf-8")).get("grub_install_device",""))' "$PAW_REPORT_DIR/offline-repair.json" 2>/dev/null || true)"
+    r_pin="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1],encoding="utf-8")).get("grub_debconf_pinned",""))' "$PAW_REPORT_DIR/offline-repair.json" 2>/dev/null || true)"
+    if [[ "$r_status" == PASS && "$r_grub" == /dev/disk/by-id/* ]]; then
+      step_once offline_repair PASS "offline-repair.json status=PASS; grub_install_device=$r_grub grub_debconf_pinned=$r_pin; configs backed up before adaptation"
+    elif [[ "$r_status" == PASS ]]; then
+      fail offline_repair "status=PASS but GRUB was installed to non-stable device '$r_grub'"
+    fi
   fi
   if [[ -s "$PAW_REPORT_DIR/gpt-expand.json" ]]; then
     local g_fields

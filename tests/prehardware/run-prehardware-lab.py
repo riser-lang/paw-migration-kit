@@ -86,7 +86,7 @@ class QMP:
     def key(self, value):
         self.hmp(f"sendkey {value}")
 
-    def type_text(self, text, delay=0.09):
+    def type_text(self, text, delay=0.18):
         for ch in text:
             self.key(ch)
             time.sleep(delay)
@@ -337,7 +337,7 @@ def run_main(args):
                 if name in prompts_done:
                     continue
                 prompts_done.add(name)
-                time.sleep(1.5)  # guest runs chvt 1 immediately after the marker
+                time.sleep(8.0)  # give the guest time to chvt 1 and open /dev/tty1 before typing
                 shot = f"{args.work}/screens/{name}-before.ppm"
                 qmp.screenshot(shot)
                 if name == "swap_bootindex":
