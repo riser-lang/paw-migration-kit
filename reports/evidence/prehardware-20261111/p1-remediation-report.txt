@@ -1,0 +1,26 @@
+PAW P1 remediation tests
+Executed: 2026-11-11T20:30:06Z
+PASS P1 stream-verify uses O_DIRECT target readback
+PASS P1 stream-verify records readback method
+PASS P1 target discovery excludes NTFS/Windows GPT disks
+PASS P1 GRUB/initramfs run noninteractively
+PASS P1 initramfs module inclusion is independently listed
+PASS P1 fstab/GRUB UUID check is recorded
+PASS P1 HD4600 i915 availability is classified
+PASS P1 missing AHCI driver is a hard pre-boot block
+PASS P1 missing r8169 driver is a hard pre-boot block
+PASS P1 grub-pc install_devices pinned via noninteractive debconf
+PASS P1 grub install-device stability is recorded
+PASS P1 grub-pc install_devices is read back after reconfigure
+PASS P1 debconf readback parses debconf-show starred seen values
+PASS P1 cloud-style grub-pc mode is parsed from debconf-show
+PASS P1 BIOS media-order limitation is recorded
+PASS P1 pre-reboot handoff does not claim a first boot
+PASS P1 real firstboot check is post-boot only
+PASS P1 SMART PASS classified with selftest clean
+PASS P1 SMART FAIL health classified, never PASS
+PASS P1 SMART PASS with non-zero smartctl mask is WARN, not false FAIL/PASS
+PASS P1 service manifest PASS with changed machine-id/SSH and preserved hostname
+PASS P1 attached PAW-LIVE medium blocks auto reboot
+PASS P1 explicit live-media removal arm allows auto reboot
+Summary: 23 passed, 0 failed

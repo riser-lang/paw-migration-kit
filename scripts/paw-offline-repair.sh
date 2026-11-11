@@ -249,7 +249,7 @@ else
   if [[ "$grub_install_device" == "$disk" ]]; then
     log WARN "No /dev/disk/by-id symlink resolved to $disk; grub-pc cannot be pinned to a stable name."
     grub_debconf_pinned='no_by_id_symlink'
-  elif [[ "$(chroot "$mount_root" debconf-show grub-pc 2>/dev/null | sed -n 's/^[[:space:]]*grub-pc\/cloud_style_installation:[[:space:]]*//p' | head -n1)" == true ]]; then
+  elif [[ "$(chroot "$mount_root" debconf-show grub-pc 2>/dev/null | sed -n 's/^[*[:space:]]*grub-pc\/cloud_style_installation:[[:space:]]*//p' | head -n1)" == true ]]; then
     # Cloud images use grub-pc's "cloud style" postinst branch, which installs
     # via grub-probe and intentionally does not use install_devices.  Record
     # that honestly; the explicit grub-install below still uses the by-id name.
@@ -261,7 +261,7 @@ else
     timeout 180 chroot "$mount_root" env DEBIAN_FRONTEND=noninteractive GRUB_DISABLE_OS_PROBER=true \
       dpkg-reconfigure -f noninteractive grub-pc \
       || die 'Noninteractive grub-pc reconfigure failed; refusing an unpinned boot loader.'
-    pinned_value="$(chroot "$mount_root" debconf-show grub-pc 2>/dev/null | sed -n 's/^[[:space:]]*grub-pc\/install_devices:[[:space:]]*//p' | head -n1)"
+    pinned_value="$(chroot "$mount_root" debconf-show grub-pc 2>/dev/null | sed -n 's/^[*[:space:]]*grub-pc\/install_devices:[[:space:]]*//p' | head -n1)"
     [[ "$pinned_value" == "$grub_install_device" ]] \
       || die "grub-pc/install_devices readback '$pinned_value' does not match '$grub_install_device'."
     grub_debconf_pinned='debconf_noninteractive'

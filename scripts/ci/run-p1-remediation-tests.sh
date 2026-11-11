@@ -31,6 +31,12 @@ grep -q 'grub-pc/install_devices multiselect' "$root/scripts/paw-offline-repair.
   || fail 'P1 grub-pc debconf pin missing'
 grep -q 'grub_install_devices_stable' "$root/scripts/paw-offline-repair.sh" && pass 'P1 grub install-device stability is recorded' || fail 'P1 grub stability evidence missing'
 grep -q 'debconf-show grub-pc' "$root/scripts/paw-offline-repair.sh" && pass 'P1 grub-pc install_devices is read back after reconfigure' || fail 'P1 grub debconf readback missing'
+debconf_sample='* grub-pc/install_devices: /dev/disk/by-id/ata-test'
+parsed_sample="$(printf '%s\n' "$debconf_sample" | sed -n 's/^[*[:space:]]*grub-pc\/install_devices:[[:space:]]*//p' | head -n1)"
+[[ "$parsed_sample" == /dev/disk/by-id/ata-test ]] && pass 'P1 debconf readback parses debconf-show starred seen values' || fail 'P1 debconf readback regex drops starred values'
+cloud_sample='* grub-pc/cloud_style_installation: true'
+parsed_cloud="$(printf '%s\n' "$cloud_sample" | sed -n 's/^[*[:space:]]*grub-pc\/cloud_style_installation:[[:space:]]*//p' | head -n1)"
+[[ "$parsed_cloud" == true ]] && pass 'P1 cloud-style grub-pc mode is parsed from debconf-show' || fail 'P1 cloud-style debconf parsing failed'
 
 # Reboot media order and firstboot semantics.
 grep -q 'boot_order_control' "$root/scripts/paw-reboot-media-check.sh" && pass 'P1 BIOS media-order limitation is recorded' || fail 'P1 media-order check missing'
