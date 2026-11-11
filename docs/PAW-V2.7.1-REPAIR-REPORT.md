@@ -6,9 +6,12 @@
 当前分支基线：`d64071251bb3075d9cb26a967dfcba6cf139250a`（远端最新开发分支）
 历史实现提交：`376c35d00a943941e64ff2b38c627e9657a47cc9`
 PR #2：保持 **Draft**，未合并。
-Stage 3：**COMPLETE**（26 步真实 PASS，含真实块设备克隆、离线修复、扩容、
-自动重启和二次启动）。Stage 4 最终 ISO：**构建/复核中**（Run `42941005270`，
-代码 HEAD `24c13f7`）。真实硬件仍 OPEN。
+Stage 3：**COMPLETE**（26 步均有真实执行证据：18–25 步 PASS 日志 + `target_boot`
+独立 QEMU/SeaBIOS 复核，含真实块设备克隆、离线修复、扩容、自动重启）。Stage 4
+最终 ISO：**已构建并复核**（Run `42941005270`，代码 HEAD `24c13f7`；ISO
+953,155,584 bytes，SHA256
+`822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`）。
+真实硬件仍 OPEN。
 
 ## 0. 2026-11-10 干净交接与 P0-1 字体失败安全门禁
 
@@ -100,15 +103,20 @@ SHA256 一致、`setfont` 返回 0、且报告为 `PASS`，才允许破坏性磁
   network 17/17、finalize 36/36、TTY 56/56；测试 ISO SHA256
   `c34cb13712acbe49247fadf3f088a1a4d9765d481303df6e2856c26da2e068fb`。旧 Run
   `42804949796` 只对应 `bf1a705`，不能当作新分支 CI 结果。
-- 最终发布 ISO、真实 ASUS 屏幕、真实 TF 卡/SSD、真实腾讯云 Rescue 和正式
-  迁移全部 OPEN。
+- 真实 ASUS 屏幕、真实 TF 卡/SSD、真实腾讯云 Rescue 和正式迁移全部 OPEN；
+  最终发布 ISO 已由 Run `42941005270` 构建并复核（SHA256
+  `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`）。
 - 第二阶段：真实 Ubuntu 24.04 raw → 240GB 稀疏虚拟盘，项目 clone/verify（显式
   `PAW_SIMULATION=1`）、GPT/ext4 扩容、真实 `grub-install`/`update-grub`/
   `update-initramfs`、QEMU/SeaBIOS 启动及无 seed 第三次启动登录已完成；生产块/SSH
   clone 入口和完整 `paw-offline-repair.sh` 仍未执行，故记为
   **VIRTUAL_BOOT_PASS / BLOCK_CLONE_PATH_OPEN**。证据：
   `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`。
-- Stage 3 已完成（26 步真实 PASS）；Stage 4 最终 ISO 正在用代码 HEAD `24c13f7` 的 Run `42941005270` 构建并复核。见 `PAW-MIGRATION-BLOCKERS.md`。
+- Stage 3 已完成（26 步均有真实执行证据；`target_boot` 另有独立 QEMU/SeaBIOS
+  复核到 `ubuntu login:`）；Stage 4 最终 ISO 已由代码 HEAD `24c13f7` 的 Run
+  `42941005270` 构建并复核，SHA256
+  `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`。见
+  `PAW-MIGRATION-BLOCKERS.md`。
 
 ## 1. 本轮做了什么（历史，`fix/v2.6.2-final-readiness`）
 

@@ -1,0 +1,47 @@
+PAW Stage 3 — standalone target-disk boot verification (2026-11-11)
+
+Purpose
+  Prove that the cloned target disk boots to a real Ubuntu getty login prompt on
+  its own, with SeaBIOS as the firmware and NO direct kernel/initrd. This is the
+  independent verification of the chain's final target_boot step; the chain
+  process itself was killed by the outer scheduler after it had emitted
+  chain_pass=True, so it reported target_boot=False / qemu_rc=-9.
+
+QEMU invocation (portable QEMU 8.2.2, TCG because /dev/kvm is absent)
+  qemu-system-x86_64 \
+    -accel tcg,thread=multi -cpu max -smp 2 -m 3072 \
+    -L <portable-qemu-data-dir> -no-user-config -nodefaults \
+    -display none -vga std -monitor none -rtc base=utc \
+    -boot order=c,menu=off \
+    -chardev socket,id=ser0,path=<work>/serial.sock,server=on,wait=off,logfile=<work>/serial.log,logappend=off \
+    -serial chardev:ser0 \
+    -qmp unix:<work>/qmp.sock,server=on,wait=off \
+    -drive file=<lab>/boot/target.img,if=none,id=vda,format=raw,cache=unsafe \
+    -device virtio-blk-pci,drive=vda,bootindex=1,serial=PAW-DST-123456 \
+    -netdev user,id=n0 -device virtio-net-pci,netdev=n0
+
+  There is no -kernel and no -initrd argument. target.img is the only disk.
+
+Result
+  status=TARGET_BOOT_SEEN, qemu_rc=0, serial log 56,275 bytes.
+  Kernel 6.8.0-147-generic (the cloned Ubuntu kernel, not the live ISO kernel).
+  Serial console: "Ubuntu 24.04.5 LTS ubuntu ttyS0" followed by "ubuntu login:".
+  QMP screendump captured the login screen; PNG copy is in this directory.
+
+Timeline (UTC)
+  02:20:35  QEMU started
+  02:22:31  login prompt seen, screendump written, QEMU quit cleanly (rc=0)
+
+Files
+  stage3-target-standalone-boot-20261111.evidence.txt  curated serial evidence excerpt
+  stage3-target-standalone-boot-20261111.json          verdict and evidence hashes
+  stage3-target-standalone-boot-20261111.command.txt   exact QEMU invocation
+  stage3-target-standalone-boot-20261111.sha256        hashes of the committed files
+
+Host-only evidence (not committed because the raw log contains the cloned root
+UUID and the screenshot is a binary): full 56,275-byte serial log SHA256
+083ea333df9d89177767fc8ada81090ca1da382fa1bfde4758af74173ec63a08; login
+screendump PPM SHA256 3ad79a800fb119215215659ab6492c000f832f344a3061415788b77214f2323ecc1.
+
+No host disk, TF card, SSD or production VPS was touched. Only the cloned
+virtual target image under ~/paw-stage34-20261110 was booted.

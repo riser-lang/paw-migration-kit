@@ -4,18 +4,23 @@
 
 ## 当前版本
 
-- 开发分支：`fix/v2.6.2-final-readiness`（HEAD `bf1a705`）
-- Draft PR：#2
-- 基线：v2.6.1 `0128110`
-- 构建运行：GitHub Actions → `PAW live build and isolated tests` → Run workflow
-- 最终云端成功运行：`42804949796`（2026-11-10 UTC，全部步骤通过，含 5 例 QEMU 中文用例）
-- 当前 ISO：953,155,584 bytes，SHA256
-  `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
-- 最终证据：`reports/evidence-v2.7/iso-identity-run-42804949796.txt`（本轮），
-  历史记录见 `reports/PAW-V2.7-FINAL-EVIDENCE.md`
+- 开发分支：`vm/ds-clean-handover-20261110`
+- 代码 HEAD（本 ISO 与测试证据对应）：`24c13f7`
+- 文档 HEAD：本文件所在文档提交（只改文档，不改变脚本或 ISO）
+- Draft PR：#2，未合并；`main` 未改动
+- 最终云端成功运行：Run `42941005270`（2026-11-11 UTC，全部步骤通过）
+- 当前 ISO：`953,155,584` bytes，SHA256 `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`
+- 交付侧车：`PAW-V2.7.1-ISO-SHA256.txt`
+- 最终证据：`reports/evidence-v2.7/iso-identity-run-42941005270.txt`，
+  Stage 3 链路：`reports/PAW-STAGE3-RESUME-20261110.md`，目标盘独立启动：
+  `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`
 - 交付说明：`DELIVERY.md`
-- 产物保留：3 天（本次 Artifact `13760370816` 到期 2026-11-13 11:27:18 UTC）
-- 自动克隆：**不会自动开始**；必须完成 PAWDATA、源盘、目标盘、硬件/内存和中文最终授权。
+- 产物保留：3 天（Artifact `13822300189` 到期 `2026-11-14 02:03:21 UTC`）
+- 自动克隆：**不会自动开始**；必须完成 PAWDATA、源盘、目标盘、硬件/内存和
+  中文最终授权。
+- 当前范围：Stage 3 的 26 步链路在 QEMU 虚拟块设备上均有真实执行证据，
+  `target_boot` 由独立 QEMU/SeaBIOS 复核到 `ubuntu login:`；真实
+  ASUS/TF/SSD/腾讯云 Rescue 和物理迁移仍 **OPEN**，不能把虚拟结果写成实机 PASS。
 
 ## 云端构建会做什么
 
@@ -30,6 +35,7 @@ Actions 在 Ubuntu 24.04 runner 上：
 7. 用 mock SSH 测试远端 zstd 压缩流、raw fallback、短读/中断、SHA256、混合数据。
 8. 在 loop ext4 上测试离线修复和回滚。
 9. 用 mock 网络测试 Xray 配置错误、Rescue/Restored 阶段、Tailscale 登录等待。
+10. 运行字体失败安全门禁、CJK 中文面板、TTY 绑定和 finalize/reboot 门测试。
 
 ## 真实用户流程（尚未在实体机验证）
 
@@ -37,17 +43,18 @@ Actions 在 Ubuntu 24.04 runner 上：
 2. 新电脑插网线，开机选择一次 TF 卡 Legacy BIOS 启动。
 3. 启动后按中文提示确认 TF 卡序列号末六位，让 PAWDATA 自动创建在卡尾；ISO 启动分区不会被格式化。
 4. 物理显示器/键盘的 tty1 会显示 PAW 中文控制台菜单；可逐项完成内存确认、源盘识别、目标盘登记、硬件检查、最终授权。
-4. 如需内存检测：从 ISOLINUX 菜单进入 Memtest86+，完成后回到 PAW Live，用中文界面登记轮次和错误数；该记录是 `OPERATOR_CONFIRMED`，不是机器证明。
-5. 通过固定 SSH 主机指纹和 Rescue 临时密钥识别旧 VPS 源盘，核对根 UUID、50 GiB、GPT、BIOS Boot。
-6. 登记目标 SSD，完成 SMART/只读扫描；内存未完成或错误时不会允许克隆。
-7. 在最终中文界面核对源盘、目标盘、容量、序列号、硬件、网络和数据损失，输入目标 SSD 序列号末六位。
-8. 程序重新识别源/目标后，才执行远端 zstd → SSH → 本地解压 → 写入 → 独立 SHA256 → 离线修复 → GPT/ext4 扩容 → 首次启动检查。
-9. 正式 Ubuntu 启动后，再由远程 Codex 完成 Tailscale、美国出口、机器名、Funnel、MCP 和 PAW 验收。
+5. 如需内存检测：从 ISOLINUX 菜单进入 Memtest86+，完成后回到 PAW Live，用中文界面登记轮次和错误数；该记录是 `OPERATOR_CONFIRMED`，不是机器证明。
+6. 通过固定 SSH 主机指纹和 Rescue 临时密钥识别旧 VPS 源盘，核对根 UUID、50 GiB、GPT、BIOS Boot。
+7. 登记目标 SSD，完成 SMART/只读扫描；内存未完成或错误时不会允许克隆。
+8. 在最终中文界面核对源盘、目标盘、容量、序列号、硬件、网络和数据损失，输入目标 SSD 序列号末六位。
+9. 程序重新识别源/目标后，才执行远端 zstd → SSH → 本地解压 → 写入 → 独立 SHA256 → 离线修复 → GPT/ext4 扩容 → 首次启动检查 → 自动重启。
+10. 正式 Ubuntu 启动后，再由远程 Codex 完成 Tailscale、美国出口、机器名、Funnel、MCP 和 PAW 验收。
 
 ## 重要边界
 
 - 成功的 Actions 构建不等于 TF 卡已写入。
 - QEMU/SeaBIOS 成功不等于真实 ASUS 主板启动成功。
-- mock SSH/loop 测试不等于真实腾讯云 Rescue、真实 SSD 或真实 PAW 迁移。
+- mock SSH/loop/虚拟块设备测试不等于真实腾讯云 Rescue、真实 SSD 或真实 PAW 迁移。
 - `OPERATOR_CONFIRMED` 不等于密码学证明；没有可信硬件签名时不得写成 `PASS`。
 - 旧 VPS 是生产环境；迁移准备阶段不得停止、重启、救援或修改生产服务。
+- ISO 构建不是字节级可复现；只按同一 Run 的侧车核对哈希。

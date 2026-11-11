@@ -57,17 +57,42 @@ PR #2：保持 Draft，未合并。
   与 sidecar 一致（不是 ZIP 哈希）。
 - 旧 Run `42804949796`（`bf1a705`）是历史绿色证据，不能当作当前分支门禁的
   CI 结果。
-- Stage 3 已完成：26 步全链路有真实 PASS 日志，包含真实块设备克隆入口（无
-  `PAW_SIMULATION` 标志）、独立 SHA256、完整离线修复、GPT/ext4 扩容、首次启动、
-  `auto_reboot` 和 SeaBIOS 二次启动到 `ubuntu login:`。证据：
-  `reports/PAW-STAGE3-RESUME-20261110.md`。
-- Stage 4 进行中：当前代码 HEAD `24c13f7` 的最终 CI Run `42941005270` 完成后，
-  下载 artifact 并从 ISO 文件本身重算 SHA256；最终 ISO、真实 ASUS 屏幕/键盘、
-  真实 TF 卡/SSD、真实腾讯云 Rescue 和真实迁移仍 **OPEN**。
+- Stage 3 已完成：26 步全链路均有真实执行证据，包含真实块设备克隆入口（无
+  `PAW_SIMULATION` 标志）、独立 SHA256、完整离线修复、GPT/ext4 扩容、首次启动
+  和 `auto_reboot`；`target_boot` 的链路检测器在 `chain_pass=True` 后被外层调度
+  杀掉 QEMU（`qemu_rc=-9`）而报 False，随后用独立 QEMU/SeaBIOS 复核到
+  `ubuntu login:`。证据：`reports/PAW-STAGE3-RESUME-20261110.md`、
+  `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`。
+- Stage 4 已完成（云端交付）：当前代码 HEAD `24c13f7` 的最终 CI Run
+  `42941005270` **success**（20m 12s，2026-11-11T02:03:39Z），artifact
+  `13822300189`（1,030,665,613 bytes）已下载；ISO `paw-live-amd64.iso`
+  953,155,584 bytes，从 ISO 文件本身计算的 SHA256 为
+  `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`，与同 Run
+  侧车/`iso-identity.txt` 一致。真实 ASUS 屏幕/键盘、真实 TF 卡/SSD、真实腾讯云
+  Rescue 和真实迁移仍 **OPEN**。
 - 第二阶段早期 `PAW_SIMULATION=1` 的克隆缺口已由 Stage 3 的真实
   `paw-stream-clone.sh`/`paw-stream-verify.sh`（QEMU virtio `/dev/vdb`→`/dev/vdc`、
   真实 loopback SSH、`mode=remote-zstd-level1-thread1`）补齐；这是虚拟块设备
   证据，不是物理 SSD 验收。
+- 本机 PAWDATA/克隆/修复/网络 loop 套件：**BLOCKED（环境）**，当前 bash 通道
+  `NoNewPrivs=1`、`sudo -n` 失败、无法 attach loop。
+
+### 0.3.1 最终 Run `42941005270`（代码 `24c13f7`）实际计数
+
+| 套件 | 结果 |
+|---|---|
+| 字体门禁故障注入 | **26 assertions, 0 failed** |
+| QEMU CJK / fbcon 中文面板 | **5 cases / 96 assertions, 0 failed, 0 blocked** |
+| PAWDATA 介质 | **12 passed, 0 failed** |
+| 虚拟磁盘/故障注入 | **39 passed, 0 failed** |
+| 离线修复/回滚 | **19 passed, 0 failed** |
+| 网络阶段 | **17 passed, 0 failed** |
+| Finalize/reboot 门 | **36 passed, 0 failed** |
+| TTY 静态 + PTY | **56 passed, 0 failed, 0 blocked（static 55 + PTY 15）** |
+| CJK 字体校验 | **1 passed, 0 failed** |
+| 静态/语法/PowerShell/公开安全 | **PASS** |
+
+以上计数取自该 Run 的 artifact 报告和日志；没有把历史 Run 的计数冒充为本次结果。
 
 ### 0.4 Stage 3 全链路实测（2026-11-11）
 
@@ -81,12 +106,11 @@ PR #2：保持 Draft，未合并。
 | GPT/ext4 | `/dev/vdc1` 256,623,230,464 bytes；ext4 62,652,155 blocks；root-is-last 守卫有效 |
 | 首次启动 | `paw-firstboot-check.sh` `status=PASS`，`CLONE-INCOMPLETE` 不存在 |
 | 自动重启 | `paw-finalize-reboot.sh` 先原子写 `reboot-status.json` 并 `sync`，再执行 `systemctl reboot`；`status_persisted_before_reboot=true` |
-| 目标二次启动 | 独立 QEMU/SeaBIOS（无 direct-kernel）从 `target.img` 启动，内核 `6.8.0-147-generic`，串口出现 `Ubuntu 24.04.5 LTS ubuntu ttyS0` / `ubuntu login:` |
-| 目标启动证据 | `evidence/stage3-target-second-boot.log` SHA256 `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565`（宿主原始 `target-boot2.log` 为 `7a1b6e96…b4f16c`，差异仅尾部 QEMU 正常终止行） |
+| 目标二次启动 | 2026-11-11T02:22Z 独立 QEMU/SeaBIOS（无 direct-kernel；`target.img` 为唯一磁盘、`vda` `bootindex=1`）从克隆盘启动，内核 `6.8.0-147-generic`，串口出现 `Ubuntu 24.04.5 LTS ubuntu ttyS0` / `ubuntu login:`，`qemu_rc=0` |
+| 目标启动证据（本棒） | `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`（去标识化摘录）SHA256 `30bdea6c5715244290f742912e73d932648214c5001803b633306af1f7fbc332`；宿主原始串口日志 56,275 bytes，SHA256 `083ea333df9d89177767fc8ada81090ca1da382fa1bfde4758af74173ec63a08`；登录画面（宿主）PNG SHA256 `23626d20cabe9c94668c8ca21d7480d89737023e6bc78e140e914ebc3f94e94d`；另有 `.json` 与 `.sha256` |
+| 目标启动复核（09:42Z） | `evidence/stage3-target-second-boot.log` SHA256 `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565`（宿主原始 `target-boot2.log` 为 `7a1b6e96…b4f16c`，差异仅尾部 QEMU 正常终止行） |
 
 真实硬件、物理重启和物理介质仍不在本报告范围内；不能把 QEMU 结果写成实机 PASS。
-- 本机 PAWDATA/克隆/修复/网络 loop 套件：**BLOCKED（环境）**，当前 bash 通道
-  `NoNewPrivs=1`、`sudo -n` 失败、无法 attach loop。
 
 ## 1. 结论摘要（历史分支，Run `42804949796`）
 

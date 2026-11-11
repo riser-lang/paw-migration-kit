@@ -1,0 +1,26 @@
+PAW Migration Kit v2.7.1 — final delivery ISO identity
+Generated: 2026-11-11 UTC (Stage 4)
+
+Branch:        vm/ds-clean-handover-20261110
+Code HEAD:     24c13f731bfd6c8a70f2331eb0abe30686c29975 (24c13f7)
+Actions Run:   42941005270 (workflow_dispatch, success, 2026-11-11T02:03:39Z)
+Artifact:      13822300189, paw-live-build-test-results, 1,030,665,613 bytes
+Artifact TTL:  2026-11-14 02:03:21 UTC
+
+ISO file:      paw-live-amd64.iso
+ISO bytes:     953,155,584
+ISO SHA256:    822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09
+ISO layout:    System area summary: MBR isohybrid cyl-align-on GPT APM
+
+Sidecar and build identity in the same run agree:
+  822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09  boot/custom/paw-live-amd64.iso
+
+Independent workstation check:
+  downloaded the artifact ZIP (1,030,665,613 bytes); extracted
+  paw-live-amd64.iso; ran sha256sum over the extracted ISO file itself:
+  822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09
+  result: MATCH with the same run's sidecar and iso-identity.txt.
+
+Note: ISO builds are not byte-reproducible. Historical runs produced the same
+953,155,584-byte size with different SHA256 values. Only compare against the
+sidecar from the same run; never use an artifact ZIP hash as the ISO hash.

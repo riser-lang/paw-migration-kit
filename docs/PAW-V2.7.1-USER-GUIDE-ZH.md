@@ -1,21 +1,22 @@
 # PAW 迁移准备控制台 中文使用指南（v2.7.1）
 
-适用镜像：PAW Migration Live（Debian 13 Trixie，Legacy BIOS/UEFI 均可尝试）
+适用镜像：`paw-live-amd64.iso`（Debian 13 Trixie；本版只验证 Legacy BIOS/CSM，UEFI 未验证）
 控制台：`/dev/tty1`（普通显示器 + 键盘）
 串口：`ttyS0,115200n8` 仅用于诊断日志，不作为交互输入
 
 > 本指南对应当前交付分支 `vm/ds-clean-handover-20261110`（代码 HEAD
 > `24c13f7`，基线 `d640712` + 字体失败安全门禁）。Stage 3 的 26 步真实程序
-> 链路已在 QEMU 虚拟块设备上全部 PASS：真实 `paw-stream-clone.sh` /
+> 链路在 QEMU 虚拟块设备上均有真实执行证据：真实 `paw-stream-clone.sh` /
 > `paw-stream-verify.sh`、独立 SHA256、完整离线修复、GPT/ext4 扩容、首次启动、
-> 自动重启和 SeaBIOS 二次启动到 `ubuntu login:`。**真实 ASUS 主板、真实 TF
-> 卡/SSD、真实腾讯云 Rescue 和物理重启仍未验证**，不能把虚拟结果当成实机
-> 验收。
+> 自动重启，`target_boot` 由独立 QEMU/SeaBIOS 复核到 `ubuntu login:`。**真实
+> ASUS 主板、真实 TF 卡/SSD、真实腾讯云 Rescue 和物理重启仍未验证**，不能把
+> 虚拟结果当成实机验收。
 >
-> Stage 4 最终 ISO 的字节数和 SHA256 以仓库根目录
-> `PAW-V2.7.1-ISO-SHA256.txt` 及同一 CI Run 的侧车为准；写入 TF 卡前必须
-> 从 ISO 文件本身重算，不要使用 ZIP 哈希。若屏幕显示异常，请按第 7 节采集
-> 证据，不要直接写入任何磁盘。
+> Stage 4 最终 ISO：`paw-live-amd64.iso`，`953,155,584` bytes，SHA256
+> `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`（Run `42941005270`，代码 HEAD `24c13f7`）。权威侧车为仓库
+> 根目录 `PAW-V2.7.1-ISO-SHA256.txt` 和同一 Run 的
+> `paw-live-amd64.iso.sha256`；写入 TF 卡前必须从 ISO 文件本身重算，不要
+> 使用 ZIP 哈希。若屏幕显示异常，请按第 7 节采集证据，不要直接写入任何磁盘。
 
 ## 1. 启动前
 

@@ -1,6 +1,6 @@
 # PAW v2.7.1 第一段 BLOCKERS（本轮更新）
 
-更新日期：2026-11-11（Stage 3 close / Stage 4 delivery）
+更新日期：2026-11-11（Stage 3 close / Stage 4 ISO verified / target boot re-verified）
 历史证据分支：`fix/v2.6.2-final-readiness`
 当前干净交接分支：`vm/ds-clean-handover-20261110`
 当前代码 HEAD：`24c13f7`
@@ -9,11 +9,19 @@
 对应测试报告：`docs/PAW-V2.7.1-TEST-REPORT.md`
 保护边界：只使用虚拟磁盘/QEMU；未触碰旧 VPS、生产 PAW、真实 TF 卡或真实硬盘。
 
-> **Stage 3 已关闭**：18–26 步全部有真实 PASS 日志，包含 `auto_reboot` 先原子
-> 持久化并 `sync` 再执行重启，以及 SeaBIOS 从克隆目标盘启动到 `ubuntu login:`。
-> 证据见 `reports/PAW-STAGE3-RESUME-20261110.md`。Stage 4 正在等待代码 HEAD
-> `24c13f7` 的最终 CI Run `42941005270` 和 ISO 文件本身的 SHA256 复核。
-> 历史 Run `42804949796` 只对应 `bf1a705`，不是当前分支证据。
+> **Stage 3 已关闭**：18–25 步全部有真实 PASS 日志，包含 `auto_reboot` 先原子
+> 持久化并 `sync` 再执行重启。第 26 步 `target_boot` 的链路内检测器在
+> `chain_pass=True` 后被外层调度杀掉 QEMU（`qemu_rc=-9`）而报 `False`；随后用
+> 独立 QEMU/SeaBIOS（`target.img` 唯一磁盘、`vda` `bootindex=1`、无 direct
+> kernel）复核到 `Ubuntu 24.04.5 LTS ubuntu ttyS0` / `ubuntu login:`。证据：
+> `reports/PAW-STAGE3-RESUME-20261110.md` 与
+> `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`。
+> **Stage 4 已关闭（云端 ISO）**：代码 HEAD `24c13f7` 的 Run `42941005270`
+> **success**，artifact `13822300189`（1,030,665,613 bytes）已下载；ISO
+> `paw-live-amd64.iso` 953,155,584 bytes，SHA256
+> `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`，与同 Run
+> 侧车/`iso-identity.txt` 一致。历史 Run `42804949796` 只对应 `bf1a705`，不是
+> 当前分支证据。
 
 ## 状态汇总
 
@@ -22,8 +30,8 @@
 | PAW-271-B01 | 高 | 中文控制台字形无法显示 | **CLOSED（QEMU/fbcon 已验证）** | 发布前仍需实机 B03 |
 | PAW-271-B02 | 低 | 本机工具沙箱禁止 pty / sudo / loop attach | **OPEN（环境，已定根因）** | 本机 root/PTY 测试 BLOCKED；CI 真实执行 |
 | PAW-271-B03 | 高 | 真实 ASUS B85M-G Plus 显示器/键盘未验证 | **OPEN（实机验收）** | QEMU 只证明虚拟 VGA + PS/2 键盘 |
-| PAW-271-B04 | 中 | 最终发布 ISO 尚未完成下载复核 | **IN_PROGRESS** | Run `42941005270`（`24c13f7`）成功后下载 artifact，从 ISO 文件重算 SHA256，不采用 ZIP 哈希 |
-| PAW-271-B05 | 中 | 真实 `systemctl reboot` 未执行 | **OPEN（设计边界）** | 只验证 mock/注入 reboot |
+| PAW-271-B04 | 中 | 最终发布 ISO 下载复核 | **CLOSED（cloud ISO verified）** | Run `42941005270`（`24c13f7`）success；artifact `13822300189`（1,030,665,613 bytes）下载后，对 ISO 文件本身计算 SHA256 `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`，与同 Run 侧车一致。物理介质仍 OPEN（B03） |
+| PAW-271-B05 | 中 | 真实 `systemctl reboot` 未执行 | **QEMU 客机真实重启 PASS / physical OPEN** | Stage 3 在 QEMU 客机内真实执行 `systemctl reboot`，状态先持久化并 `sync`；真实 ASUS 硬件重启仍归物理验收（B03） |
 | PAW-271-B06 | 中 | 原有 79 项 loop/虚拟套件本机未执行 | **OPEN（环境；CI 执行）** | 本机无 CAP_SYS_ADMIN，不能 attach loop |
 | PAW-271-B07 | 低 | tty1 占用为阶段性快照 | 已缓解 | 交互前后与菜单阶段 `max_holders=1` |
 | PAW-271-B08 | 低 | Tailscale 登录链接改造未由本机网络套件执行 | OPEN | CI 网络 17 项覆盖 |
@@ -34,8 +42,8 @@
 | PAW-271-B13 | 低 | 本机 PTY 不可用（当前 Linux 沙箱 `/dev/ptmx` → Out of pty devices；历史 Windows 无 `termios`） | **OPEN（环境）** | 由 CI `PAW_REQUIRE_PTY=1` 覆盖 |
 | PAW-271-B14 | 高 | 字体门禁只在“报告 PASS”时允许写盘；8x16 回退是 WARN，必须拒绝 | **CLOSED（Run 42825407549）** | 缺报告/哈希/字体/setfont/过期 boot_id 全部 fail-closed；CI 26/26 + QEMU CJK 25/25；Run 42817841755 的 `(M) frame buffer device` 回归已由 4572280 修复并复跑通过 |
 | PAW-271-B15 | 高 | 第二阶段早期克隆用了 `PAW_SIMULATION=1`，生产块设备/SSH 入口和完整离线修复未执行 | **CLOSED（虚拟块设备范围）** | Stage 3 改用真实 `paw-stream-clone.sh`/`paw-stream-verify.sh` 在 QEMU virtio `/dev/vdb`→`/dev/vdc`、真实 loopback SSH、`mode=remote-zstd-level1-thread1` 上完成，并真实执行完整 `paw-offline-repair.sh`、GPT/ext4 扩容和两次目标启动。真实 SSD 仍归 P1-4/B03 之外的物理验收。见 `reports/PAW-STAGE3-RESUME-20261110.md` |
-| PAW-271-B16 | 高 | 第三阶段完整迁移链路未完成 | **CLOSED（QEMU 虚拟块设备）** | 26 步全部有真实 PASS 日志；`auto_reboot` 状态先持久化+`sync` 再重启，目标盘由 SeaBIOS 二次启动到 `ubuntu login:`。物理硬件仍 OPEN。 |
-| PAW-271-B17 | 高 | 第四阶段最终 ISO 尚未由当前代码 HEAD 下载并复核 | **IN_PROGRESS** | Run `42941005270`（`24c13f7`）必须是 success；下载 artifact 后从 ISO 文件计算 SHA256（不是 ZIP），写入 `PAW-V2.7.1-ISO-SHA256.txt` 和交付文档。 |
+| PAW-271-B16 | 高 | 第三阶段完整迁移链路未完成 | **CLOSED（QEMU 虚拟块设备）** | 26 步均有真实执行证据；18–25 步有 PASS 日志，`auto_reboot` 状态先持久化+`sync` 再重启；第 26 步由独立 QEMU/SeaBIOS 二次启动到 `ubuntu login:`（证据 `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`）。物理硬件仍 OPEN。 |
+| PAW-271-B17 | 高 | 第四阶段最终 ISO 下载复核 | **CLOSED（cloud ISO verified）** | Run `42941005270`（`24c13f7`）success；下载 artifact 后从 ISO 文件计算 SHA256 `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`（不是 ZIP），已写入 `PAW-V2.7.1-ISO-SHA256.txt` 和交付文档。 |
 
 ## PAW-271-B11 操作员面板不上屏幕（第二段修复）
 
@@ -144,10 +152,12 @@
   （字体槽位 418/417、`(M) frame buffer device` 名称误判），均已修复；Run
   `42825407549` 已全绿（gate 26/26、CJK 25/25、TTY 56/56）。这是第一段收尾
   的必要条件，不是最终发布验收。
-- 整体为 **STAGE 3 COMPLETE / STAGE 4 IN_PROGRESS / PHYSICAL OPEN**：
-  26 步链路和真实块设备克隆入口已在 QEMU 中完成，最终发布 ISO 正在用当前
-  代码 HEAD 的新 Run 生成并复核；真实 ASUS、真实重启、真实 TF/SSD 和现场验收
-  仍 OPEN。
+- 整体为 **STAGE 3 COMPLETE / STAGE 4 ISO VERIFIED / PHYSICAL OPEN**：
+  26 步链路和真实块设备克隆入口已在 QEMU 中完成，第 26 步 `target_boot` 由独立
+  QEMU/SeaBIOS 复核到 `ubuntu login:`；最终发布 ISO 已由代码 HEAD `24c13f7` 的
+  Run `42941005270` 构建并复核（SHA256
+  `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`）；真实
+  ASUS、真实硬件重启、真实 TF/SSD 和现场验收仍 OPEN。
 - 第二阶段/第三阶段已有 **虚拟块设备全链路 PASS**：真实 Ubuntu 24.04 raw、
   240GB 稀疏目标、真实项目 clone/verify（无 simulation 标志、loopback SSH）、
   完整离线修复、GPT/ext4 扩容、真实 GRUB/initramfs、SeaBIOS 二次启动登录。

@@ -1,6 +1,6 @@
 # PAW Migration Acceptance
 
-Updated: 2026-11-11 UTC (Stage 3 close / Stage 4 delivery round)
+Updated: 2026-11-11 UTC (Stage 3 close / Stage 4 ISO verified / target boot re-verified)
 Current branch: `vm/ds-clean-handover-20261110`
 Current code HEAD: `24c13f7`
 Base: `d640712`
@@ -42,27 +42,35 @@ Historical green run: `42804949796` on `bf1a705` (not current evidence)
 - [x] Production `paw-finalize-reboot.sh`: `reboot-status.json` atomically
       persisted and synced **before** `systemctl reboot`,
       `status_persisted_before_reboot=true`, `reboot_invoked=true`.
-- [x] SeaBIOS (no direct kernel) booted the cloned target a second time to
+- [x] SeaBIOS (no direct kernel) booted the cloned target to
       `Ubuntu 24.04.5 LTS ubuntu ttyS0` / `ubuntu login:`; target kernel
-      `6.8.0-147-generic`, not the Live kernel.
-- [x] Full 26-step chain has real PASS logs. Evidence:
-      `reports/PAW-STAGE3-RESUME-20261110.md`.
+      `6.8.0-147-generic`, not the Live kernel. Re-verified 2026-11-11T02:22Z
+      with `target.img` as the only disk (`vda` `bootindex=1`, no
+      `-kernel`/`-initrd`), `qemu_rc=0`; evidence
+      `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt` SHA256
+      `30bdea6c5715244290f742912e73d932648214c5001803b633306af1f7fbc332` (curated
+      excerpt; host raw log SHA256
+      `083ea333df9d89177767fc8ada81090ca1da382fa1bfde4758af74173ec63a08`).
+- [x] All 26 steps are accounted for by real PASS logs or the independent boot
+      verification. Evidence: `reports/PAW-STAGE3-RESUME-20261110.md`.
 
 Stage 2 is therefore **CLOSED for the virtual block-device lab**; physical SSD
 acceptance remains open (D).
 
 ## A2. Stage 4 final ISO and Chinese delivery
 
-- [ ] Final CI Run `42941005270` on `24c13f7` must be green.
-- [ ] Download `paw-live-build-test-results`, extract `paw-live-amd64.iso` and
-      compute SHA256 from the ISO file (never the ZIP).
-- [ ] Compare the computed ISO hash with the same run's
-      `paw-live-amd64.iso.sha256` / `iso-identity.txt`; record artifact ID,
-      size and expiry.
-- [ ] Write `PAW-V2.7.1-ISO-SHA256.txt` and update `DELIVERY.md`, `README.md`,
+- [x] Final CI Run `42941005270` on `24c13f7` is green: success, 20m 12s,
+      completed 2026-11-11T02:03:39Z.
+- [x] Downloaded `paw-live-build-test-results` artifact `13822300189`
+      (1,030,665,613 bytes, expires 2026-11-14 02:03:21 UTC), extracted
+      `paw-live-amd64.iso` (953,155,584 bytes) and computed SHA256 from the ISO
+      file: `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`.
+- [x] Compared with the same run's `paw-live-amd64.iso.sha256` /
+      `iso-identity.txt`: both match.
+- [x] Wrote `PAW-V2.7.1-ISO-SHA256.txt` and updated `DELIVERY.md`, `README.md`,
       `docs/PAW-V2.7.1-USER-GUIDE-ZH.md`, `docs/PAW-V2.7.1-TEST-REPORT.md`,
       `docs/PAW-V2.7.1-BLOCKERS.md` and the Stage 4 report with the verified hash.
-- [ ] Keep physical media acceptance OPEN.
+- [x] Kept physical media acceptance OPEN.
 
 ## B. Virtual boot acceptance
 
@@ -90,11 +98,11 @@ acceptance remains open (D).
 - [x] First-boot gate rejects incomplete/wrong-target receipts.
 - [x] Real production chain on QEMU virtio block devices reaches target login.
 
-Test totals (historical Run `42804949796`, code `bf1a705`): PAWDATA 12/12;
-fault injection 39/39; repair/rollback 15/15; network 17/17; finalize 36/36;
-TTY 56 (static 55 + PTY, 0 blocked); CJK font 1/1; QEMU CJK 5 cases / 96
-assertions. Current-branch Run `42825407549` additionally has gate 26/26 and
-TTY 56/56; the Stage 4 run must be recorded separately.
+Current Stage 4 Run `42941005270` (code `24c13f7`), all 0 failed: gate 26/26;
+PAWDATA 12/12; fault injection 39/39; repair/rollback 19/19; network 17/17;
+finalize 36/36; TTY 56/56 (static 55 + PTY, 0 blocked); CJK font 1/1; QEMU CJK
+5 cases / 96 assertions. Historical Run `42804949796` (code `bf1a705`) had
+repair/rollback 15/15 and remains historical evidence only.
 
 ## C2. Operator console acceptance
 
@@ -132,7 +140,12 @@ virtual results must not be marked as physical completion.
 
 - P0-1 font gate: **PASS** (local 26/26; CI green).
 - Stage 2 virtual block-device clone/boot: **PASS**; physical SSD **OPEN**.
-- Stage 3 26-step migration chain: **PASS** in QEMU/virtual disks.
-- Stage 4 final ISO and Chinese docs: **IN_PROGRESS** until the new ISO is
-  downloaded and hashed from the file.
+- Stage 3 26-step migration chain: **PASS** in QEMU/virtual disks; the chain's
+  own `target_boot` detector was cut by the outer scheduler, and the cloned
+  target boot to `ubuntu login:` was re-verified by an independent
+  QEMU/SeaBIOS run (`reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`).
+- Stage 4 final ISO and Chinese docs: **PASS for cloud delivery**. ISO
+  953,155,584 bytes, SHA256
+  `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`,
+  matching the same-run sidecar; physical media still OPEN.
 - Physical delivery: **NOT STARTED**; old VPS remains authoritative.

@@ -1,110 +1,101 @@
-# PAW Migration Kit v2.7 交付包
+# PAW Migration Kit v2.7.1 交付包
 
-交付更新时间：2026-11-10 UTC（第二轮接管）
-分支：`fix/v2.6.2-final-readiness`
-代码 HEAD（本次 ISO 与全部测试证据对应）：`bf1a705`
-文档 HEAD（仅文档，无代码/ISO 变化）：`bf1a705` 之后的文档提交
+交付更新时间：2026-11-11 UTC（Stage 3 close / Stage 4 ISO verified / target boot re-verified）
+分支：`vm/ds-clean-handover-20261110`
+代码 HEAD（本 ISO 与全部测试证据对应）：`24c13f7`
+文档 HEAD：本文件所在文档提交（只改文档，不改变脚本或 ISO）
 PR #2：<https://github.com/riser-lang/paw-migration-kit/pull/2>（Draft，未合并）
 PR #1：<https://github.com/riser-lang/paw-migration-kit/pull/1>（Draft，未改动）
+`main`：未改动
 
 ## 1. 最终构建
 
-- Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42804949796>
-- 结论：success（全部步骤通过，含 5 例 QEMU 中文用例）
-- Artifact ID：`13760370816`
+- Actions Run：<https://github.com/riser-lang/paw-migration-kit/actions/runs/42941005270>
+- 结论：**success**
+- 触发：`workflow_dispatch`，代码 HEAD `24c13f7`
+- Artifact ID：`13822300189`
 - Artifact 名称：`paw-live-build-test-results`
-- Artifact 大小：1,030,665,391 bytes
-- 过期时间：2026-11-13 11:27:18 UTC（保留 3 天）
-- 下载入口：打开 Actions Run 页面，在页面底部 Artifacts 区域下载；GitHub 需要
-  登录且有仓库读权限。若 `gh run download` 长时间无进度，改用 API + 显式代理
-  `curl` 直取 artifact zip。
+- Artifact 大小：`1,030,665,613` bytes
+- 过期时间：`2026-11-14 02:03:21 UTC`（GitHub 默认 3 天）
+- 下载入口：Actions Run 页面底部 Artifacts 区域；或
+  `gh run download 42941005270 -n paw-live-build-test-results`
+- 如果 `gh run download` 长时间无进度，改用 GitHub API artifact zip 端点 +
+  `curl` 直取，仍必须解压后对 ISO 文件本身计算哈希。
 
 ## 2. ISO
 
 - 文件：`paw-live-amd64.iso`
 - 字节数：`953,155,584`
-- SHA256：
-  `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`
-- 校验文件副本：Artifact 内 `paw-live-amd64.iso.sha256`、构建日志中的
-  `artifacts/iso-identity.txt`（字节数 + SHA256，不必先下载 1 GB）、以及
-  `reports/evidence-v2.7/iso-identity-run-42804949796.txt`
-- 分区结构：`MBR isohybrid cyl-align-on GPT APM`，Legacy BIOS 可启动，
-  含 Memtest86+ 独立 ISOLINUX 菜单项
+- SHA256：`822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`
+- 同一 Run 侧车：`paw-live-amd64.iso.sha256: 822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09  boot/custom/paw-live-amd64.iso`
+- 独立复核记录：`PAW-V2.7.1-ISO-SHA256.txt`、
+  `reports/evidence-v2.7/iso-identity-run-42941005270.txt`
+- 分区结构：`MBR isohybrid cyl-align-on GPT APM`（Legacy BIOS 可启动，含 Memtest86+ 独立菜单）
 
-### 2.1 已完成的独立复核
+### 2.1 独立复核（本次实际执行）
 
-本轮四次构建的 ISO 都在工作站上实际下载并重算哈希：
+- 从 Run `42941005270` 下载 `paw-live-build-test-results` artifact ZIP；
+- 解压得到 `paw-live-amd64.iso`；
+- 对 **ISO 文件本身**执行 `sha256sum`，得到 `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`；
+- 与同一 Run 的 `paw-live-amd64.iso.sha256` 和 `iso-identity.txt` 完全一致。
+- **没有**把 artifact ZIP 的哈希当作 ISO 哈希。
 
-- Run `42804949796`（交付件）：Artifact `13760370816` 下载 1,030,665,391 bytes，
-  解压后 `Get-FileHash -Algorithm SHA256` =
-  `d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476`，
-  与 Artifact 内 `paw-live-amd64.iso.sha256` **完全一致**；ISO `953,155,584` bytes。
-- Run `42795953493`：Artifact `13754343439` 下载并复核，
-  `17789c0444d6f8bac0ef24aa7d6a68871e1dfedb2d7b3fe0c50355288a6e0363` 与侧车一致。
-- Run `42747871471`：Artifact `13731684896` 同样下载并复核，
-  `2295eb0a8d9d61b93be3e91cfeee735c42529ed3223cbf14593047104939336d` 与侧车一致。
-
-下载方式说明：`gh run download` 在该网络下 20 分钟无字节写入（疑似代理），改用
-GitHub API artifact zip 端点 + `curl --proxy` 后完成。
-
-注意：ISO 构建**不是字节级可复现**。四次构建的 ISO 字节数同为 `953,155,584`，
-但 SHA256 各不相同（`2295eb0a…` / `17789c04…` / `2edf88a0…` / `d9fe2879…`）。
-核对哈希时必须使用**同一 Run** 的侧车文件，不能跨 Run 比较。
-
-下载后在 Windows 重新计算并核对（务必对上表或同一 Run 的侧车）：
-
-```powershell
-Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
-```
+> ISO 构建不是字节级可复现：历史多次构建的 ISO 字节数相同但 SHA256 不同。
+> 核对哈希时必须使用**同一 Run** 的侧车文件，不能跨 Run 比较，也不能用历史
+> Run `42804949796` 的 `d9fe2879…fb95a4476` 代替本交付件。
 
 ## 3. 交付内容
 
 - Debian Live ISO（Hybrid MBR/GPT、Legacy BIOS、Memtest86+ 独立菜单）。
-- 中文 PAW 控制台菜单：内存确认、PAWDATA、Rescue 源盘、目标 SSD、硬件、最终授权。
-- 操作员面板统一绑定已验证的 tty1（带 300 秒超时与 ASCII 屏幕标记）。
+- 中文 PAW 控制台菜单：内存确认、PAWDATA、Rescue 源盘、目标 SSD、硬件、
+  最终授权。
+- 操作员面板统一绑定已验证的 tty1（300 秒超时与 ASCII 屏幕标记）。
 - PAWDATA 自动引导与持久化。
 - Rescue 组合身份识别。
 - 远端 zstd + SSH + 本地解压 + 实际字节计数。
-- 独立 SHA256、离线修复、GPT/ext4 扩容、首次启动检查。
+- 独立 SHA256、完整离线修复、GPT/ext4 扩容、首次启动检查、自动重启。
+- **Stage 3 26 步真实程序链路证据**：`reports/PAW-STAGE3-RESUME-20261110.md`。
 - 用户说明：`docs/PAW-V2.7.1-USER-GUIDE-ZH.md`、`docs/PAW-V2.7-USER-GUIDE-ZH.md`
 - 回滚说明：`docs/PAW-V2.7-ROLLBACK-ZH.md`
-- 实机验证清单：`docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md`（7 项，含每步预期屏幕文字与失败处置）
-- 接管报告：`reports/PAW-V2.7-TAKEOVER.md`
-- P0 实现记录：`reports/PAW-V2.7-P0-IMPLEMENTATION.md`
-- 最终证据（上一轮）：`reports/PAW-V2.7-FINAL-EVIDENCE.md`
-- 测试报告：`docs/PAW-V2.7.1-TEST-REPORT.md`（第 7 节为 Run `42804949796` 实际计数）
+- 实机验证清单：`docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md`
+- 测试报告：`docs/PAW-V2.7.1-TEST-REPORT.md`
 - 阻断清单：`PAW-MIGRATION-BLOCKERS.md`、`docs/PAW-V2.7.1-BLOCKERS.md`
-- 软件清单：`software-packages.txt`、`software-packages.lock`、`software-manifest.txt`
+- 验收清单：`PAW-MIGRATION-ACCEPTANCE.md`
+- 软件清单：`software-packages.txt`、`software-packages.lock`、
+  `software-manifest.txt`
 - 构建来源：`build-provenance.txt`
 - 公开安全审计：`reports/PAW-PUBLIC-SECURITY-AUDIT.md`
+- 本 Run 的构建/测试报告副本：`reports/evidence-v2.7/run-42941005270/`
+- Stage 3 目标盘独立启动证据：
+  `reports/evidence/stage3-target-standalone-boot-20261111.{evidence.txt,json,command.txt,sha256}`
 
 ## 4. 验证状态矩阵
 
 | 层级 | 状态 | 证据 |
 |---|---|---|
-| 云端构建 | PASS | Run `42804949796` |
-| ISO SHA256 | PASS（构建生成） | `d9fe2879…fb95a4476` |
-| ISO 独立复核 | PASS（四次 Run 均复核） | Run `42804949796` 的 ISO 已下载并重算：`d9fe2879…` 与侧车一致；`42795953493`（`2edf88a0…`）、`42778468039`（`17789c04…`）与 `42747871471`（`2295eb0a…`）同样复核通过 |
-| ISO 字节级可复现 | NOT PROVEN | 同尺寸、三种不同 SHA256 |
-| QEMU SeaBIOS/TCG 虚拟启动 | PASS（fail-closed） | `qemu-smoke-report.txt` |
-| 中文 tty1 菜单（QEMU） | PASS | 5 例 / 96 断言 |
-| 中文授权面板（真实脚本、真实字形） | PASS | `qemu-cjk-final.log`（25 断言） |
-| PAWDATA 虚拟介质 | 12/12 PASS | `pawdata-virtual-test-report.txt` |
-| 虚拟克隆/故障注入 | 39/39 PASS | `virtual-fault-injection-report.txt` |
-| 离线修复/回滚 | 15/15 PASS | `repair-virtual-test-report.txt` |
-| 网络阶段 | 17/17 PASS | `network-virtual-test-report.txt` |
-| Finalize/重启门 | 36/36 PASS | `finalize-virtual-test-report.txt` |
-| TTY 绑定（静态 + PTY） | 55 静态 + 15 PTY PASS | `tty-virtual-test-report.txt` |
-| 真实 TF 卡写入 | NOT VERIFIED | 需用户实体操作 |
-| 真实 ASUS 主板启动 | NOT VERIFIED | 需用户实体操作 |
-| 真实 SSD/内存 | NOT VERIFIED | 需用户实体操作 |
-| 真实腾讯云 Rescue/正式迁移 | NOT VERIFIED | 需另行授权 |
+| 当前分支 CI | **PASS** | Run `42941005270`，代码 `24c13f7` |
+| 最终 ISO 构建 | **PASS** | Artifact `13822300189` |
+| ISO 文件 SHA256 复核 | **PASS** | `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`，与同 Run 侧车一致 |
+| ISO 字节级可复现 | NOT PROVEN | 历史多次同尺寸不同哈希 |
+| Stage 3 26 步链路 | **PASS（QEMU 虚拟块设备；`target_boot` 独立复核）** | `reports/PAW-STAGE3-RESUME-20261110.md` |
+| 目标盘独立启动（vda，无 direct kernel） | **PASS** | `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`，`ubuntu login:`，`qemu_rc=0`；宿主原始串口日志 SHA256 `083ea333…3ec63a08` |
+| 中文 tty1 菜单（QEMU） | **PASS** | `qemu-cjk-test-report.txt`（5 例） |
+| PAWDATA 虚拟介质 | **PASS** | `pawdata-virtual-test-report.txt` |
+| 虚拟克隆/故障注入 | **PASS** | `virtual-fault-injection-report.txt` |
+| 离线修复/回滚 | **PASS** | `repair-virtual-test-report.txt` |
+| 网络阶段 | **PASS** | `network-virtual-test-report.txt` |
+| Finalize/重启门 | **PASS** | `finalize-virtual-test-report.txt` |
+| TTY 绑定（静态 + PTY） | **PASS** | `tty-virtual-test-report.txt` |
+| 真实 TF 卡写入 | **NOT VERIFIED** | 需用户实体操作 |
+| 真实 ASUS 主板启动 | **NOT VERIFIED** | 需用户实体操作 |
+| 真实 SSD/内存 | **NOT VERIFIED** | 需用户实体操作 |
+| 真实腾讯云 Rescue/正式迁移 | **NOT VERIFIED** | 需另行授权 |
 
 ## 5. 使用顺序
 
-1. 取 ISO：用本机已下载的 `paw-live-amd64.iso`，或从 Run `42804949796` 的
-   Artifact 下载。
-2. 重新计算 ISO SHA256，与 `d9fe2879…fb95a4476`（或同一 Run 的侧车）对照。
+1. 从 Run `42941005270` 的 Artifact 取 `paw-live-amd64.iso`，或使用已下载且
+   哈希核对一致的文件。
+2. 重新计算 ISO SHA256，与 `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`（或同一 Run 的侧车）对照。
 3. 按 `docs/PAW-V2.7.1-USER-GUIDE-ZH.md` 用 Rufus DD 模式写 TF 卡
    （`reports/TF-CARD-RUFUS-GUIDE.md` 有图形步骤）。
 4. 新电脑 Legacy/CSM 启动，按 tty1 中文菜单逐项操作。
@@ -114,9 +105,11 @@ Get-FileHash .\paw-live-amd64.iso -Algorithm SHA256
 ## 6. 重要限制
 
 - `OPERATOR_CONFIRMED` 不是机器证明或密码学证明。
-- QEMU/mock/loop 结果不等于真实硬件。
+- QEMU/mock/loop 结果不等于真实硬件；Stage 3 是虚拟块设备链路，不是物理 SSD
+  验收。
 - 没有在云端写入任何真实磁盘或 TF 卡。
 - 没有访问生产 VPS。
 - 真实迁移必须由用户在场并单独授权。
-- 回退到继承 stdin/stdout 的运行方式（无控制台或输入被重定向）不能当作实机
+- 回退到继承 stdin/stdout（无控制台或输入被重定向）的运行方式不能当作实机
   tty1 证据。
+- 没有合并 PR #2，没有改 `main`，没有删除任何历史 Artifact。

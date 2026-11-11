@@ -1,0 +1,26 @@
+PAW Stage 3 — standalone target-disk boot: serial evidence excerpt
+Run: 2026-11-11T02:20:35Z .. 02:22:31Z (UTC)
+Boot: SeaBIOS, target.img is the only disk, vda bootindex=1, serial PAW-DST-123456,
+      no -kernel and no -initrd
+Verdict: TARGET_BOOT_SEEN, qemu_rc=0
+Host raw serial capture: 56,275 bytes, SHA256
+  083ea333df9d89177767fc8ada81090ca1da382fa1bfde4758af74173ec63a08
+Host QMP login screendump (PPM): SHA256
+  3ad79a800fb119215215659ab6492c000f832f344a3061415788b77214f2323ecc1
+(host PNG conversion: SHA256
+  23626d20cabe9c94668c8ca21d7480d89737023e6bc78e140e914ebc3f94e94d)
+
+This committed file is a curated excerpt of the raw capture. The full serial log
+and the screenshot remain host-side evidence; this excerpt keeps the decisive
+lines and redacts the cloned root UUID. No live-ISO kernel is present.
+
+--- decisive serial lines ---
+
+[    0.000000] Linux version 6.8.0-147-generic
+[    0.000000] Command line: BOOT_IMAGE=/vmlinuz-6.8.0-147-generic root=UUID=<redacted> ro console=tty1 console=ttyS0
+
+Welcome to Ubuntu 24.04.5 LTS!
+
+Ubuntu 24.04.5 LTS ubuntu ttyS0
+
+ubuntu login:

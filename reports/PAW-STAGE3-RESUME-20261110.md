@@ -3,7 +3,8 @@
 - 日期：2026-11-10 / 2026-11-11（UTC）
 - 分支：`vm/ds-clean-handover-20261110`
 - 执行模型：DS V4.1 Flash
-- 报告状态：**STAGE 3 COMPLETE（18–26 全部 PASS）；STAGE 4 IN_PROGRESS**
+- 报告状态：**STAGE 3 COMPLETE（26 步全部完成；18–25 PASS 日志 +
+  target_boot 独立复核）；STAGE 4 ISO VERIFIED；PHYSICAL OPEN**
   （任何 PASS 只在本文件对应的真实日志存在时成立）
 - 保护边界：只用 `~/paw-stage34-20261110` 下的虚拟镜像；未访问旧 VPS、未进入 Rescue
   Mode、未读生产整盘、未写真实 TF 卡/SSD、未改生产 PAW/Tailscale/Funnel/Xray/Nginx/443/
@@ -117,7 +118,8 @@ lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
   然后执行真实 `paw-offline-repair.sh`；不重新克隆，不绕过授权。
 
 - `e3ff373`：提交并推送 QEMU lab harness、6 个生产脚本修复、证据 watcher。
-- GitHub Actions `42927263659`：分支完整构建/测试发布候选 ISO（进行中，结果见后续更新）。
+- GitHub Actions `42927263659`：历史中间构建运行，不作为最终发布证据；最终发布
+  Run 为 `42941005270`（见第 6 节）。
 - Ubuntu 源镜像下载完成，SHA256 与 Stage 2 记录一致：
   `04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94`。
 - 源盘 qcow2 → raw 转换完成：3,758,096,384 bytes；source.raw 全盘 SHA256 记录在
@@ -169,14 +171,18 @@ lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
   目标前 3.75GB 原始哈希，也没有伪造 `verified_at`。
 - finalize 消费授权后，后续 continuation 只做幂等收尾；没有再次扩盘或重复消费。
 
-## 6. Stage 4（进行中）
+## 6. Stage 4（已完成：云端 ISO 复核）
 
 Stage 3 链路完成后，最终发布 ISO 由分支 `vm/ds-clean-handover-20261110`
-代码 HEAD `24c13f7` 触发的新 CI Run `42941005270` 构建；ISO 文件下载后必须
-从 ISO 本身重算 SHA256（不采用 ZIP 哈希），再写入交付文档和
-`PAW-V2.7.1-ISO-SHA256.txt`。中文用户指南、状态、阻断清单、验收清单和最终
-交付报告随该 ISO 的实测哈希更新。五项真实硬件项保持 OPEN，不因虚拟链路 PASS
-而关闭。
+代码 HEAD `24c13f7` 触发的 CI Run `42941005270` 构建（success，20m 12s，
+2026-11-11T02:03:39Z）。Artifact `13822300189`（`paw-live-build-test-results`，
+1,030,665,613 bytes）下载并解压后，对 ISO 文件本身重算 SHA256（不采用 ZIP
+哈希）：`paw-live-amd64.iso` 953,155,584 bytes，SHA256
+`822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`，与同 Run
+的侧车/`iso-identity.txt` 一致。该值已写入 `PAW-V2.7.1-ISO-SHA256.txt`、
+`DELIVERY.md`、中文用户指南、状态、阻断清单、验收清单和最终交付报告；最终
+交付报告为 `reports/PAW-STAGE4-DELIVERY-20261111.md`。五项真实硬件项保持 OPEN，
+不因虚拟链路 PASS 而关闭。
 
 ## 7. 本阶段证据与独立哈希
 
@@ -193,7 +199,7 @@ Stage 3 链路完成后，最终发布 ISO 由分支 `vm/ds-clean-handover-20261
   **原始字节** SHA256 变为 `22ffecbe...0dc2ce`；这是挂载后的正常元数据变化，
   不是克隆损坏。独立校验结论以挂载前的 00:33:55Z 收据为准，未重复伪造。
 
-### 7.2 目标盘首次启动
+### 7.2 目标盘独立启动与复核
 
 - 独立 QEMU（无 `-kernel`/`-initrd`，SeaBIOS 从 `target.img` 启动）：
   证据副本 `evidence/stage3-target-second-boot.log`，SHA256
@@ -207,6 +213,23 @@ Stage 3 链路完成后，最终发布 ISO 由分支 `vm/ds-clean-handover-20261
   `Ubuntu 24.04.5 LTS ubuntu ttyS0`、`ubuntu login:`。
 - 该启动的内核为 `6.8.0-147-generic`，与目标 `/boot` 中的 Ubuntu 内核一致；
   不是 live ISO 的 `6.12.113+deb13-amd64`。
+- **2026-11-11T02:20–02:22Z 独立再复核（本棒）**：`target.img` 作为唯一磁盘、
+  `vda` `bootindex=1`、`serial=PAW-DST-123456`，SeaBIOS 从磁盘启动，无
+  `-kernel`/`-initrd`。串口再次出现 `Ubuntu 24.04.5 LTS ubuntu ttyS0` /
+  `ubuntu login:`，内核 `6.8.0-147-generic`，`qemu_rc=0`。仓库证据：
+  `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`
+  （去标识化串口摘录，SHA256
+  `30bdea6c5715244290f742912e73d932648214c5001803b633306af1f7fbc332`）、
+  同目录 `.json`、`.command.txt` 和 `.sha256`。宿主原始串口日志 56,275 bytes
+  （SHA256 `083ea333df9d89177767fc8ada81090ca1da382fa1bfde4758af74173ec63a08`）
+  与宿主登录画面 PPM/PNG（PNG SHA256
+  `23626d20cabe9c94668c8ca21d7480d89737023e6bc78e140e914ebc3f94e94d`）保留在
+  `~/paw-stage34-20261110/targetboot/run1/`，仓库不提交含 UUID 的原始日志和
+  二进制截图。
+- 链路进程 `resume-run17.log` 的 `target_boot=False qemu_rc=-9` 是外层调度在
+  `chain_pass=True` 之后、等待目标启动时杀掉 QEMU 的结果，不是目标盘不能启动；
+  上述独立 QEMU 复核补齐了第 26 步的启动证据，没有把被杀进程的 `False`
+  改写成链路内检测成功。
 
 ### 7.3 最终报告文件（宿主 evidence 副本）
 
@@ -236,9 +259,14 @@ Stage 3 链路完成后，最终发布 ISO 由分支 `vm/ds-clean-handover-20261
 
 ## 8. 结论
 
-Stage 3 后段 9 步（18–26）全部有真实 PASS 证据；目标盘已由 SeaBIOS 从克隆盘启动
-到 Ubuntu 24.04.5 LTS 的 `ubuntu login:`。链路的克隆/校验/修复/扩容/首次启动/
-重启都走生产脚本入口和真实块设备（QEMU virtio），不是 `PAW_SIMULATION=1` 的
-本地管道夹具；因此上一阶段遗留的“生产块设备/SSH 克隆入口与完整离线修复”
-缺口在虚拟块设备范围内已经补齐（真实硬件仍 OPEN）。Stage 4 的最终发布 ISO、
-ISO 文件本身 SHA256 复核、中文交付文档和最终报告在后续提交中完成。
+Stage 3 后段 9 步（18–26）全部有真实 PASS 证据；第 26 步 `target_boot` 的启动
+结论由独立 QEMU/SeaBIOS（`target.img` 唯一磁盘、`vda` `bootindex=1`、无
+direct kernel）在 2026-11-11T02:22Z 复核到 Ubuntu 24.04.5 LTS 的
+`ubuntu login:`，证据见 7.2。链路的克隆/校验/修复/扩容/首次启动/重启都走生产
+脚本入口和真实块设备（QEMU virtio），不是 `PAW_SIMULATION=1` 的本地管道夹具；
+因此上一阶段遗留的“生产块设备/SSH 克隆入口与完整离线修复”缺口在虚拟块设备
+范围内已经补齐（真实硬件仍 OPEN）。Stage 4 的最终发布 ISO 已由 Run
+`42941005270`（代码 `24c13f7`）构建，ISO 文件 953,155,584 bytes、SHA256
+`822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`，与同 Run
+侧车一致；中文交付文档和最终报告已完成。物理介质/ASUS/SSD/腾讯云 Rescue 仍
+OPEN。

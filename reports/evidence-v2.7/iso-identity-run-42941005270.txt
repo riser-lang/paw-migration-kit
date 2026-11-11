@@ -1,0 +1,46 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42941005270
+
+Run:           42941005270 (workflow_dispatch, PAW live build and isolated tests)
+Code HEAD:     24c13f731bfd6c8a70f2331eb0abe30686c29975 (24c13f7)
+Started:       2026-11-11T01:43:27Z
+Completed:     2026-11-11T02:03:39Z
+Artifact ID:   13822300189
+Artifact name: paw-live-build-test-results
+Artifact bytes: 1,030,665,613
+Artifact TTL:  2026-11-14 02:03:21 UTC
+
+ISO file:      paw-live-amd64.iso
+ISO bytes:     953,155,584
+ISO SHA256:    822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09
+ISO layout:    System area summary: MBR isohybrid cyl-align-on GPT APM
+
+Build-side value (artifact/iso-identity.txt):
+  iso_bytes=953155584
+  822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09  boot/custom/paw-live-amd64.iso
+
+Artifact ZIP integrity:
+  downloaded bytes = 1,030,665,613 (exact artifact size)
+  ZIP SHA256 = f4c5c3eae5c08a1dcd3d1f1720acbd25ce5c5178d9d58595ccb40c9ee98f95ea
+  (the ZIP hash is recorded only for transfer integrity; it is not the ISO hash)
+
+Independent workstation check:
+  extracted the ISO from the artifact ZIP; ran sha256sum over the ISO file
+  itself; computed value equals the sidecar and build-side value above.
+  result = MATCH
+
+Delivery copy:
+  root sidecar PAW-V2.7.1-ISO-SHA256.txt carries the same value.
+  Recompute after any copy/move before writing a TF card.
+
+Note: the ISO build is not byte-reproducible. Historical runs produced
+953,155,584 bytes with different SHA256 values, so a hash may only be compared
+against the sidecar of the same run.
+
+Scope of the tests behind this run (all 0 failed):
+  font gate 26, PAWDATA 12, fault injection 39, offline repair 19, network 17,
+  finalize 36, TTY 56 (static 55 + PTY 15), CJK font 1,
+  QEMU CJK 5 cases / 96 assertions (26+17+17+11+25).
+
+Not covered by this run: real TF card write/read-back, real ASUS boot, real SSD
+SMART/scan/temperature, real Tencent Cloud Rescue SSH, real full-disk clone, real
+PAW migration, and physical Memtest86+.

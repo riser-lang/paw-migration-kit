@@ -1,0 +1,28 @@
+{
+ "schema": "paw.target-standalone-boot.v1",
+ "status": "TARGET_BOOT_SEEN",
+ "run": "stage3-target-standalone-boot-20261111",
+ "started_at": "2026-11-11T02:20:35Z",
+ "finished_at": "2026-11-11T02:22:31Z",
+ "boot": "SeaBIOS order=c; target.img is the only disk, vda bootindex=1, serial PAW-DST-123456; no -kernel/-initrd",
+ "disk": "lab/boot/target.img, 257,698,037,760 bytes (240 GiB sparse), cloned from the Ubuntu 24.04.5 source disk",
+ "kernel": "6.8.0-147-generic",
+ "kernel_cmdline": "BOOT_IMAGE=/vmlinuz-6.8.0-147-generic root=UUID=<redacted> ro console=tty1 console=ttyS0",
+ "banner": "Ubuntu 24.04.5 LTS ubuntu ttyS0",
+ "login_line": "ubuntu login:",
+ "qemu_rc": 0,
+ "serial_log_bytes": 56275,
+ "redaction": "The committed evidence.txt is a curated excerpt with the cloned root UUID redacted. The full 56,275-byte serial capture and the PPM screenshot remain host-side evidence. No live-ISO kernel or initrd was used.",
+ "evidence_sha256": {
+  "serial_log_host": "083ea333df9d89177767fc8ada81090ca1da382fa1bfde4758af74173ec63a08",
+  "screenshot_ppm_host": "3ad79a800fb119215215659ab6492c000f832f344a3061415788b77214f2323ecc1",
+  "screenshot_png_host": "23626d20cabe9c94668c8ca21d7480d89737023e6bc78e140e914ebc3f94e94d",
+  "evidence_excerpt": "30bdea6c5715244290f742912e73d932648214c5001803b633306af1f7fbc332"
+ },
+ "files": [
+  "stage3-target-standalone-boot-20261111.evidence.txt",
+  "stage3-target-standalone-boot-20261111.json",
+  "stage3-target-standalone-boot-20261111.command.txt",
+  "stage3-target-standalone-boot-20261111.sha256"
+ ]
+}
