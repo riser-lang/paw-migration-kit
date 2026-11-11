@@ -209,6 +209,8 @@ def qemu_cmd(args, devices=True):
         "-qmp", f"unix:{args.work}/qmp.sock,server=on,wait=off",
         "-monitor", f"unix:{args.work}/mon.sock,server=on,wait=off",
     ]
+    for spec in getattr(args, "fw_cfg", []):
+        cmd += ["-fw_cfg", spec]
     if devices:
         cmd += [
             "-drive", f"file={args.work}/boot/guest.img,if=none,id=vda,format=raw,cache=unsafe",
@@ -224,7 +226,16 @@ def qemu_cmd(args, devices=True):
             "-device", "virtio-net-pci,netdev=n0",
             "-virtfs", f"local,path={args.work}/share,mount_tag=hostshare,security_model=none,readonly=off",
         ]
-    if args.mode == "prepare":
+    if getattr(args, "direct_kernel", False):
+        append = "root=/dev/vda2 rw console=tty1 console=ttyS0,115200n8"
+        if args.append_extra:
+            append += " " + args.append_extra
+        cmd += [
+            "-kernel", f"{args.work}/iso/live/vmlinuz",
+            "-initrd", args.initrd or f"{args.work}/boot/initrd.img",
+            "-append", append,
+        ]
+    elif args.mode == "prepare":
         cmd += [
             "-kernel", f"{args.work}/iso/live/vmlinuz",
             "-initrd", f"{args.work}/boot/initrd.img",
@@ -359,7 +370,7 @@ def run_main(args):
             # real getty login prompt; the live guest autologins on ttyS0.
             # Accept the login line even if the guest script was cut off by the
             # real reboot after it had already emitted every report step.
-            if final_phase and "login:" in line:
+            if (final_phase or target_deadline is not None) and "login:" in line:
                 target_boot_seen = True
         if final_phase and target_deadline and time.time() > target_deadline and not target_boot_seen:
             result = "TARGET_BOOT_TIMEOUT"
@@ -393,6 +404,14 @@ def main():
     ap.add_argument("--mode", choices=("prepare", "main"), required=True)
     ap.add_argument("--timeout", type=int, default=7200)
     ap.add_argument("--target-timeout", type=int, default=900)
+    ap.add_argument("--direct-kernel", action="store_true",
+                    help="boot vmlinuz/initrd directly instead of the guest GRUB")
+    ap.add_argument("--initrd", default=None,
+                    help="override initrd path for --direct-kernel")
+    ap.add_argument("--append-extra", default="",
+                    help="extra kernel command line words for --direct-kernel")
+    ap.add_argument("--fw-cfg", action="append", default=[],
+                    help="QEMU -fw_cfg NAME,FILE specification (repeatable)")
     args = ap.parse_args()
     os.makedirs(f"{args.work}/share", exist_ok=True)
     if args.mode == "prepare":
