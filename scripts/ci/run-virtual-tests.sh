@@ -226,6 +226,7 @@ unset PAW_TEST_ZSTD_MODE
 printf '\377' | dd of="$target_loop" bs=1 seek=0 conv=notrunc status=none
 expect_fail 'Corrupted destination SHA256' "$root/scripts/paw-stream-verify.sh" "$source_loop" "$target_loop"
 dd if=/dev/zero of="$target_loop" bs=1M count=16 conv=notrunc status=none
+write_configs "$source_loop" "$target_loop"
 "$root/scripts/paw-stream-clone.sh" "$source_loop" "$target_loop"
 "$root/scripts/paw-stream-verify.sh" "$source_loop" "$target_loop"
 pass 'Re-run to fresh verified virtual target clears incomplete state'
