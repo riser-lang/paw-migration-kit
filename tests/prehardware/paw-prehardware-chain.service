@@ -1,0 +1,15 @@
+[Unit]
+Description=PAW v2.8 disposable QEMU pre-hardware acceptance chain
+After=paw-console.service
+ConditionPathExists=!/run/paw-prehardware-done
+
+[Service]
+Type=oneshot
+ExecStartPre=-/bin/systemctl stop paw-console.service
+ExecStart=/opt/paw-migration/tests/prehardware/guest-chain.sh
+TimeoutStartSec=0
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

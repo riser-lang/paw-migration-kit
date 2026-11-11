@@ -29,6 +29,9 @@ done
 [[ "$countdown" =~ ^[0-9]+$ ]] && ((countdown >= 1 && countdown <= 600)) || die '重启倒计时必须是 1-600 秒的整数。'
 [[ -n "$reboot_cmd" ]] || die '重启命令不能为空。'
 mkdir -p "$PAW_REPORT_DIR" "$(dirname "$status_file")"
+if [[ ${PAW_FINALIZE_TEST_MODE:-0} != 1 ]]; then
+  assert_transaction_stage finalize
+fi
 
 say(){
   if [[ -c "$tty_dev" ]]; then printf '%s\n' "$*" >"$tty_dev"; else printf '%s\n' "$*" >&2; fi
@@ -97,12 +100,12 @@ raise SystemExit(0 if ok else 1)
 PY
 evidence_pass "$evidence_dir/offline-repair.json" '离线修复'
 evidence_pass "$evidence_dir/gpt-expand.json" 'GPT/ext4 扩容'
-evidence_pass "$evidence_dir/firstboot-check.json" '首次启动检查'
+evidence_pass "$evidence_dir/preboot-handoff.json" '重启前交接检查'
 
 python3 - "$completion_data" <<'PY' || fail_finalize BLOCKED '完成记录门禁' '完成数据不是 PASS 或步骤不完整'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
-required={"clone","sha256","offline_repair","gpt_ext4_expand","firstboot"}
+required={"clone","sha256","offline_repair","gpt_ext4_expand","preboot_handoff"}
 checks=d.get("checks") or {}
 ok=d.get("status")=="PASS" and required <= set(checks) and all(checks[k]=="PASS" for k in required)
 raise SystemExit(0 if ok else 1)
@@ -149,9 +152,16 @@ fi
 # 7: sync all filesystems before announcing success.
 sync || fail_finalize FAIL 'sync' 'sync 失败'
 
+# 7b: legacy BIOS cannot be reprogrammed from Linux.  Refuse an automatic
+# reboot that would likely re-enter the live USB; the operator must remove it
+# and explicitly arm the removal.
+if [[ ${PAW_FINALIZE_TEST_MODE:-0} != 1 ]]; then
+  "$PAW_ROOT/scripts/paw-reboot-media-check.sh" || fail_finalize BLOCKED '启动介质顺序' 'PAW-LIVE 介质仍在；移除 USB/TF 并设置 PAW_LIVE_MEDIA_REMOVED 后才能自动重启'
+fi
+
 # 8-10: Chinese success notice, cancellable countdown, reboot.
 say '[PAW-REBOOT] all gates PASS; completion record is atomic and synced.'
-say 'PAW 迁移成功：克隆、独立 SHA256 校验、离线修复、GPT/ext4 扩容和首次启动检查全部通过。'
+say 'PAW 迁移成功：克隆、独立 SHA256 校验、离线修复、GPT/ext4 扩容和重启前交接检查全部通过。'
 say '完成记录已原子写入并同步到磁盘。'
 say "系统将在 ${countdown} 秒后自动重启进入正式 Ubuntu；按 C 取消自动重启。"
 say "Auto reboot in ${countdown}s; press C to cancel."
@@ -197,6 +207,9 @@ rc=$?
 set -e
 if ((rc != 0)); then
   write_reboot_status NEEDS_MANUAL_ACTION "reboot 命令失败，退出码 ${rc}" false "{\"reboot_exit_code\":${rc}}"
+  if [[ ${PAW_FINALIZE_TEST_MODE:-0} != 1 ]]; then
+    transaction_event NEEDS_MANUAL_ACTION --phase finalize --reason "reboot command failed rc=$rc" || true
+  fi
   log ERROR "reboot 命令失败，退出码 ${rc}；需要人工重启。"
   say '自动重启命令执行失败！迁移数据已完成，请立即手动重启：sudo systemctl reboot'
   say '[PAW-REBOOT] FAILED; migration data is complete, run: sudo systemctl reboot'

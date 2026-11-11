@@ -46,12 +46,14 @@ require_sim_or_enrollment(){
   require_target_enrollment
   [[ ${PAW_DESTRUCTIVE_ARM:-} == 'I_HAVE_VERIFIED_THE_TARGET_SERIAL' ]] || die 'Destructive operation not armed.'
   [[ -r "$PAW_REPORT_DIR/operator-authorization.json" ]] || die 'Fresh operator authorization receipt is missing.'
+  # Expiry is enforced by assert_transaction_stage at the clone-start edge,
+  # not here: a clone that has already started must survive the six-hour
+  # authorization window through verify/repair/expand.
   python3 - "$PAW_REPORT_DIR/operator-authorization.json" <<'PY'
-import datetime,json,sys
+import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
-if d.get("status")!="AUTHORIZED": raise SystemExit("authorization is not active")
-expiry=datetime.datetime.fromisoformat(d.get("expires_at",""))
-if expiry.tzinfo is None or expiry <= datetime.datetime.now(datetime.timezone.utc): raise SystemExit("authorization expired")
+if d.get("status") not in ("AUTHORIZED","CONSUMED"):
+    raise SystemExit("authorization is not active")
 PY
   [[ -r "$PAW_CONFIG_DIR/source.json" ]] || die 'No source enrollment.'
   grep -q '"source_mode": "rescue"' "$PAW_CONFIG_DIR/source.json" || die 'Source must be Rescue Mode.'
@@ -66,10 +68,39 @@ assert_authorization_for_target(){
   python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$serial" "$parent" "$expected" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
-if d.get("status")!="AUTHORIZED" or d.get("target_serial")!=sys.argv[2] or d.get("target_device")!=sys.argv[3] or sys.argv[3]!=sys.argv[4]:
+if d.get("status") not in ("AUTHORIZED","CONSUMED") or d.get("target_serial")!=sys.argv[2] or d.get("target_device")!=sys.argv[3] or sys.argv[3]!=sys.argv[4]:
     raise SystemExit("authorization does not match the current target")
 PY
 }
+transaction_path(){ printf '%s\n' "${PAW_TRANSACTION_FILE:-$PAW_REPORT_DIR/migration-transaction.json}"; }
+assert_transaction_stage(){
+  local stage="$1" tx
+  tx="$(transaction_path)"
+  [[ -r "$tx" && -r "$PAW_CONFIG_DIR/source.json" && -r "$PAW_CONFIG_DIR/target-ssd.json" && -r "$PAW_REPORT_DIR/operator-authorization.json" ]] \
+    || die "迁移事务状态不完整，拒绝进入 $stage 阶段。"
+  python3 "$PAW_ROOT/scripts/paw-transaction.py" assert \
+    --transaction "$tx" \
+    --authorization "$PAW_REPORT_DIR/operator-authorization.json" \
+    --source-config "$PAW_CONFIG_DIR/source.json" \
+    --target-config "$PAW_CONFIG_DIR/target-ssd.json" \
+    --stream-verify "$PAW_REPORT_DIR/stream-verify.json" \
+    --stage "$stage" \
+    || die "迁移事务状态机拒绝进入 $stage 阶段。"
+}
+transaction_event(){
+  local event="$1" tx; shift
+  tx="$(transaction_path)"
+  python3 "$PAW_ROOT/scripts/paw-transaction.py" event --transaction "$tx" --event "$event" "$@" \
+    || die "迁移事务无法记录事件 $event。"
+}
+transaction_init(){
+  python3 "$PAW_ROOT/scripts/paw-transaction.py" init \
+    --transaction "$(transaction_path)" \
+    --authorization "$PAW_REPORT_DIR/operator-authorization.json" \
+    --source-config "$PAW_CONFIG_DIR/source.json" \
+    --target-config "$PAW_CONFIG_DIR/target-ssd.json" || die '无法创建迁移事务。'
+}
+
 parent_disk(){ local p; p="$(lsblk -dn -o PKNAME "$1" | xargs)"; [[ -n "$p" ]] && printf '/dev/%s\n' "$p" || printf '%s\n' "$1"; }
 assert_sim_files(){
   local root src dst; root="$(realpath -e "$PAW_ROOT/tests/virtual" 2>/dev/null || true)"

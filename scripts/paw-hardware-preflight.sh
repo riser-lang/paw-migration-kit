@@ -33,6 +33,15 @@ fi
 if [[ "$dev" == /dev/nvme* ]] && command -v nvme >/dev/null 2>&1; then
   nvme smart-log "$dev" >"$PAW_REPORT_DIR/nvme-smart-log.txt" 2>&1 || { [[ $status == FAIL ]] || status=WARN; reasons+=('NVMe temperature/health log unavailable'); }
 fi
+smart_json="$PAW_REPORT_DIR/smart-$(basename "$dev").json"
+if [[ -r "$smart_json" ]]; then
+  smart_class="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("classification","UNKNOWN"))' "$smart_json" 2>/dev/null || echo UNKNOWN)"
+  smart_state="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status","UNKNOWN"))' "$smart_json" 2>/dev/null || echo UNKNOWN)"
+  if [[ "$smart_state" != PASS ]]; then
+    [[ $status == FAIL ]] || status=WARN
+    reasons+=("SMART $smart_state ($smart_class)")
+  fi
+fi
 smart_report="$PAW_REPORT_DIR/smart-$(basename "$dev").txt"
 if [[ -r "$smart_report" ]] && grep -Eai 'UDMA_CRC_Error_Count|CRC_Error_Count' "$smart_report" | awk '($NF+0)>0 {found=1} END {exit !found}'; then
   [[ $status == FAIL ]] || status=WARN

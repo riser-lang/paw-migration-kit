@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# Build the disposable v2.8 pre-hardware QEMU lab:
+#   * release ISO root filesystem (injected with this branch's scripts)
+#   * a bootable lab guest disk (BIOS Boot + ext4 root, /dev/vda2)
+#   * a 32 GB PF/USB media image carrying the release ISO
+# The 50 GiB source and 240 GB target are created by prepare-images.sh.
+# Unprivileged: mke2fs -d + fakeroot, no host loop or mount.
+set -Eeuo pipefail
+iso="${1:?usage: build-lab.sh ISO WORKDIR}"
+work="${2:?usage: build-lab.sh ISO WORKDIR}"
+repo="$(cd "$(dirname "$0")/../.." && pwd)"
+xorriso="${XORRISO:-xorriso}"
+
+mkdir -p "$work"/{iso,rootfs,boot}
+install -d -m 0755 "$work/iso/live"
+if [[ ! -s "$work/iso/live/filesystem.squashfs" ]]; then
+  echo "[prehw] extracting ISO live files"
+  "$xorriso" -osirrox on -indev "$iso" \
+    -extract /live/filesystem.squashfs "$work/iso/live/filesystem.squashfs" \
+    -extract /live/vmlinuz "$work/iso/live/vmlinuz" \
+    -extract /live/initrd.img "$work/iso/live/initrd.img" 2>"$work/xorriso.log"
+fi
+[[ -s "$work/iso/live/filesystem.squashfs" ]] || { echo 'missing squashfs' >&2; exit 2; }
+
+if [[ ! -x "$work/rootfs/sbin/init" ]]; then
+  echo "[prehw] unsquashing release root filesystem"
+  rm -rf "$work/rootfs"
+  rc=0
+  unsquashfs -d "$work/rootfs" "$work/iso/live/filesystem.squashfs" >"$work/unsquashfs.log" || rc=$?
+  if [[ "$rc" -ne 0 && "$rc" -ne 2 ]]; then echo "unsquashfs failed rc=$rc" >&2; exit "$rc"; fi
+fi
+rootfs="$work/rootfs"
+[[ -x "$rootfs/sbin/init" ]] || { echo 'release rootfs has no init' >&2; exit 2; }
+
+echo "[prehw] injecting branch scripts and v2.8 harness"
+install -d "$rootfs/opt/paw-migration/tests/prehardware"
+rm -rf "$rootfs/opt/paw-migration/scripts"
+cp -a "$repo/scripts/." "$rootfs/opt/paw-migration/scripts/"
+cp -a "$repo/configs/." "$rootfs/opt/paw-migration/configs/"
+cp -a "$repo/tests/prehardware/guest-chain.sh" "$rootfs/opt/paw-migration/tests/prehardware/guest-chain.sh"
+cp -a "$repo/tests/prehardware/install-guest-grub.sh" "$rootfs/opt/paw-migration/tests/prehardware/install-guest-grub.sh"
+chmod 0755 "$rootfs/opt/paw-migration/tests/prehardware/"*.sh
+install -m 0644 "$repo/tests/prehardware/paw-prehardware-chain.service" "$rootfs/etc/systemd/system/paw-prehardware-chain.service"
+ln -sfn /etc/systemd/system/paw-prehardware-chain.service "$rootfs/etc/systemd/system/multi-user.target.wants/paw-prehardware-chain.service"
+install -m 0644 "$work/iso/live/vmlinuz" "$rootfs/boot/vmlinuz"
+
+# Disposable serial autologin only for the QEMU lab; the production ISO keeps
+# its normal getty behaviour.
+install -d "$rootfs/etc/systemd/system/serial-getty@ttyS0.service.d"
+cat >"$rootfs/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf" <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud 115200,38400,9600 %I $TERM
+UNIT
+install -d "$rootfs/etc/systemd/system/getty.target.wants"
+ln -sfn /lib/systemd/system/serial-getty@ttyS0.service "$rootfs/etc/systemd/system/getty.target.wants/serial-getty@ttyS0.service"
+
+# One-shot GRUB BIOS install for the disposable lab guest disk only.
+cat >"$rootfs/etc/systemd/system/paw-prehardware-grub-install.service" <<'UNIT'
+[Unit]
+Description=PAW v2.8 lab GRUB install (disposable QEMU /dev/vda only)
+After=local-fs.target
+ConditionPathExists=!/boot/grub/grub.cfg
+
+[Service]
+Type=oneshot
+ExecStart=/opt/paw-migration/tests/prehardware/install-guest-grub.sh
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+ln -sfn /etc/systemd/system/paw-prehardware-grub-install.service "$rootfs/etc/systemd/system/multi-user.target.wants/paw-prehardware-grub-install.service"
+
+copy_with_libs(){
+  local bin="$1" dest="$2" lib
+  install -d "$(dirname "$rootfs$dest")"
+  cp -aL "$bin" "$rootfs$dest"
+  while read -r lib; do
+    [[ -n "$lib" && -e "$lib" ]] || continue
+    if [[ ! -e "$rootfs$lib" ]]; then install -d "$rootfs$(dirname "$lib")"; cp -aL "$lib" "$rootfs$lib"; fi
+  done < <(ldd "$bin" 2>/dev/null | awk '/=> \//{print $3} /^\//{print $1}' | sort -u)
+}
+install -d "$rootfs/usr/lib/grub"
+rm -rf "$rootfs/usr/lib/grub/i386-pc"
+cp -a /usr/lib/grub/i386-pc "$rootfs/usr/lib/grub/i386-pc"
+for tool in /usr/sbin/grub-install /usr/sbin/grub-bios-setup /usr/sbin/grub-probe \
+            /usr/sbin/grub-mkdevicemap /usr/sbin/grub-mkconfig /usr/bin/grub-mkimage \
+            /usr/bin/grub-editenv /usr/bin/grub-script-check; do
+  [[ -e "$tool" ]] || continue
+  copy_with_libs "$tool" "/usr${tool#/usr}"
+done
+[[ -e "$rootfs/usr/sbin/grub-bios-setup" ]] || ln -sfn ../lib/grub/i386-pc/grub-bios-setup "$rootfs/usr/sbin/grub-bios-setup"
+
+echo "[prehw] building lab initramfs (root=/dev/vda2, AHCI/virtio available)"
+"$repo/tests/prehardware/build-initrd.sh" "$rootfs" "$work/iso/live/vmlinuz" "$work/boot/initrd.img" >"$work/initrd.log"
+cp -a "$work/boot/initrd.img" "$rootfs/boot/initrd.img"
+
+echo "[prehw] sizing guest root filesystem"
+root_kb="$(du -sk "$rootfs" | awk '{print $1}')"
+root_bytes=$(( (root_kb + 1048576) * 1024 ))
+root_bytes=$(( ((root_bytes + 1048575) / 1048576) * 1048576 ))
+rootpart="$work/boot/rootpart.img"
+rm -f "$rootpart"
+truncate -s "$root_bytes" "$rootpart"
+fakeroot mke2fs -q -F -t ext4 -L PAW-LAB-ROOT -d "$rootfs" "$rootpart" >"$work/mke2fs.log" 2>&1
+
+echo "[prehw] creating guest GPT disk (BIOS Boot + root)"
+guest="$work/boot/guest.img"
+guest_bytes=$(( root_bytes + 4 * 1024 * 1024 + 64 * 1024 * 1024 ))
+guest_sectors=$(( guest_bytes / 512 ))
+rm -f "$guest"
+truncate -s "$guest_bytes" "$guest"
+sgdisk --clear \
+  --new=1:2048:+1024 --typecode=1:21686148-6449-6e6f-744e-656564454649 --change-name=1:'BIOS boot' \
+  --new=2:4096:"$(( guest_sectors - 34 ))" --typecode=2:8300 --change-name=2:'PAW lab root' \
+  "$guest" >"$work/sgdisk-guest.log"
+dd if="$rootpart" of="$guest" bs=1M seek=2 conv=notrunc status=none
+rm -f "$rootpart"
+
+echo "[prehw] creating 32 GB USB media image carrying the release ISO"
+media="$work/boot/media32.img"
+if [[ ! -s "$media" ]]; then
+  truncate -s 32000000000 "$media"
+  dd if="$iso" of="$media" bs=16M conv=notrunc conv=sparse status=none
+fi
+
+cat >"$work/boot/manifest.txt" <<MANIFEST
+iso=$iso
+iso_bytes=$(stat -c %s "$iso")
+media_bytes=$(stat -c %s "$media")
+guest_bytes=$(stat -c %s "$guest")
+kernel=$work/iso/live/vmlinuz
+initrd=$work/boot/initrd.img
+MANIFEST
+cat "$work/boot/manifest.txt"
+echo "[prehw] lab build complete: $work/boot"

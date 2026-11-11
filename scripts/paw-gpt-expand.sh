@@ -3,7 +3,15 @@ set -Eeuo pipefail
 source "$(dirname "$0")/paw-lib.sh"
 disk="${1:-}"; part="${2:-}"; [[ -n "$disk" && -n "$part" ]] || die 'Usage: paw-gpt-expand.sh DISK PARTITION'
 require_sim_or_enrollment; [[ ${PAW_EXPAND_ARM:-} == 'I_HAVE_VERIFIED_CLONE' ]] || die 'Expansion requires explicit arm.'
-if [[ ${PAW_SIMULATION:-0} == 1 ]]; then assert_sim_loop_device "$disk"; else assert_registered_target_device "$disk"; assert_authorization_for_target "$disk"; fi
+if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
+  assert_sim_loop_device "$disk"
+else
+  assert_registered_target_device "$disk"; assert_authorization_for_target "$disk"
+  assert_transaction_stage expand
+  transaction_event EXPAND_STARTED
+fi
+expand_done=0
+trap 'rc=$?; if ((rc != 0)) && [[ ${PAW_SIMULATION:-0} != 1 ]]; then transaction_event NEEDS_MANUAL_ACTION --phase expand --reason "gpt/ext4 expansion failed rc=$rc" || true; fi' EXIT
 for c in growpart resize2fs lsblk sgdisk sfdisk e2fsck; do need "$c"; done
 [[ "$(lsblk -dn -o PTTYPE "$disk" | xargs)" == gpt ]] || die 'Target is not GPT.'
 part_parent="$(parent_disk "$part")"; [[ "$part_parent" == "$disk" ]] || die 'Root partition is not on the registered target disk.'
@@ -68,6 +76,11 @@ resize2fs "$part"
 unset rc
 after_bytes="$(blockdev --getsize64 "$part")"
 fs_after_blocks="$(dumpe2fs -h "$part" 2>/dev/null | awk '/^Block count:/{print $3; exit}')"
+if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
+  transaction_event READY_TO_BOOT
+fi
+expand_done=1
+trap - EXIT
 python3 - "$PAW_REPORT_DIR/gpt-expand.json" "$disk" "$part" "$n" "$before_bytes" "$after_bytes" "${fs_before_blocks:-0}" "${fs_after_blocks:-0}" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$PAW_REPORT_DIR/gpt-expand.json"
 import datetime,json,sys
 path,disk,part,number,before,after,fs_before,fs_after=sys.argv[1:]

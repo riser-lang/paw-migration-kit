@@ -32,6 +32,7 @@ else
   actual="$(lsblk -dn -o SERIAL "$dst" | xargs)"; target_bytes="$(blockdev --getsize64 "$dst")"
   [[ -n "$expected" && "$actual" == "$expected" ]] || die 'Target serial mismatch.'
   assert_authorization_for_target "$dst"
+  assert_transaction_stage clone
   [[ "$expected_bytes" =~ ^[0-9]+$ && "$target_bytes" == "$expected_bytes" ]] || die 'Target capacity mismatch.'
   root_uuid="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("root_uuid", ""))' "$PAW_CONFIG_DIR/source.json")"
   [[ "$root_uuid" =~ ^[0-9a-fA-F-]{36}$ ]] || die 'Expected Rescue Mode root UUID missing or malformed.'
@@ -42,6 +43,7 @@ else
   [[ "$source_bytes" =~ ^[0-9]+$ ]] || die 'Could not validate Rescue Mode source capacity.'
   ((target_bytes >= source_bytes)) || die 'Target disk is smaller than source disk.'
   transport_kind='SSH stdout payload; excludes SSH/TCP framing overhead'
+  transaction_event CLONE_STARTED
 fi
 
 [[ "$source_bytes" =~ ^[0-9]+$ && "$target_bytes" =~ ^[0-9]+$ ]] || die 'Could not validate source/target sizes.'
@@ -70,7 +72,7 @@ restored_count="$PAW_LOG_DIR/restored-bytes.pending"
 progress_log="$PAW_LOG_DIR/ssh-transfer-progress.log"
 rm -f "$payload_count" "$restored_count" "$progress_log" "$PAW_REPORT_DIR/stream-transfer-report.json" "$PAW_REPORT_DIR/stream-verify.json"
 mark_incomplete
-trap 'rc=$?; if ((rc != 0)); then mark_incomplete; log ERROR "clone stream exit=$rc; incomplete marker retained"; fi' EXIT
+trap 'rc=$?; if ((rc != 0)); then mark_incomplete; if [[ "$simulation" != 1 ]]; then transaction_event CLONE_INCOMPLETE || true; fi; log ERROR "clone stream exit=$rc; incomplete marker retained"; fi' EXIT
 log INFO "Clone stream starts; mode=$stream_mode. Failed writes keep CLONE-INCOMPLETE."
 set -o pipefail
 
@@ -117,4 +119,7 @@ json.dump({"status":"STREAM_COMPLETE_UNVERIFIED","source_bytes":s,"ssh_stream_by
  "compression_reduction_percent":(100*(s-w)/s if s else None),
  "sha256":None,"independent_sha256_verified":False},open(out,"w"),indent=2)
 PY
+if [[ "$simulation" != 1 ]]; then
+  transaction_event CLONE_INCOMPLETE
+fi
 log INFO "Stream complete; source_bytes=$source_bytes ssh_stream_bytes=$ssh_stream_bytes restored_bytes=$restored_bytes mode=$stream_mode. Independent SHA256 verification is still required."

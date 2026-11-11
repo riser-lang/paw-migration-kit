@@ -20,7 +20,7 @@ paw_tty_open_optional || die '无法打开交互终端；未登记任何目标�
 paw_tty_clear
 paw_tty_marker PAW-TTY1-TARGET-PANEL
 paw_tty_say 'PAW 目标 SSD 只读盘点（只登记，不写磁盘）'
-paw_tty_say '以下为本机可用的非移动、未挂载本地磁盘：'
+paw_tty_say '以下为本机可用的非移动、未挂载本地磁盘（NTFS/Windows 磁盘已排除）：'
 if ! candidate_text="$(python3 - "$out" "$boot_device" <<'PY'
 import json,re,sys
 d=json.load(open(sys.argv[1],encoding="utf-8")); boot=sys.argv[2]
@@ -31,6 +31,13 @@ for item in d.get("blockdevices",[]):
     if not re.fullmatch(r"/dev/[A-Za-z0-9/]+",path) or path==boot: continue
     if str(item.get("rm","0"))=="1" or not item.get("serial") or int(item.get("size") or 0)<=0: continue
     if any(m for child in item.get("children") or [] for m in child.get("mountpoints") or [] if m): continue
+    # A Windows installation disk must never be offered as the PAW target.
+    # Detect it from both filesystem type and the Microsoft basic-data GPT
+    # type, so an unmounted NTFS volume cannot slip through.
+    kids=item.get("children") or []
+    if any(str(c.get("fstype") or "").lower() in ("ntfs","ntfs3","exfat") or
+           str(c.get("parttype") or "").lower().startswith("ebd0a0a2-") for c in kids):
+        continue
     devices.append(item)
 if not devices: raise SystemExit("No eligible non-removable, unmounted local disk was found.")
 for n,item in enumerate(devices,1):
@@ -48,7 +55,9 @@ import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8")); boot=sys.argv[2]
 for x in d.get("blockdevices",[]):
  p=x.get("path") or "/dev/"+str(x.get("name",""))
- if x.get("type")=="disk" and p!=boot and str(x.get("rm","0"))!="1" and x.get("serial") and int(x.get("size") or 0)>0 and not any(m for c in x.get("children") or [] for m in c.get("mountpoints") or [] if m): print(p)
+ kids=x.get("children") or []
+ is_windows=any(str(c.get("fstype") or "").lower() in ("ntfs","ntfs3","exfat") or str(c.get("parttype") or "").lower().startswith("ebd0a0a2-") for c in kids)
+ if x.get("type")=="disk" and p!=boot and str(x.get("rm","0"))!="1" and x.get("serial") and int(x.get("size") or 0)>0 and not is_windows and not any(m for c in kids for m in c.get("mountpoints") or [] if m): print(p)
 PY
 )
 paw_tty_marker PAW-TTY1-TARGET-PROMPT
@@ -61,6 +70,22 @@ if ! paw_tty_read choice; then
 fi
 [[ "$choice" =~ ^[1-9][0-9]*$ ]] && ((choice <= ${#candidates[@]})) || { paw_tty_say '错误：目标编号无效。'; paw_tty_close; die '目标编号无效。'; }
 dev="${candidates[$((choice-1))]}"
+# Re-check immediately before enrollment.  The inventory and the operator's
+# typed choice are separate steps; a hot-plugged Windows disk must not become
+# eligible between them.
+python3 - "$out" "$dev" <<'PY' || { paw_tty_say '错误：所选磁盘包含 NTFS/Windows 分区，已拒绝登记。'; paw_tty_close; die 'Windows/NTFS target disk refused.'; }
+import json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8")); wanted=sys.argv[2]
+for item in d.get("blockdevices",[]):
+    path=item.get("path") or "/dev/"+str(item.get("name",""))
+    if path!=wanted or item.get("type")!="disk": continue
+    kids=item.get("children") or []
+    if any(str(c.get("fstype") or "").lower() in ("ntfs","ntfs3","exfat") or str(c.get("parttype") or "").lower().startswith("ebd0a0a2-") for c in kids):
+        raise SystemExit(1)
+    break
+else:
+    raise SystemExit(1)
+PY
 serial="$(lsblk -dn -o SERIAL "$dev" | xargs)"; capacity="$(blockdev --getsize64 "$dev")"; model="$(lsblk -dn -o MODEL "$dev" | xargs)"
 [[ -n "$serial" && "$capacity" =~ ^[0-9]+$ ]] || { paw_tty_close; die '目标盘序列号或容量不可读。'; }
 paw_tty_say ''

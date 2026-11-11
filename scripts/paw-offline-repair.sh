@@ -19,6 +19,8 @@ else
   [[ -r "$PAW_REPORT_DIR/stream-verify.json" ]] || die 'Independent SHA256 verification is required before repair.'
   grep -q '"status"[[:space:]]*:[[:space:]]*"PASS"' "$PAW_REPORT_DIR/stream-verify.json" || die 'Clone verification is not PASS.'
   [[ "$(lsblk -dn -o FSTYPE "$dev" | xargs)" == ext4 ]] || die 'Cloned root partition is not ext4.'
+  assert_transaction_stage repair
+  transaction_event REPAIR_STARTED
 fi
 for c in mount umount mountpoint tar systemd-machine-id-setup ssh-keygen find; do need "$c"; done
 mount_root=/mnt/paw-migration-cloned-root
@@ -76,7 +78,12 @@ rollback(){
   fi
   if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot" 2>/dev/null || true; fi
   if [[ ${mounted:-0} == 1 ]]; then umount "$mount_root" || true; fi
-  if ((rc != 0)); then log ERROR "offline adaptation failed; the backup is retained at $backup"; fi
+  if ((rc != 0)); then
+    if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
+      transaction_event NEEDS_MANUAL_ACTION --phase repair --reason "offline repair failed rc=$rc" || true
+    fi
+    log ERROR "offline adaptation failed; the backup is retained at $backup"
+  fi
   exit "$rc"
 }
 trap rollback EXIT
@@ -95,6 +102,15 @@ if find "$module_root" -type f -name 'r8169.ko*' -print -quit | grep -q . || gre
   r8169_available=1
 else
   log WARN 'Target kernel has no Realtek r8169 module; it is not added to the initramfs.'
+fi
+# Haswell HD Graphics 4600 needs i915 for the graphical console.  If the
+# cloned kernel does not ship it, keep the text console usable instead of
+# pretending the GPU path was repaired; the final report marks it WARN.
+if find "$module_root" -type f -name 'i915.ko*' -print -quit | grep -q . || grep -RqsE '(^|/)i915\.ko$' "$module_root"/*/modules.builtin; then
+  i915_available=1
+else
+  i915_available=0
+  log WARN 'Target kernel has no i915 module (HD Graphics 4600); graphical console remains a physical-open item.'
 fi
 
 paths="$backup/original-paths.txt"
@@ -147,14 +163,31 @@ ssh-keygen -A -f "$mount_root"
 if [[ -d "$mount_root/var/lib/tailscale" ]]; then mv "$mount_root/var/lib/tailscale" "$backup/tailscale-original/state"; fi
 install -d -m 0700 "$mount_root/var/lib/tailscale"
 
+# Secret-free old/new service identity manifest.  The old VPS is still
+# reachable read-only here, so record hashes and unit names while both sides
+# are observable; never copy the old machine-id, host keys or Tailscale state.
+if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
+  old_hostname="$(rescue_ssh 'hostname' 2>/dev/null || true)"
+  old_machine_id="$(rescue_ssh 'cat /etc/machine-id' 2>/dev/null || true)"
+  old_ssh_sha="$(rescue_ssh "sha256sum /etc/ssh/ssh_host_ed25519_key.pub 2>/dev/null || true" | awk 'NF{print $1; exit}')"
+  old_services_json="$(rescue_ssh "systemctl list-unit-files --type=service --state=enabled --no-legend 2>/dev/null || true" | python3 -c 'import json,sys; print(json.dumps([l.split()[0] for l in sys.stdin if l.split()]))')"
+  python3 "$PAW_ROOT/scripts/paw-service-cutover-manifest.py"     --source-config "$PAW_CONFIG_DIR/source.json"     --target-root "$mount_root"     --old-hostname "$old_hostname"     --old-machine-id "$old_machine_id"     --old-ssh-fingerprint "$old_ssh_sha"     --old-services-json "$old_services_json"     --output "$PAW_REPORT_DIR/service-cutover-manifest.json" || log WARN 'Service identity manifest needs review; see service-cutover-manifest.json.'
+fi
+
 mkdir -p "$mount_root/etc/initramfs-tools"
 touch "$mount_root/etc/initramfs-tools/modules"
-for module in ahci r8169; do
+initramfs_modules=()
+for module in ahci r8169 i915; do
   case "$module" in
     ahci) ((ahci_available == 1)) || continue ;;
     r8169) ((r8169_available == 1)) || continue ;;
+    i915) ((i915_available == 1)) || continue ;;
   esac
+  # Built-in drivers need no initramfs entry; only a real .ko can be added
+  # and independently verified there.
+  find "$module_root" -type f -name "$module.ko*" -print -quit | grep -q . || continue
   grep -qx "$module" "$mount_root/etc/initramfs-tools/modules" || printf '%s\n' "$module" >>"$mount_root/etc/initramfs-tools/modules"
+  initramfs_modules+=("$module")
 done
 
 binds=1
@@ -169,26 +202,87 @@ if chroot "$mount_root" sh -c 'command -v depmod >/dev/null 2>&1'; then
 else
   log WARN 'Target has no depmod; module dependency indexes were not rebuilt.'
 fi
-chroot "$mount_root" update-initramfs -u -k all
+chroot "$mount_root" env DEBIAN_FRONTEND=noninteractive update-initramfs -u -k all
+initramfs_verified='not_checked'
+initramfs_missing=''
+if ((${#initramfs_modules[@]})); then
+  initrd_rel="$(chroot "$mount_root" sh -c 'ls -1t /boot/initrd.img-* 2>/dev/null | head -n1' | sed 's#^/boot/##')"
+  if [[ -n "$initrd_rel" ]] && chroot "$mount_root" sh -c 'command -v lsinitramfs >/dev/null 2>&1'; then
+    initramfs_verified='PASS'
+    for module in "${initramfs_modules[@]}"; do
+      if ! chroot "$mount_root" lsinitramfs "/boot/$initrd_rel" 2>/dev/null | grep -Eq "/$module\.ko(\.(zst|xz|gz))?$"; then
+        initramfs_verified='FAIL'
+        initramfs_missing+="${initramfs_missing:+,}$module"
+      fi
+    done
+    if [[ "$initramfs_verified" == FAIL ]]; then
+      log ERROR "Initramfs verification missing modules: $initramfs_missing; refusing to claim a bootable repaired target."
+      die 'Initramfs module verification failed.'
+    fi
+  else
+    initramfs_verified='lsinitramfs_unavailable'
+    log ERROR 'Cannot independently list the rebuilt initramfs; module inclusion is unverified and cannot be claimed.'
+    die 'lsinitramfs or rebuilt initrd unavailable; refusing an unverified boot repair.'
+  fi
+fi
 if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
   grub_install_result='simulation_skipped'
 else
-  chroot "$mount_root" grub-install --target=i386-pc --recheck "$disk"
+  chroot "$mount_root" env DEBIAN_FRONTEND=noninteractive grub-install --target=i386-pc --recheck --no-floppy "$disk"
   grub_install_result='i386-pc'
 fi
-chroot "$mount_root" update-grub
+chroot "$mount_root" env DEBIAN_FRONTEND=noninteractive GRUB_DISABLE_OS_PROBER=true update-grub
+root_uuid_value="$(blkid -s UUID -o value "$dev" 2>/dev/null || true)"
+root_label_value="$(blkid -s LABEL -o value "$dev" 2>/dev/null || true)"
+[[ "$root_uuid_value" =~ ^[0-9a-fA-F-]{36}$ ]] || die 'Cloned root UUID is unreadable after repair; refusing to claim GRUB/fstab correctness.'
+python3 - "$mount_root/etc/fstab" "$root_uuid_value" "$mount_root/boot/grub/grub.cfg" "$root_label_value" <<'PY' || die 'GRUB/fstab identity check failed.'
+import re,sys
+fstab,uuid,grub,label=sys.argv[1:]
+errors=[]
+root_seen=False
+for line in open(fstab,encoding="utf-8",errors="replace"):
+    line=line.split("#",1)[0].strip()
+    if not line: continue
+    fields=line.split()
+    if len(fields)<2: continue
+    source,target=fields[0],fields[1]
+    if target=="/":
+        root_seen=True
+        if source.upper()==f"UUID={uuid}".upper():
+            pass
+        elif label and source.upper()==f"LABEL={label}".upper():
+            pass
+        else:
+            errors.append(f"root fstab entry does not use the cloned UUID/LABEL: {line}")
+    elif re.match(r"/dev/[sh]d[a-z]",source):
+        errors.append(f"fstab uses a mutable device name: {line}")
+if not root_seen: errors.append("fstab has no root entry")
+cfg=open(grub,encoding="utf-8",errors="replace").read()
+if uuid.lower() not in cfg.lower(): errors.append("grub.cfg does not reference the cloned root UUID")
+if errors: raise SystemExit("; ".join(errors))
+PY
 for item in sys proc dev; do umount -R "$mount_root/$item"; done
 binds=0
 sync
 if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot"; boot_mounted=0; fi
 umount "$mount_root"; mounted=0
 trap - EXIT
-python3 - "$PAW_REPORT_DIR/offline-repair.json" "$backup" "$grub_install_result" "${PAW_SIMULATION:-0}" <<'PY'
+if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
+  transaction_event REPAIRED
+fi
+python3 - "$PAW_REPORT_DIR/offline-repair.json" "$backup" "$grub_install_result" "${PAW_SIMULATION:-0}" "${initramfs_modules[*]:-}" "$initramfs_verified" "$initramfs_missing" "$i915_available" <<'PY'
 import json,os,sys,datetime
-path,backup,grub,simulation=sys.argv[1:]
+path,backup,grub,simulation,modules,verified,missing,i915=sys.argv[1:]
 status="SIMULATION_PASS" if simulation=="1" else "PASS"
+changes=["netplan DHCP matched to e* (eth0/en*/r8169) with no fixed MAC","cloud-init network disabled","old Tencent/MAC udev overrides disabled","machine-id regenerated","SSH host keys regenerated","clone-local Tailscale state cleared"]
+if modules:
+    if verified=="PASS": changes.append(f"initramfs module inclusion verified: {modules}")
+    elif verified=="FAIL": changes.append(f"initramfs modules requested but NOT all present: {modules}; missing={missing}")
+    else: changes.append(f"initramfs modules requested: {modules}; inclusion {verified}")
+changes += ["initramfs regenerated","GRUB config regenerated with DEBIAN_FRONTEND=noninteractive","fstab/GRUB UUID identity checked"]
 with open(path,"w",encoding="utf-8") as handle:
-    json.dump({"status":status,"changes":["netplan DHCP matched to e* (eth0/en*/r8169) with no fixed MAC","cloud-init network disabled","old Tencent/MAC udev overrides disabled","machine-id regenerated","SSH host keys regenerated","clone-local Tailscale state cleared","ahci/r8169 added to initramfs modules","initramfs regenerated","GRUB config regenerated"],"grub_install":grub,"simulation":simulation=="1","backup_path":backup,"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"authorized_keys_touched":False,"PAW_application_data_touched":False},handle,indent=2)
-os.chmod(path,0o600)
+    json.dump({"status":status,"changes":changes,"grub_install":grub,"simulation":simulation=="1","initramfs_modules_requested":modules.split(",") if modules else [],"initramfs_modules_verified":verified,"initramfs_modules_missing":missing.split(",") if missing else [],"hd4600_i915_available":i915=="1","grub_noninteractive":True,"fstab_uuid_checked":True,"backup_path":backup,"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"authorized_keys_touched":False,"PAW_application_data_touched":False},handle,indent=2)
+    os.chmod(path,0o600)
 PY
+
 log INFO 'Offline clone adaptation completed with a reversible PAWDATA backup; user authorized_keys and PAW application data were not touched.'

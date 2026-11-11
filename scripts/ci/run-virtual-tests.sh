@@ -177,7 +177,7 @@ dd if=/dev/zero of="$target_loop" bs=1M count=16 conv=notrunc status=none
 stream_bytes="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["ssh_stream_bytes"])' "$PAW_REPORT_DIR/stream-transfer-report.json")"
 ((stream_bytes < 7340032)) && pass 'Remote zstd reduced mixed-data SSH payload below 7 MiB for an 8 MiB source' || { echo 'FAIL compressed SSH payload was not smaller than source' >>"$report"; failed=$((failed+1)); }
 "$root/scripts/paw-stream-verify.sh" "$source_loop" "$target_loop"
-"$root/scripts/paw-firstboot-check.sh" && pass 'SSH stream, zstd round-trip, SHA256, and firstboot gate' || { echo 'FAIL successful clone path' >>"$report"; failed=$((failed+1)); }
+"$root/scripts/paw-preboot-handoff-check.sh" && pass 'SSH stream, zstd round-trip, SHA256, and preboot-handoff gate' || { echo 'FAIL successful clone path' >>"$report"; failed=$((failed+1)); }
 python3 - "$PAW_REPORT_DIR/stream-transfer-report.json" <<'PY' && pass 'Stream report distinguishes source bytes, SSH payload, actual restored bytes, compression and SHA256'
 import json,sys
 d=json.load(open(sys.argv[1])); assert d['source_bytes']==8388608 and d['restored_bytes']==8388608

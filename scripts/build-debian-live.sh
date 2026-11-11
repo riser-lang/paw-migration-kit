@@ -12,8 +12,16 @@ cp -a /usr/share/live/build/bootloaders/isolinux/. "$work/config/bootloaders/iso
 cp "$src/configs/live-build/bootloaders/isolinux/isolinux.cfg" "$work/config/bootloaders/isolinux/isolinux.cfg"
 cp "$src/configs/live-build/bootloaders/isolinux/memtest.cfg" "$work/config/bootloaders/isolinux/memtest.cfg"
 install -D -m 0644 "$src/configs/live-build/bootloaders/isolinux/memtest.cfg" "$work/config/includes.binary/isolinux/memtest.cfg"
-[[ -s /boot/memtest86+x64.bin ]] || { echo 'Memtest86+ BIOS binary is required for the independent ISOLINUX boot entry.' >&2; exit 2; }
-install -D -m 0644 /boot/memtest86+x64.bin "$work/config/includes.binary/boot/memtest86+x64.bin"
+# Pin the exact BIOS binary instead of trusting the build host's /boot.  The
+# Ubuntu 24.04 host package is 7.00 while the Debian trixie ISO runtime is
+# 7.20; an unpinned copy made the menu entry and the shipped binary diverge.
+memtest_src="$src/configs/memtest86+/memtest86+x64.bin"
+memtest_sha='487bfe56b84f2016b12f393641f1acb765ef0b648c71ea9a2e3d42b62411f71f'
+[[ -s "$memtest_src" ]] || { echo "Pinned Memtest86+ BIOS binary missing: $memtest_src" >&2; exit 2; }
+actual_sha="$(sha256sum "$memtest_src" | awk '{print $1}')"
+[[ "$actual_sha" == "$memtest_sha" ]] || { echo "Memtest86+ binary SHA256 mismatch: $actual_sha" >&2; exit 2; }
+strings "$memtest_src" | grep -q 'Memtest86+ v7.20' || { echo 'Pinned Memtest86+ binary is not v7.20.' >&2; exit 2; }
+install -D -m 0644 "$memtest_src" "$work/config/includes.binary/boot/memtest86+x64.bin"
 if [[ -s /boot/memtest86+x64.efi ]]; then install -D -m 0644 /boot/memtest86+x64.efi "$work/config/includes.binary/EFI/BOOT/memtest86+x64.efi"; fi
 cp "$src/configs/live-build/package-lists/paw.list.chroot" "$work/config/package-lists/"
 mkdir -p "$work/config/includes.chroot/opt/paw-migration/scripts"

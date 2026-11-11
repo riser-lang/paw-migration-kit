@@ -14,10 +14,10 @@ fail(){ printf 'FAIL %s\n' "$1" >>"$report"; failed=$((failed+1)); }
 printf 'PAW finalize/reboot virtual fault-injection results\n' >"$report"
 printf 'Executed: %s\n' "$(date -u +%FT%TZ)" >>"$report"
 
-firstboot_line="$(grep -n 'paw-firstboot-check\.sh' "$root/scripts/paw-final-confirm.sh" | head -n1 | cut -d: -f1)"
+firstboot_line="$(grep -n 'paw-preboot-handoff-check\.sh' "$root/scripts/paw-final-confirm.sh" | head -n1 | cut -d: -f1)"
 finalize_line="$(grep -n 'paw-finalize-reboot\.sh' "$root/scripts/paw-final-confirm.sh" | head -n1 | cut -d: -f1)"
 [[ -n "$firstboot_line" && -n "$finalize_line" && "$finalize_line" -gt "$firstboot_line" ]] \
-  && pass 'A0 final-confirm 在首次启动检查之后才调用 finalizer' \
+  && pass 'A0 final-confirm 在重启前交接检查之后才调用 finalizer' \
   || fail 'A0 final-confirm 调用顺序错误'
 ! grep -q 'with open(receipt' "$root/scripts/paw-final-confirm.sh" \
   && pass 'A0 旧的直接完成记录写入已移除（仅 finalizer 原子写）' \
@@ -39,9 +39,9 @@ MOCKREBOOT
 JSON
   printf '{"status":"PASS","source":"clone"}\n' >"$CASE/reports/offline-repair.json"
   printf '{"status":"PASS","before_bytes":100,"after_bytes":200}\n' >"$CASE/reports/gpt-expand.json"
-  printf '{"status":"PASS","clone_sha256":"%s"}\n' "$(printf 'a%.0s' {1..64})" >"$CASE/reports/firstboot-check.json"
+  printf '{"status":"PASS","clone_sha256":"%s"}\n' "$(printf 'a%.0s' {1..64})" >"$CASE/reports/preboot-handoff.json"
   cat >"$CASE/completion.json" <<'JSON'
-{"schema":"paw.migration-completion.v2","status":"PASS","checks":{"clone":"PASS","sha256":"PASS","offline_repair":"PASS","gpt_ext4_expand":"PASS","firstboot":"PASS"}}
+{"schema":"paw.migration-completion.v2","status":"PASS","checks":{"clone":"PASS","sha256":"PASS","offline_repair":"PASS","gpt_ext4_expand":"PASS","preboot_handoff":"PASS"}}
 JSON
   cat >"$CASE/reports/operator-authorization.json" <<'JSON'
 {"status":"AUTHORIZED","target_serial":"TEST-SERIAL-123456","target_device":"/dev/virtual"}
@@ -57,6 +57,9 @@ run_finalize(){
   export PAW_REPORT_DIR="$CASE/reports" PAW_LOG_DIR="$CASE/state/logs"
   export PAW_TEST_REBOOT_LOG="$CASE/reboot.log" PAW_REBOOT_CMD="$CASE/bin/reboot"
   export PAW_REBOOT_COUNTDOWN_SECONDS=1 PAW_INTERACTIVE_TTY="$CASE/not-a-tty"
+  # This suite isolates reboot sequencing; the P0 transaction suite covers the
+  # state-machine integration with the real finalizer separately.
+  export PAW_FINALIZE_TEST_MODE=1
   export PAW_TEST_REBOOT_EXIT="${PAW_TEST_REBOOT_EXIT:-0}"
   set +e
   if [[ -n "$input" ]]; then
@@ -126,15 +129,15 @@ status_is BLOCKED && pass 'A4 状态为 BLOCKED' || fail 'A4 状态不是 BLOCKE
 [[ "$(reboot_count)" == 0 ]] && pass 'A4 reboot 调用次数为 0' || fail "A4 reboot 调用次数=$(reboot_count)"
 assert_no_countdown A4
 
-# 4b/4c. Expansion and first-boot gates also block before countdown.
+# 4b/4c. Expansion and pre-reboot handoff gates also block before countdown.
 new_case expand-failure
 printf '{"status":"FAIL"}\n' >"$CASE/reports/gpt-expand.json"
 PAW_TEST_REBOOT_EXIT=0 run_finalize
 status_is BLOCKED && [[ "$(reboot_count)" == 0 ]] && pass 'A4b GPT/ext4 扩容失败时不重启' || fail 'A4b 扩容失败仍重启/状态错误'
-new_case firstboot-failure
-printf '{"status":"FAIL"}\n' >"$CASE/reports/firstboot-check.json"
+new_case preboot-failure
+printf '{"status":"FAIL"}\n' >"$CASE/reports/preboot-handoff.json"
 PAW_TEST_REBOOT_EXIT=0 run_finalize
-status_is BLOCKED && [[ "$(reboot_count)" == 0 ]] && pass 'A4c 首次启动检查失败时不重启' || fail 'A4c 首次启动失败仍重启/状态错误'
+status_is BLOCKED && [[ "$(reboot_count)" == 0 ]] && pass 'A4c 重启前交接检查失败时不重启' || fail 'A4c 交接检查失败仍重启/状态错误'
 
 # 5. Reboot command fails: manual-restart notice and NEEDS_MANUAL_ACTION.
 new_case reboot-failure
@@ -159,7 +162,7 @@ PY
 
 # 7. Reverse assertion across every blocked case.
 total=0
-for case in receipt-failure sha-failure repair-failure expand-failure firstboot-failure cancelled; do
+for case in receipt-failure sha-failure repair-failure expand-failure preboot-failure cancelled; do
   n=0; [[ -s "$work/$case/reboot.log" ]] && n="$(wc -l <"$work/$case/reboot.log")"
   total=$((total+n))
 done

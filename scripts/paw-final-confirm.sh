@@ -129,12 +129,16 @@ checks={
 bad=[k for k,v in checks.items() if not v]
 if bad: raise SystemExit("source identity changed: "+",".join(bad))
 PY
-python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$dst" "$target_serial" "$src" "$root_uuid" "$source_composite" "$source_host_fp" "$memory_state" <<'PY'
-import json,os,sys,datetime
-path,dst,serial,src,uuid,composite,host_fp,memory=sys.argv[1:]
+python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$dst" "$target_serial" "$target_model" "$target_bytes" "$src" "$root_uuid" "$source_composite" "$source_host_fp" "$source_model" "$source_serial" "$source_bytes" "$memory_state" <<'PY'
+import datetime,json,os,sys,uuid
+path,dst,serial,tmodel,tbytes,src,uuid_value,composite,host_fp,smodel,sserial,sbytes,memory=sys.argv[1:]
 now=datetime.datetime.now(datetime.timezone.utc)
-data={"status":"AUTHORIZED","target_device":dst,"target_serial":serial,"source_device":src,
- "source_root_uuid":uuid,"source_composite_identity_sha256":composite,
+data={"status":"AUTHORIZED",
+ "migration_id":str(uuid.uuid4()),"authorization_id":str(uuid.uuid4()),
+ "target_device":dst,"target_serial":serial,"target_model":tmodel,"target_capacity_bytes":int(tbytes),
+ "source_device":src,"source_root_uuid":uuid_value,"source_model":smodel,"source_serial":sserial,
+ "source_capacity_bytes":int(sbytes),
+ "source_composite_identity_sha256":composite,
  "source_ssh_host_key_fingerprint":host_fp,"memory_verification":memory,
  "authorized_at":now.isoformat(),"expires_at":(now+datetime.timedelta(hours=6)).isoformat(),
  "confirmation":"target serial suffix typed interactively after full source and target re-identification"}
@@ -142,7 +146,9 @@ tmp=path+".tmp"
 with open(tmp,"w",encoding="utf-8") as handle: json.dump(data,handle,indent=2)
 os.chmod(tmp,0o600); os.replace(tmp,path)
 PY
+transaction_init
 assert_authorization_for_target "$dst"
+assert_transaction_stage authorization
 export PAW_DESTRUCTIVE_ARM=I_HAVE_VERIFIED_THE_TARGET_SERIAL
 log INFO 'One-time operator authorization was recorded; the registered target workflow is starting.'
 
@@ -154,7 +160,7 @@ export PAW_REPAIR_ARM=I_HAVE_VERIFIED_OFFLINE_FILESYSTEM
 "$PAW_ROOT/scripts/paw-offline-repair.sh" "$target_root"
 export PAW_EXPAND_ARM=I_HAVE_VERIFIED_CLONE
 "$PAW_ROOT/scripts/paw-gpt-expand.sh" "$dst" "$target_root"
-"$PAW_ROOT/scripts/paw-firstboot-check.sh"
+"$PAW_ROOT/scripts/paw-preboot-handoff-check.sh"
 completion_data="$(mktemp "$PAW_REPORT_DIR/.migration-completion.XXXXXX")"
 python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$completion_data" <<'PY'
 import datetime,hashlib,json,os,sys
@@ -162,14 +168,14 @@ auth,out=sys.argv[1:]
 with open(auth,encoding="utf-8") as handle: authorization=json.load(handle)
 report_dir=os.path.dirname(auth)
 evidence={}
-for name in ("stream-verify","offline-repair","gpt-expand","firstboot-check"):
+for name in ("stream-verify","offline-repair","gpt-expand","preboot-handoff"):
     path=os.path.join(report_dir,name+".json")
     with open(path,"rb") as handle: evidence[name]=hashlib.sha256(handle.read()).hexdigest()
 document={"schema":"paw.migration-completion.v2","status":"PASS",
  "target_serial_suffix":authorization["target_serial"][-6:],
  "completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),
  "checks":{"clone":"PASS","sha256":"PASS","offline_repair":"PASS",
-           "gpt_ext4_expand":"PASS","firstboot":"PASS"},
+           "gpt_ext4_expand":"PASS","preboot_handoff":"PASS"},
  "evidence_sha256":evidence}
 with open(out,"w",encoding="utf-8") as handle:
     json.dump(document,handle,indent=2)

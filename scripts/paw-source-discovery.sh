@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$(dirname "$0")/paw-lib.sh"
-need lsblk; need python3; need findmnt; need ssh-keygen; need rescue_ssh
+need lsblk; need python3; need ssh-keygen; need base64; need rescue_ssh
 rm -f /run/paw-network/source-discovery-session.json
 
 expected_uuid="${PAW_EXPECTED_ROOT_UUID:-}"
@@ -112,18 +112,34 @@ PY
   die 'Rescue Mode disk layout or root UUID did not match the required source identity.'
 }
 
-while IFS= read -r path; do
+mapfile -t source_paths < <(python3 -c 'import json,sys; print("\n".join(json.load(sys.stdin)["partition_paths"]))' <<<"$candidate")
+(( ${#source_paths[@]} > 0 )) || die 'Remote inventory returned no source device paths.'
+for path in "${source_paths[@]}"; do
   [[ "$path" =~ ^/dev/[A-Za-z0-9/]+$ ]] || die 'Remote inventory returned an invalid device path.'
-  options="$(rescue_ssh "findmnt --noheadings --raw --source '$path' --output OPTIONS" 2>/dev/null || true)"
-  while IFS= read -r opts; do
-    [[ -z "$opts" ]] && continue
-    case ",$opts," in *,rw,*)
-      printf '{"status":"BLOCKED","reason":"A source device is mounted read-write; source registration withheld."}\n' >"$PAW_REPORT_DIR/source-discovery.json"
-      chmod 0600 "$PAW_REPORT_DIR/source-discovery.json"
-      die 'A Rescue Mode source disk or partition is mounted read-write.' ;;
-    esac
-  done <<<"$options"
-done < <(python3 -c 'import json,sys; print("\n".join(json.load(sys.stdin)["partition_paths"]))' <<<"$candidate")
+done
+# The remote helper proves both facts the old `findmnt ... || true` loop could
+# not distinguish: findmnt executed successfully, and /proc/self/mountinfo has
+# no read-write mount for any source device (matched by st_rdev major:minor).
+# The helper is streamed over the authenticated SSH channel; it does not rely
+# on any file being installed on the Rescue host.
+mount_helper_b64="$(base64 -w0 "$PAW_ROOT/scripts/paw-source-mount-check.py")"
+set +e
+mount_json="$(printf '%s' "$mount_helper_b64" | rescue_ssh "base64 -d | python3 - ${source_paths[*]}")"
+mount_rc=$?
+set -e
+if (( mount_rc != 0 )); then
+  printf '%s\n' "${mount_json:-{\"status\":\"BLOCKED\",\"reason\":\"MOUNT_CHECK_NO_OUTPUT\"}}" >"$PAW_REPORT_DIR/source-discovery.json"
+  chmod 0600 "$PAW_REPORT_DIR/source-discovery.json"
+  die "Source mount safety could not be proven (rc=$mount_rc): ${mount_json:-no output}"
+fi
+printf '%s\n' "$mount_json" >"$PAW_REPORT_DIR/source-mount-check.json"
+chmod 0600 "$PAW_REPORT_DIR/source-mount-check.json"
+python3 - "$PAW_REPORT_DIR/source-mount-check.json" <<'PY' || die 'Source mount check did not return PASS.'
+import json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+assert d.get("status")=="PASS", d
+assert d.get("read_write_mounts")==0, d
+PY
 
 python3 - "$candidate" "$PAW_CONFIG_DIR/source.json" "$PAW_REPORT_DIR/source-discovery.json" /run/paw-network/rescue-endpoint.json <<'PY'
 import datetime,json,os,sys
@@ -134,7 +150,7 @@ registration={"source_mode":"rescue",**{k:v for k,v in facts.items() if k!="part
  "ssh_host":endpoint["host"],"ssh_port":int(endpoint["port"]),"ssh_user":"root",
  "identity_file":"/run/paw-network/rescue_ed25519","known_hosts_file":"/run/paw-network/known_hosts",
  "identity_confirmed_at":now}
-report={"status":"PASS","method":"pinned-host-key SSH; remote lsblk+findmnt",
+report={"status":"PASS","method":"pinned-host-key SSH; remote lsblk + fail-closed findmnt/mountinfo st_rdev check",
  "source":facts,"discovered_at":now,"inventory_sha256":facts["inventory_sha256"],
  "machine_verified_layout":True,"hardware_serial_available":facts["serial_available"]}
 for path,data in ((config_path,registration),(report_path,report)):
