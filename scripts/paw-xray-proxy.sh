@@ -5,6 +5,7 @@ action="${1:-status}"; bin="${PAW_XRAY_BIN:-/opt/paw-migration/bin/xray}"; cfg="
 unit="paw-xray-client.service"
 case "$action" in
   start)
+    [[ "$cfg" == /run/paw-network/xray-client.json ]] || die 'Xray client config must be the approved RAM-only path.'
     [[ -x "$bin" && -r "$cfg" ]] || die 'Xray binary or RAM-only client config missing.'
     [[ "$(stat -c %u "$cfg")" == 0 && ( "$(stat -c %a "$cfg")" == 600 || "$(stat -c %a "$cfg")" == 400 ) ]] || die 'Client config must be root-owned and mode 0600/0400.'
     python3 - "$cfg" <<'PY'

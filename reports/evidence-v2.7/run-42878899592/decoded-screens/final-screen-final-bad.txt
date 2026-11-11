@@ -1,0 +1,50 @@
+[PAW-TTY1-FINAL-PANEL]
+PAW 最 终 迁 移 授 权 （ 请 完 整 阅 读 后 再 确 认 ）
+硬 件 检 查 ： PASS（ 内 存 验 证 方 式 ： OPERATOR_CONFIRMED）
+源 系 统 ： Rescue Mode， 型 号 =QEMU virtual source， 容 量 =268435456 bytes， 根 分 区 =2
+源 盘 序 列 号 ： 不 可 用 （ 使 用 组 合 身 份 ）
+源 盘 组 合 身 份 ： aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+固 定  SSH 主 机 指 纹 ： SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+目 标  SSD： 设 备 =/dev/loop1， 型 号 =QEMU virtual loop media， 容 量 =1073741824 bytes
+目 标 序 列 号 ： QEMU-123456
+数 据 来 源 ： 固 定  SSH 主 机 指 纹 的  Rescue Mode 整 盘 流 （ 远 端  zstd， SSH 加 密 传 输 ， 本 地 解
+ 压 写 入 ）
+网 络 ： 本 次 启 动 已 验 证  Rescue SSH； 不 依 赖 旧  Ubuntu 内 部 的  VLESS/Tailscale 服 务 。
+数 据 损 失 ： 目 标  SSD 的 整 盘 内 容 将 被 源 盘 覆 盖 ， 目 标 盘 原 有 分 区 和 数 据 会 全 部 丢 失 。
+恢 复 ： 离 线 修 复 前 会 在  PAWDATA 保 留 配 置 备 份 ； 但 不 等 于 可 恢 复 目 标 盘 原 有 数 据 。
+[PAW-TTY1-FINAL-PROMPT]
+如 确 认 覆 盖 ， 请 输 入 目 标  SSD 序 列 号 最 后  6 位 ：
+输 入 ： 000000
+[PAW-TTY1-FINAL-BAD]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

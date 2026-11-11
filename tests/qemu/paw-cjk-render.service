@@ -1,0 +1,18 @@
+[Unit]
+Description=PAW CJK completion prompt render probe (test only)
+DefaultDependencies=no
+After=local-fs.target systemd-udev-settle.service getty@tty1.service paw-console-font.service
+ConditionKernelCommandLine=paw.render=1
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+Environment=PAW_ROOT=/opt/paw-migration
+ExecStart=/opt/paw-migration/paw-cjk-render-probe.sh
+StandardInput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+[Install]
+WantedBy=multi-user.target

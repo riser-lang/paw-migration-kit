@@ -1,0 +1,17 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42857316370
+
+Run:           42857316370 (workflow_dispatch, PAW live build and isolated tests)
+Head:          adb3e16 (fix/v2.6.2-final-readiness, screenshots in the text artifact)
+Started:       2026-11-10T16:42:49Z
+Artifact IDs:  13785706107 paw-test-reports (567,106 bytes, includes screendumps)
+               13784094644 paw-live-build-test-results (1,030,665,603 bytes)
+
+ISO bytes:     953,155,584
+
+This run is a verification run for the screenshot deliverable, not a delivery source: the
+ISO payload is unchanged from the delivery run, and the ISO itself was not downloaded.
+
+Delivered ISO keeps d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476.
+
+Ten builds now exist with identical size 953,155,584 and distinct SHA256 values, so
+byte-for-byte reproducibility remains unproven.

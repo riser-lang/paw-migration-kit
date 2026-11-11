@@ -1,0 +1,10 @@
+QEMU smoke test: PASS
+Firmware: SeaBIOS (x86_64 PC machine)
+ISO layout: xorriso reported an isohybrid MBR; suitable for whole-device imaging.
+Memtest86+: independent ISOLINUX entry and BIOS binary are present.
+Acceleration: TCG; KVM not used
+Live ISO booted and systemd readiness gate ran.
+Hardware-preflight entry is present in the built filesystem.
+Missing physical target/source kept readiness BLOCKED.
+Clone start marker: false
+This test does not establish compatibility with the physical ASUS board or SSD.

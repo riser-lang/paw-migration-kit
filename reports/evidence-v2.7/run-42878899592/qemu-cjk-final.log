@@ -1,0 +1,26 @@
+PASS font under test is 16x16
+PASS final: authorization panel reached fbcon
+PASS final: guest reported a >=6 character synthetic target serial
+PASS final-panel: framebuffer cells match shipped PSF glyphs
+PASS final-panel: 中文屏幕显示「PAW 最终迁移授权（请完整阅读后再确认）…」
+PASS final-panel: 中文屏幕显示「源系统：Rescue Mode…」
+PASS final-panel: 中文屏幕显示「源盘组合身份：…」
+PASS final-panel: 中文屏幕显示「固定 SSH 主机指纹：…」
+PASS final-panel: 中文屏幕显示「目标 SSD：设备=…」
+PASS final-panel: 中文屏幕显示「数据来源：固定 SSH 主机指纹的 Rescue…」
+PASS final-panel: 中文屏幕显示「数据损失：目标 SSD 的整盘内容将被源盘覆盖，…」
+PASS final-panel: 中文屏幕显示「如确认覆盖，请输入目标 SSD 序列号最后 6 …」
+PASS final-panel: 中文屏幕显示「目标序列号：QEMU-123456…」
+PASS final: wrong suffix rejected on tty1
+PASS final-bad: framebuffer cells match shipped PSF glyphs
+PASS final-bad: 中文屏幕显示「错误：确认值与目标 SSD 序列号不匹配，已安全…」
+PASS final: no acceptance marker after rejection
+PASS final: panel reappeared for the second attempt
+PASS final: correct suffix accepted on tty1
+PASS final-ok: framebuffer cells match shipped PSF glyphs
+PASS final-ok: 中文屏幕显示「输入已确认；开始整盘覆盖迁移，请不要断电。…」
+PASS final: authorization session records /dev/tty1
+PASS final: both rejection and acceptance markers were recorded
+PASS final: only the probe shell and the authorization script hold tty1
+PASS final: no login or getty process competes for tty1
+Summary: 25 passed, 0 failed

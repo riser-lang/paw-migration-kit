@@ -1,0 +1,41 @@
+PAW virtual fault-injection results
+PASS Authenticated mock Rescue SSH discovery matched 50 GiB GPT, BIOS Boot and ext4 root
+PASS Virtio-style source without serial uses strict composite identity
+PASS No-serial source identity is composite and records pinned host fingerprint
+PASS Read-write-mounted Rescue source stopped as expected
+PASS Memtest manual confirmation records OPERATOR_CONFIRMED
+PASS Memtest OPERATOR_CONFIRMED is bound to current boot_id and target serial
+PASS Memtest observed errors are recorded as FAIL and rejected
+PASS Memtest FAIL is not converted to PASS
+PASS Memtest incomplete observation is recorded as WARN and rejected
+PASS Memtest WARN blocks the clone gate
+PASS Memtest attestation target mismatch stopped as expected
+PASS Rescue SSH login failure stopped as expected
+PASS Target serial mismatch before write stopped as expected
+PASS Serial-mismatch target stayed byte-identical
+PASS Interrupted SSH stream stopped as expected
+PASS Interrupted stream retained CLONE-INCOMPLETE
+PASS Short SSH stream stopped as expected
+PASS Short SSH stream retained CLONE-INCOMPLETE
+PASS Remote zstd reduced mixed-data SSH payload below 7 MiB for an 8 MiB source
+PASS SSH stream, zstd round-trip, SHA256, and firstboot gate
+PASS Stream report distinguishes source bytes, SSH payload, actual restored bytes, compression and SHA256
+PASS Missing remote zstd selects an explicitly reported raw SSH fallback
+PASS Corrupted destination SHA256 stopped as expected
+PASS Re-run to fresh verified virtual target clears incomplete state
+PASS Destination too small stopped as expected
+PASS Too-small target stayed byte-identical before writing
+PASS Target image absent stopped as expected
+PASS Hardware gate accepts OPERATOR_CONFIRMED memory and clean virtual SMART/read scan
+PASS Hardware report records operator memory trust separately from machine proof
+PASS Hardware gate rejects unconfirmed memory stopped as expected
+PASS Unconfirmed memory stays WARN and cannot produce hardware PASS
+PASS SMART FAIL injection stopped as expected
+PASS Read I/O timeout injection stopped as expected
+PASS Loop-backed GPT partition expanded
+PASS Loop-backed ext4 filesystem expanded
+PASS Non-last root partition expansion is refused
+PASS Refusal explains the later-partition collision
+PASS Refusal states that nothing was changed
+PASS Partition table unchanged by the refusal
+Summary: 39 passed, 0 failed

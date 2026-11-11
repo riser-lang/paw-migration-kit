@@ -1,0 +1,18 @@
+PASS font under test is 16x16
+PASS bad: PAWDATA prompt reached on fbcon
+PASS bad: kernel font service reports fbcon 16x16 load
+PASS bad: framebuffer device is bochs-drm
+PASS bad: framebuffer cells match shipped PSF glyphs
+PASS bad: 中文屏幕显示「PAW 首次启动 · PAWDATA 持久分区初…」
+PASS bad: 中文屏幕显示「只针对当前启动本系统的可移动设备；不会碰其他磁盘…」
+PASS bad: 中文屏幕显示「将只追加一个新的 PAWDATA 分区并格式化该…」
+PASS bad: 中文屏幕显示「请输入该设备序列号最后 6 位以继续：…」
+PASS bad: 中文屏幕显示「序列号：QEMU-123456…」
+PASS bad: wrong serial suffix stopped on tty1
+PASS bad: framebuffer cells match shipped PSF glyphs
+PASS bad: 中文屏幕显示「错误：序列号末六位不匹配，已安全停止，没有写入任…」
+PASS bad: no INPUT-OK marker after rejection
+PASS bad: status file records actual output tty /dev/tty1
+PASS bad: PAWDATA panel and serial input share /dev/tty1
+PASS bad: tty1 has exactly one non-helper holder
+Summary: 17 passed, 0 failed

@@ -1,0 +1,14 @@
+PAWDATA virtual partition tests
+PASS Auto-init appended a labeled ext4 PAWDATA partition to MBR Hybrid ISO
+PASS Original ISO partition geometry was preserved; only one MBR partition was appended
+PASS ISO9660 boot filesystem still identifiable after PAWDATA append
+PASS Data survived an unmount/remount reboot simulation
+PASS Mounted PAWDATA identity, write probe and free-space gate passed
+PASS Auto-init appended a labeled ext4 PAWDATA partition to GPT Hybrid media
+PASS Original GPT BIOS Boot geometry was preserved; only one GPT partition was appended
+PASS Existing GPT BIOS Boot partition was not formatted
+PASS Wrong serial suffix left the partition table unchanged
+PASS Missing PAWDATA is reported as WARN/BLOCKED
+PASS Corrupted ext4 superblock fails closed
+PASS Space exhaustion is detected and remains non-PASS
+Summary: 12 passed, 0 failed

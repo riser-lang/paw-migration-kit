@@ -1,0 +1,12 @@
+PASS font under test is 16x16
+PASS render: finalizer Chinese success text reached fbcon
+PASS render: finalizer completed with mock reboot
+PASS render-complete: framebuffer cells match shipped PSF glyphs
+PASS render-complete: 中文屏幕显示「PAW 迁移成功：克隆、独立 SHA256 校验…」
+PASS render-complete: 中文屏幕显示「完成记录已原子写入并同步到磁盘。…」
+PASS render-complete: 中文屏幕显示「系统将在 5 秒后自动重启进入正式 Ubuntu…」
+PASS render-complete: 中文屏幕显示「自动重启命令已下发。…」
+PASS render: reboot status is PASS
+PASS render: mock reboot was invoked exactly once
+PASS render: test used the mock reboot command
+Summary: 11 passed, 0 failed

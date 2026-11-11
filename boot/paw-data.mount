@@ -1,12 +1,16 @@
 [Unit]
 Description=PAW persistent data partition
 Before=multi-user.target
+DefaultDependencies=no
+After=local-fs-pre.target
+Before=local-fs.target
 
 [Mount]
 What=/dev/disk/by-label/PAWDATA
 Where=/var/lib/paw-migration
-Type=vfat
-Options=rw,nofail,uid=0,gid=0,umask=0077,noexec,nosuid,nodev
+Type=ext4
+Options=rw,nofail,noatime,errors=remount-ro,noexec,nosuid,nodev,x-systemd.device-timeout=8s
+DirectoryMode=0700
 
 [Install]
 WantedBy=local-fs.target

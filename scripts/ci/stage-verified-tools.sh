@@ -13,10 +13,12 @@ curl --fail --location --silent --show-error \
   https://pkgs.tailscale.com/stable/debian/trixie.tailscale-keyring.list \
   -o /etc/apt/sources.list.d/tailscale.list
 apt-get update -qq
-(cd "$tmp/tailscale" && apt-get download tailscale)
+tailscale_expected_version='1.104.5'
+(cd "$tmp/tailscale" && apt-get download "tailscale=$tailscale_expected_version")
 deb="$(find "$tmp/tailscale" -maxdepth 1 -name 'tailscale_*.deb' -print -quit)"
 [[ -n "$deb" ]]
 tailscale_version="$(dpkg-deb -f "$deb" Version)"
+[[ "$tailscale_version" == "$tailscale_expected_version" ]] || { echo 'Unexpected Tailscale package version.' >&2; exit 1; }
 dpkg-deb -x "$deb" "$tmp/tailscale/root"
 install -m 0755 "$tmp/tailscale/root/usr/bin/tailscale" "$root/boot/bin/tailscale"
 install -m 0755 "$tmp/tailscale/root/usr/sbin/tailscaled" "$root/boot/bin/tailscaled"

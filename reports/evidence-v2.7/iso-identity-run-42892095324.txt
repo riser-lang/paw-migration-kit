@@ -1,0 +1,17 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42892095324 (double build)
+
+Run:           42892095324 (workflow_dispatch with double_build=true)
+Head:          b47a944 (fix/v2.6.2-final-readiness, repro probe)
+Started:       2026-11-10T20:07:20Z
+Purpose:       reproducibility probe, not a delivery build
+
+ISO (build A, the one the job hashed): 953,155,584 bytes
+SHA256 A:      a1fadaa123d8b05313d9c71a17263e3fab83975e121607d176a37364f87420c2
+SHA256 B:      see iso-repro-report.txt (second build, same size, different hash)
+
+VERDICT: REPRO=DIFFERS — tree identical in size/listing, squashfs bytes differ.
+
+Delivered ISO keeps d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476.
+
+With this probe, fourteen builds have produced 953,155,584 bytes; every one has a distinct
+SHA256.

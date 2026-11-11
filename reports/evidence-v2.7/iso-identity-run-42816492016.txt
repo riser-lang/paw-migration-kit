@@ -1,0 +1,28 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42816492016
+
+Run:           42816492016 (workflow_dispatch, PAW live build and isolated tests)
+Head:          b4bfd84 (fix/v2.6.2-final-readiness, chroot grub-install suite)
+Started:       2026-11-10T12:31:31Z
+Artifact ID:   13765554334
+Artifact bytes: 1,030,666,472
+Artifact TTL:  2026-11-13 12:51:02 UTC
+
+ISO bytes:     953,155,584
+ISO SHA256:    35f0baff2c0496ad9e3d945c9a31c53841c7fa5cce2209eff66a19127a04b185
+
+Build-side value (run log):
+  iso_bytes=953155584
+  35f0baff2c0496ad9e3d945c9a31c53841c7fa5cce2209eff66a19127a04b185  boot/custom/paw-live-amd64.iso
+
+Independent workstation check:
+  artifact downloaded (1,030,666,472 bytes), expanded, ISO re-hashed
+  computed = 35f0baff2c0496ad9e3d945c9a31c53841c7fa5cce2209eff66a19127a04b185
+  result   = MATCH with the build-side value and the uploaded sidecar
+
+Status: verification run, not the delivery source. Its only changes are CI suites, so
+the ISO payload equals the delivery run 42804949796; the rebuilt ISO differs in bytes
+because the build is not byte-reproducible. The delivered ISO keeps
+d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476.
+
+Six builds now exist with identical size 953,155,584 and six distinct SHA256 values:
+2295eb0a…, 17789c04…, 2edf88a0…, d9fe2879…, aff7a807…, 35f0baff….

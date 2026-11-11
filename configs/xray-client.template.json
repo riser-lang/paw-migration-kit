@@ -7,10 +7,10 @@
   "outbounds": [
     {
       "protocol": "vless",
-      "settings": { "vnext": [{ "address": "<PUBLIC_ENDPOINT_TO_CONFIRM>", "port": 443, "users": [{ "id": "<SECRET_UUID_NOT_STORED_HERE>", "encryption": "none", "flow": "<FROM_SERVER_CONFIG>" }] }] },
+      "settings": { "vnext": [{ "address": "<USER_SUPPLIED_ENDPOINT>", "port": 443, "users": [{ "id": "<ENTERED_AT_RUNTIME>", "encryption": "none", "flow": "<OPTIONAL_SERVER_VALUE>" }] }] },
       "streamSettings": {
         "network": "tcp", "security": "reality",
-        "realitySettings": { "serverName": "<FROM_SERVER_CONFIG>", "fingerprint": "<USER_MUST_SUPPLY_OR_APPROVE>", "password": "<DERIVE_FROM_SERVER_PRIVATE_KEY_AT_RUNTIME>", "shortId": "<FROM_SERVER_CONFIG>" }
+        "realitySettings": { "serverName": "<USER_SUPPLIED_SERVER_NAME>", "fingerprint": "<USER_SUPPLIED_FINGERPRINT>", "publicKey": "<SERVER_PUBLIC_KEY_ONLY>", "shortId": "<USER_SUPPLIED_SHORT_ID>" }
       }
     },
     { "protocol": "freedom", "tag": "direct" }

@@ -1,0 +1,50 @@
+[PAW-MENU-TTY1]
+==============================================
+ PAW 迁 移 准 备 控 制 台 （ v2.7）
+==============================================
+[PAW-MENU-KEYS] 1 Memtest 2 PAWDATA 3 RescueSSH 4 TargetSSD 5 HWCheck 6 Migrate
+7 Reports 8 Network 0 Redraw
+当 前 ： 状 态 =BLOCKED data=PASS source=BLOCKED target_identity=BLOCKED hardware=BLO
+CKED network=BLOCKED
+1) 登 记  Memtest86+ 人 工 确 认 结 果
+2) 初 始 化 /修 复  PAWDATA 持 久 分 区
+3) 配 置  Rescue SSH 并 识 别 旧  VPS 源 盘
+4) 登 记 目 标  SSD（ 只 读 盘 点 ）
+5) 运 行 目 标  SSD 硬 件 检 查 （ SMART/只 读 扫 描 /温 度 /内 存 ）
+6) 最 终 中 文 授 权 并 开 始 迁 移
+7) 查 看 状 态 和 报 告
+8) 选 择  Rescue / Restored 网 络 阶 段
+0) 重 新 显 示 状 态
+7
+请 输 入 编 号 ： {
+  "status": "BLOCKED",
+  "checks": {
+    "data": "PASS",
+    "source": "BLOCKED",
+    "target_identity": "BLOCKED",
+    "hardware": "BLOCKED",
+    "network": "BLOCKED"
+  },
+  "details": "Live \u73af\u5883\u9884\u68c0\u5931\u8d25 \u672c\u6b21\u542f\u52a8
+\u5c1a\u672a\u901a\u8fc7\u56fa\u5b9a\u4e3b\u673a\u6307\u7eb9\u7684 Rescue SSH \u
+6e90\u76d8\u590d\u6838 \u76ee\u6807 SSD \u5c1a\u672a\u901a\u8fc7\u53ea\u8bfb\u76
+d8\u70b9\u548c\u767b\u8bb0 SMART\u3001\u53ea\u8bfb\u626b\u63cf\u3001\u6e29\u5ea6
+\u6216\u5185\u5b58\u68c0\u67e5\u672a\u5168\u90e8 PASS\uff0c\u6216\u5c1a\u672a\u5
+b8c\u6210\u672c\u6b21\u542f\u52a8\u7684\u786c\u4ef6\u68c0\u67e5",
+  "updated_at": "2026-11-10T19:01:38.430612+00:00",
+  "clone_started": false
+
+报 告 目 录 ： /opt/paw-migration/tests/virtual/state/reports
+total 32
+-rw------- 1 root root  435 Nov 10 19:01 console-font.json
+-rw------- 1 root root 1533 Nov 10 19:01 console-menu.json
+-rw------- 1 root root 2439 Nov 10 19:01 data-init.json
+-rw------- 1 root root  719 Nov 10 19:01 live-readiness.json
+-rw------- 1 root root  336 Nov 10 19:01 media-partition.json
+-rw------- 1 root root  402 Nov 10 19:01 network-boot-20261110T190114Z.txt
+-rw------- 1 root root  146 Nov 10 19:01 network-bootstrap.json
+-rw------- 1 root root  225 Nov 10 19:01 paw-data-health.json
+
+按  Enter 返 回 菜 单 ...�
+
+

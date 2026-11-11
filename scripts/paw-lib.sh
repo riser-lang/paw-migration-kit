@@ -23,10 +23,30 @@ require_sim_or_enrollment(){
   [[ ${PAW_SIMULATION:-0} == 1 ]] && return 0
   require_target_enrollment
   [[ ${PAW_DESTRUCTIVE_ARM:-} == 'I_HAVE_VERIFIED_THE_TARGET_SERIAL' ]] || die 'Destructive operation not armed.'
+  [[ -r "$PAW_REPORT_DIR/operator-authorization.json" ]] || die 'Fresh operator authorization receipt is missing.'
+  python3 - "$PAW_REPORT_DIR/operator-authorization.json" <<'PY'
+import datetime,json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+if d.get("status")!="AUTHORIZED": raise SystemExit("authorization is not active")
+expiry=datetime.datetime.fromisoformat(d.get("expires_at",""))
+if expiry.tzinfo is None or expiry <= datetime.datetime.now(datetime.timezone.utc): raise SystemExit("authorization expired")
+PY
   [[ -r "$PAW_CONFIG_DIR/source.json" ]] || die 'No source enrollment.'
   grep -q '"source_mode": "rescue"' "$PAW_CONFIG_DIR/source.json" || die 'Source must be Rescue Mode.'
   [[ -r "$PAW_REPORT_DIR/paw-hardware-health-report.json" ]] || die 'Hardware health report missing.'
   grep -q '"status"[[:space:]]*:[[:space:]]*"PASS"' "$PAW_REPORT_DIR/paw-hardware-health-report.json" || die 'Hardware health report is not PASS.'
+}
+assert_authorization_for_target(){
+  local dev="$1" parent serial expected
+  parent="$(parent_disk "$dev")"
+  serial="$(lsblk -dn -o SERIAL "$parent" | xargs)"
+  expected="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("device_path", ""))' "$PAW_CONFIG_DIR/target-ssd.json")"
+  python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$serial" "$parent" "$expected" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+if d.get("status")!="AUTHORIZED" or d.get("target_serial")!=sys.argv[2] or d.get("target_device")!=sys.argv[3] or sys.argv[3]!=sys.argv[4]:
+    raise SystemExit("authorization does not match the current target")
+PY
 }
 parent_disk(){ local p; p="$(lsblk -dn -o PKNAME "$1" | xargs)"; [[ -n "$p" ]] && printf '/dev/%s\n' "$p" || printf '%s\n' "$1"; }
 assert_sim_files(){
@@ -48,18 +68,25 @@ assert_registered_target_device(){
   [[ -n "$expected" && "$actual" == "$expected" ]] || die 'Registered target serial mismatch.'
 }
 rescue_ssh(){
-  local host port user identity known
-  host="$(sed -n 's/.*"ssh_host"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9.-]*\)".*/\1/p' "$PAW_CONFIG_DIR/source.json")"
-  port="$(sed -n 's/.*"ssh_port"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$PAW_CONFIG_DIR/source.json")"
-  user="$(sed -n 's/.*"ssh_user"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_-]*\)".*/\1/p' "$PAW_CONFIG_DIR/source.json")"
-  identity="$(sed -n 's/.*"identity_file"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_./-]*\)".*/\1/p' "$PAW_CONFIG_DIR/source.json")"
-  known="$(sed -n 's/.*"known_hosts_file"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_./-]*\)".*/\1/p' "$PAW_CONFIG_DIR/source.json")"
-  [[ "$host" =~ ^[A-Za-z0-9.-]+$ && "$port" =~ ^[0-9]{1,5}$ && "$user" == root ]] || die 'Rescue SSH endpoint config is incomplete.'
+  local host port user identity known endpoint
+  endpoint=/run/paw-network/rescue-endpoint.json
+  [[ -r "$endpoint" ]] || die 'RAM-only Rescue Mode endpoint is not configured.'
+  read -r host port < <(python3 - "$endpoint" <<'PY'
+import json,re,sys
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+h=str(d.get("host", "")); p=str(d.get("port", ""))
+if not re.fullmatch(r"[A-Za-z0-9.-]+",h) or not p.isdecimal() or not 1 <= int(p) <= 65535:
+    raise SystemExit("invalid Rescue Mode endpoint")
+print(h,p)
+PY
+  ) || die 'Rescue SSH endpoint config is malformed.'
+  user=root; identity=/run/paw-network/rescue_ed25519; known=/run/paw-network/known_hosts
+  [[ "$host" =~ ^[A-Za-z0-9.-]+$ && "$port" =~ ^[0-9]{1,5}$ ]] || die 'Rescue SSH endpoint config is incomplete.'
   ((port > 0 && port < 65536)) || die 'Invalid Rescue SSH port.'
   [[ "$identity" == /run/paw-network/* && -r "$identity" && "$(stat -c %u "$identity")" == 0 && ( "$(stat -c %a "$identity")" == 600 || "$(stat -c %a "$identity")" == 400 ) ]] || die 'Rescue key must be a root-only RAM file.'
   [[ "$known" == /run/paw-network/* && -s "$known" ]] || die 'Pinned Rescue Mode host key missing.'
   need ssh
-  ssh -T -i "$identity" -p "$port" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known" -o ConnectTimeout=12 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 "$user@$host" "$@"
+  ssh -T -i "$identity" -p "$port" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known" -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=12 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 "$user@$host" "$@"
 }
 assert_unmounted(){ local m; command -v lsblk >/dev/null 2>&1 || return 0; m="$(lsblk -nrpo MOUNTPOINT "$1" | sed '/^$/d')"; [[ -z "$m" ]] || die "Device has mounted filesystem(s): $1 $m"; }
 mark_incomplete(){ printf 'INCOMPLETE %s\n' "$(date -u +%FT%TZ)" >"$PAW_REPORT_DIR/CLONE-INCOMPLETE"; }

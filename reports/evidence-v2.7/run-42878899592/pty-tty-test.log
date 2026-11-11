@@ -1,0 +1,17 @@
+PAW tty helper pty interaction tests
+PASS B2 正确序列号末六位被接受
+PASS B2 写入 INPUT-OK 状态标记
+PASS B2 状态文件记录实际输出 tty 为注入的 pty
+PASS B5 中文面板与序列号输入使用同一终端
+PASS B6 交互期间该终端只有一个非辅助进程持有者
+PASS B1 面板与提示 ASCII 标记出现在终端输出
+PASS B3 错误序列号被拒绝
+PASS B3 写入 INPUT-BAD 状态标记
+PASS B3 输出中文错误原因
+PASS B3 拒绝路径仍只有一个终端持有者
+PASS B4 无输入超时后安全停止
+PASS B4 写入 INPUT-TIMEOUT 状态标记
+PASS B4 输出中文安全停止说明
+PASS B4b 输入流提前关闭时安全停止
+PASS B4b 写入 ABORTED/TIMEOUT 状态标记
+Summary: 15 passed, 0 failed

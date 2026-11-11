@@ -1,0 +1,102 @@
+PAW ISO reproducibility probe
+Executed: 2026-11-10T20:12:55Z
+Build work for the second build: /tmp/paw-repro-probe/build-b
+
+== build A
+bytes=953155584
+sha256=a1fadaa123d8b05313d9c71a17263e3fab83975e121607d176a37364f87420c2
+
+== build B
+bytes=953155584
+sha256=2f485240f1e917bd6bba697ac59a0cf8ae76f759d23bc6d40a08d5a99ae8ed06
+
+VERDICT: REPRO=DIFFERS
+
+== first differing byte
+first_offset=13977635
+differing_bytes_total=57134346
+
+== ISO volume metadata (xorriso -toc)
+[a] Volume id    : 'PAW-LIVE'
+[a] Publisher Id : PAW MIGRATION PREPARATION
+[a] Creation Time: 2026110100000000
+[b] Volume id    : 'PAW-LIVE'
+[b] Publisher Id : PAW MIGRATION PREPARATION
+[b] Creation Time: 2026110100000000
+
+== /live components
+vmlinuz same=yes a=4336c75fc1a6a58e b=4336c75fc1a6a58e bytes_a=12154816 bytes_b=12154816
+initrd.img same=yes a=ca4f24ba696e3a83 b=ca4f24ba696e3a83 bytes_a=109944987 bytes_b=109944987
+filesystem.squashfs same=nope a=ffdb9aa5b9219626 b=3cdca94f71b2880b bytes_a=815972352 bytes_b=815972352
+
+== squashfs compression settings
+[a] Compression xz
+[a] Block size 131072
+[a] Number of fragments 2092
+[a] Number of inodes 25595
+[a] Number of ids 12
+[b] Compression xz
+[b] Block size 131072
+[b] Number of fragments 2092
+[b] Number of inodes 25595
+[b] Number of ids 12
+
+== squashfs metadata (unsquashfs -s)
+[a] Found a valid SQUASHFS 4:0 superblock on /tmp/paw-repro-probe/mix/a/filesystem.squashfs.
+[a] Creation or last append time Sun Nov  1 00:00:00 2026
+[a] Filesystem is exportable via NFS
+[a] Data is compressed
+[a] Uids/Gids (Id table) are compressed
+[a] Always-use-fragments option is not specified
+[b] Found a valid SQUASHFS 4:0 superblock on /tmp/paw-repro-probe/mix/b/filesystem.squashfs.
+[b] Creation or last append time Sun Nov  1 00:00:00 2026
+[b] Filesystem is exportable via NFS
+[b] Data is compressed
+[b] Uids/Gids (Id table) are compressed
+[b] Always-use-fragments option is not specified
+
+== squashfs file listing
+listing_lines_a=25600
+listing_lines_b=25600
+listing_differing_lines=0
+
+== content sample
+same opt/paw-migration/scripts/paw-final-confirm.sh
+same opt/paw-migration/scripts/paw-stream-clone.sh
+same opt/paw-migration/fonts/paw-cjk-16x16.psf
+same etc/paw-migration.env
+same etc/systemd/system/paw-console.service
+same usr/bin/dash
+same boot/grub/grub.cfg
+content_sample_same=7 content_sample_diff=0 skipped=0
+
+== full content diff (extract both rootfs)
+differing_entries=214
+first 25 differences:
+diff: /tmp/paw-repro-probe/root-a/bin/apt-extracttemplates: No such file or directory
+diff: /tmp/paw-repro-probe/root-b/bin/apt-extracttemplates: No such file or directory
+File /tmp/paw-repro-probe/root-a/dev/console is a character special file while file /tmp/paw-repro-probe/root-b/dev/console is a character special file
+File /tmp/paw-repro-probe/root-a/dev/full is a character special file while file /tmp/paw-repro-probe/root-b/dev/full is a character special file
+File /tmp/paw-repro-probe/root-a/dev/null is a character special file while file /tmp/paw-repro-probe/root-b/dev/null is a character special file
+File /tmp/paw-repro-probe/root-a/dev/ptmx is a character special file while file /tmp/paw-repro-probe/root-b/dev/ptmx is a character special file
+File /tmp/paw-repro-probe/root-a/dev/random is a character special file while file /tmp/paw-repro-probe/root-b/dev/random is a character special file
+File /tmp/paw-repro-probe/root-a/dev/tty is a character special file while file /tmp/paw-repro-probe/root-b/dev/tty is a character special file
+File /tmp/paw-repro-probe/root-a/dev/urandom is a character special file while file /tmp/paw-repro-probe/root-b/dev/urandom is a character special file
+File /tmp/paw-repro-probe/root-a/dev/zero is a character special file while file /tmp/paw-repro-probe/root-b/dev/zero is a character special file
+diff: /tmp/paw-repro-probe/root-a/etc/alternatives/regulatory.db: No such file or directory
+diff: /tmp/paw-repro-probe/root-b/etc/alternatives/regulatory.db: No such file or directory
+diff: /tmp/paw-repro-probe/root-a/etc/alternatives/regulatory.db.p7s: No such file or directory
+diff: /tmp/paw-repro-probe/root-b/etc/alternatives/regulatory.db.p7s: No such file or directory
+diff: /tmp/paw-repro-probe/root-a/etc/mtab: No such file or directory
+diff: /tmp/paw-repro-probe/root-b/etc/mtab: No such file or directory
+Files /tmp/paw-repro-probe/root-a/etc/nvme/hostid and /tmp/paw-repro-probe/root-b/etc/nvme/hostid differ
+diff: /tmp/paw-repro-probe/root-a/etc/profile.d/70-systemd-shell-extra.sh: No such file or directory
+diff: /tmp/paw-repro-probe/root-b/etc/profile.d/70-systemd-shell-extra.sh: No such file or directory
+diff: /tmp/paw-repro-probe/root-a/etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf: No such file or directory
+diff: /tmp/paw-repro-probe/root-b/etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf: No such file or directory
+diff: /tmp/paw-repro-probe/root-a/etc/ssl/certs/02265526.0: No such file or directory
+diff: /tmp/paw-repro-probe/root-b/etc/ssl/certs/02265526.0: No such file or directory
+diff: /tmp/paw-repro-probe/root-a/etc/ssl/certs/106f3e4d.0: No such file or directory
+diff: /tmp/paw-repro-probe/root-b/etc/ssl/certs/106f3e4d.0: No such file or directory
+
+Summary: 7 sampled paths identical, 0 differ, 0 skipped, listing differences 0

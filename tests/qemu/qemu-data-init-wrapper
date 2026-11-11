@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Test-only data-init wrapper: creates a loop-backed virtual PAWDATA candidate
+# under /opt/paw-migration/tests/virtual, then executes the production script.
+# No host block device is touched.
+set -Eeuo pipefail
+case_name=ok
+input_timeout=60
+for arg in $(cat /proc/cmdline); do
+  case "$arg" in
+    paw.case=*) case_name="${arg#*=}" ;;
+    paw.timeout=*) input_timeout="${arg#*=}" ;;
+  esac
+done
+media_dir=/opt/paw-migration/tests/virtual
+mkdir -p "$media_dir/state/reports" "$media_dir/state/configs" "$media_dir/state/logs"
+# The early boot service can race udev; make the loop control device explicit.
+modprobe loop 2>/dev/null || true
+for _ in $(seq 1 50); do [[ -e /dev/loop-control ]] && break; sleep 0.1; done
+udevadm settle 2>/dev/null || true
+rm -f "$media_dir/media.img"
+truncate -s 512M "$media_dir/media.img"
+# A valid GPT with one tiny BIOS-boot partition, mirroring the live ISO layout.
+printf 'label: gpt\nsize=1M,type=21686148-6449-6e6f-744e-656564454649,name="BIOS boot"\n' | sfdisk "$media_dir/media.img" >/dev/null
+loop="$(losetup -f --show "$media_dir/media.img")"
+export PAW_QEMU_LOOP_DEV="$loop"
+export PAW_SIMULATION=1
+export PAW_LIVE_DISK_OVERRIDE="$loop"
+export PAW_INTERACTIVE_TTY=/dev/tty1
+export PAW_TTY_SESSION_NAME=data-init
+export PAW_INPUT_TIMEOUT="$input_timeout"
+export PAW_STATE_DIR="$media_dir/state"
+export PAW_CONFIG_DIR="$media_dir/state/configs"
+export PAW_REPORT_DIR="$media_dir/state/reports"
+export PAW_LOG_DIR="$media_dir/state/logs"
+printf 'qemu tty test case=%s loop=%s timeout=%s\n' "$case_name" "$loop" "$input_timeout" >&2
+exec /opt/paw-migration/scripts/paw-data-prepare.sh auto

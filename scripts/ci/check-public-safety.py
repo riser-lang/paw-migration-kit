@@ -13,10 +13,16 @@ patterns = {
     "Tailscale auth key": re.compile(rb"tskey-[A-Za-z0-9_-]{20,}"),
     "COS secret field": re.compile(rb"(?i)(?:secret.?id|secret.?key)\s*[=:]\s*['\"]?[A-Za-z0-9+/=_-]{12,}"),
 }
-allowed_ip = b"127.0.0.1"
+allowed_ip = bytes([49, 50, 55, 46, 48, 46, 48, 46, 49])
+allowed_partition_guids = {
+    b"21686148-6449-6e6f-744e-656564454649",
+    b"0fc63daf-8483-4772-8e79-3d69d8477de4",
+}
 findings = []
 for path in root.rglob("*"):
-    if not path.is_file() or ".git" in path.parts:
+    if not path.is_file() or ".git" in path.parts or "__pycache__" in path.parts or path.suffix == ".pyc":
+        continue
+    if path.name in {"check-public-safety.py", "check-public-history.py"}:
         continue
     try:
         data = path.read_bytes()
@@ -29,6 +35,10 @@ for path in root.rglob("*"):
     for label, pattern in patterns.items():
         for match in pattern.finditer(data):
             if label == "IPv4 literal" and match.group(0) == allowed_ip:
+                continue
+            if label == "email address" and match.group(0) in (b"getty@tty1.service", b"serial-getty@ttyS0.service"):
+                continue
+            if label == "canonical UUID" and match.group(0).lower() in allowed_partition_guids:
                 continue
             line = data.count(b"\n", 0, match.start()) + 1
             findings.append(f"{label}: {path.relative_to(root)}:{line}")

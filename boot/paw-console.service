@@ -1,0 +1,21 @@
+[Unit]
+Description=PAW text console menu
+After=paw-preflight.service paw-data-init.service getty@tty1.service
+Wants=paw-preflight.service
+Conflicts=getty@tty1.service
+
+[Service]
+Type=idle
+EnvironmentFile=-/etc/paw-migration.env
+ExecStart=/opt/paw-migration/scripts/paw-console-menu.sh
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal+console
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

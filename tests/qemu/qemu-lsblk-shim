@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Test-only lsblk shim: loop devices have no hardware serial/model, so present
+# a deterministic virtual identity.  Every other call goes to the real lsblk.
+set -Eeuo pipefail
+last="${!#}"
+if [[ " $* " == *" -o SERIAL "* && "$last" == "${PAW_QEMU_LOOP_DEV:-}" ]]; then
+  printf '%s\n' 'QEMU-123456'
+  exit 0
+fi
+if [[ " $* " == *" -o MODEL "* && "$last" == "${PAW_QEMU_LOOP_DEV:-}" ]]; then
+  printf '%s\n' 'QEMU virtual loop media'
+  exit 0
+fi
+exec /usr/bin/lsblk "$@"

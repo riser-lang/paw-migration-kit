@@ -1,0 +1,50 @@
+SeaBIOS (version 1.16.3-debian-1.16.3-2)
+Booting from ROM...
+Probing EDD (edd=off to disable)... ok
+[    0.640094] mtrr: your CPUs had inconsistent fixed MTRR settings
+[    0.641154] mtrr: your CPUs had inconsistent variable MTRR settings
+[    0.641303] mtrr: your CPUs had inconsistent MTRRdefType settings
+[    0.756125] acpi PNP0A03:00: fail to add MMCONFIG information, can't access e
+xtended configuration space under this bridge
+[    5.125739] amd_pstate: the _CPC object is not present in SBIOS or ACPI disab
+led
+[   12.611101] systemd-ssh-generator[189]: Failed to query local AF_VSOCK CID: C
+[   12.619549] (sd-exec-[180]: /usr/lib/systemd/system-generators/systemd-ssh-ge
+[PAW-REBOOT] all gates PASS; completion record is atomic and synced.
+PAW 迁 移 成 功 ： 克 隆 、 独 立  SHA256 校 验 、 离 线 修 复 、 GPT/ext4 扩 容 和 首 次 启 动 检 查 全 部 通
+ 过 。
+完 成 记 录 已 原 子 写 入 并 同 步 到 磁 盘 。
+系 统 将 在  5 秒 后 自 动 重 启 进 入 正 式  Ubuntu； 按  C 取 消 自 动 重 启 。
+Auto reboot in 5s; press C to cancel.
+倒 计 时  5 秒 （ 按  C 取 消 ） ...
+倒 计 时  4 秒 （ 按  C 取 消 ） ...
+倒 计 时  3 秒 （ 按  C 取 消 ） ...
+倒 计 时  2 秒 （ 按  C 取 消 ） ...
+倒 计 时  1 秒 （ 按  C 取 消 ） ...
+正 在 执 行 自 动 重 启 ： /bin/true
+2026-11-10T20:29:16Z [INFO] 最 终 门 禁 全 部 通 过 ， 已 完 成  sync 并 成 功 下 发  systemctl r
+eboot。
+自 动 重 启 命 令 已 下 发 。
+[PAW-REBOOT] PASS; reboot command issued.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

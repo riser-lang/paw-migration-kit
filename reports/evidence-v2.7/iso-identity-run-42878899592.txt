@@ -1,0 +1,17 @@
+PAW-MIGRATION-KIT ISO IDENTITY — Run 42878899592
+
+Run:           42878899592 (workflow_dispatch, PAW live build and isolated tests)
+Head:          a19ae9d (fix/v2.6.2-final-readiness, offline quick card generator)
+Started:       2026-11-10T18:48:24Z
+Artifact IDs:  13794249000 paw-test-reports (566,196 bytes)
+               13794184239 paw-live-build-test-results (1,030,667,230 bytes)
+
+ISO bytes:     953,155,584
+ISO SHA256:    7a66436b82acd358c71ee4f84ba8930099e6bd6b35f9f229ec5c0eb98c4c3735
+
+Build-side value from artifacts/iso-identity.txt inside the run; the ISO was not downloaded.
+Payload verification for this build: 54/54 files identical to the repository.
+
+Delivered ISO keeps d9fe28799f9c18d1ec69900b66ea0c71d70b232c5e62a0c4ab0e902fb95a4476.
+
+Twelve builds now exist with identical size 953,155,584 and distinct SHA256 values.

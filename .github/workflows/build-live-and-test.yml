@@ -2,6 +2,15 @@ name: PAW live build and isolated tests
 
 on:
   workflow_dispatch:
+    inputs:
+      double_build:
+        description: "Build twice and characterise the differences (slow, for the REPRO probe)"
+        type: boolean
+        default: false
+      compare_run_id:
+        description: "Run ID whose paw-live-build-test-results ISO this build must reproduce (drift check)"
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -13,10 +22,12 @@ concurrency:
 jobs:
   build-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: Check out sanitized migration kit
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check runner storage budget
         shell: bash
@@ -39,13 +50,14 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             bash shellcheck python3 python3-yaml jq \
             gpgv gnupg debian-archive-keyring curl unzip xorriso squashfs-tools \
-            live-build debootstrap syslinux-utils isolinux \
+            debootstrap syslinux-utils isolinux \
             grub-pc-bin grub-efi-amd64-bin mtools dosfstools \
             qemu-system-x86 qemu-utils \
             gdisk cloud-guest-utils e2fsprogs zstd pv smartmontools \
             openssh-client iproute2 iputils-ping dnsutils ethtool \
             pciutils usbutils lshw lm-sensors nvme-cli rsync less \
-            memtest86+ parted util-linux
+            memtest86+ parted util-linux gcc libc6-dev \
+            busybox-static cpio xz-utils
           sudo apt-get clean
           df -h "$RUNNER_TEMP"
 
@@ -53,19 +65,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo 'deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian trixie main' | sudo tee /etc/apt/sources.list.d/paw-live-build.list >/dev/null
+          echo 'Acquire::Check-Valid-Until "false";' | sudo tee /etc/apt/apt.conf.d/99paw-snapshot >/dev/null
+          echo 'deb [check-valid-until=no signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] https://snapshot.debian.org/archive/debian/20261101T000000Z trixie main' | sudo tee /etc/apt/sources.list.d/paw-live-build.list >/dev/null
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends live-build/trixie
+          sudo apt-get install -y --no-install-recommends live-build=1:20250505+deb13u1
           lb --version
           sudo rm -f /etc/apt/sources.list.d/paw-live-build.list
+          sudo rm -f /etc/apt/apt.conf.d/99paw-snapshot
           sudo apt-get clean
 
       - name: Static, syntax, PowerShell, config, and public-safety checks
         shell: bash
         run: |
           set -euo pipefail
-          shellcheck --severity=error scripts/*.sh scripts/ci/*.sh
-          for file in scripts/*.sh scripts/ci/*.sh; do bash -n "$file"; done
+          shellcheck --severity=error scripts/*.sh scripts/ci/*.sh tests/qemu/*.sh
+          for file in scripts/*.sh scripts/ci/*.sh tests/qemu/*.sh; do bash -n "$file"; done
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in list(Path('scripts').rglob('*.py')) + list(Path('tests/qemu').glob('*.py')):
+              compile(path.read_bytes(), str(path), 'exec')
+          print('Python source compile PASS')
+          PY
           pwsh -NoLogo -NoProfile -Command '$files = Get-ChildItem scripts -Filter *.ps1 -Recurse; foreach ($f in $files) { $t=$null; $e=$null; [System.Management.Automation.Language.Parser]::ParseFile($f.FullName,[ref]$t,[ref]$e) | Out-Null; if ($e) { $e | ForEach-Object { Write-Error $_ }; exit 1 } }; Write-Output "PowerShell parse PASS ($($files.Count) files)"'
           python3 - <<'PY'
           import json
@@ -85,6 +105,7 @@ jobs:
           print('JSON, workflow YAML, and systemd unit structure PASS')
           PY
           python3 scripts/ci/check-public-safety.py .
+          python3 scripts/ci/check-public-history.py .
           pwsh -NoLogo -NoProfile -File scripts/windows-static-check.ps1 -Root "$PWD"
 
       - name: Verify signed Debian base image and official hash manifest
@@ -109,10 +130,71 @@ jobs:
           test -s boot/custom/paw-live-amd64.iso
           xorriso -indev boot/custom/paw-live-amd64.iso -toc >/dev/null
           sha256sum boot/custom/paw-live-amd64.iso > artifacts/paw-live-amd64.iso.sha256
+          stat -c 'iso_bytes=%s' boot/custom/paw-live-amd64.iso > artifacts/iso-identity.txt
+          sha256sum boot/custom/paw-live-amd64.iso >> artifacts/iso-identity.txt
+          cat artifacts/iso-identity.txt
           cp boot/custom/paw-live-amd64.iso artifacts/
           cat configs/live-build/package-lists/paw.list.chroot > artifacts/software-packages.txt
           cat artifacts/software-manifest.txt >> artifacts/software-packages.txt
+          cp boot/custom/software-packages.lock artifacts/software-packages.lock
+          cp boot/custom/build-provenance.txt artifacts/build-provenance.txt
           df -h "$RUNNER_TEMP"
+
+      - name: Verify the ISO contains the reviewed payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          # unsquashfs has to create the device nodes inside the extracted rootfs,
+          # which only works as root (the same reason the CJK suite runs under sudo).
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/verify-iso-payload.sh
+          sudo chown "$(id -u):$(id -g)" artifacts/iso-payload-report.txt
+
+      - name: Reproducibility probe (second build, opt-in)
+        if: inputs.double_build
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A second build needs the same root privileges as the first one.
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" PAW_PROBE_DEEP=1 scripts/ci/repro-probe.sh
+          sudo chown "$(id -u):$(id -g)" artifacts/iso-repro-report.txt
+
+      - name: Reproducibility probe against a previous run (opt-in)
+        if: inputs.compare_run_id != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Does today's environment reproduce the ISO we already delivered? Download the
+          # reference artifact from the named run and compare it with the build from this job.
+          rm -rf "$RUNNER_TEMP/reference"
+          mkdir -p "$RUNNER_TEMP/reference"
+          gh run download "${{ inputs.compare_run_id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name paw-live-build-test-results \
+            --dir "$RUNNER_TEMP/reference"
+          reference="$(find "$RUNNER_TEMP/reference" -name 'paw-live-amd64.iso' -print -quit)"
+          test -n "$reference"
+          test -s "$reference"
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" PAW_PROBE_DEEP=1 \
+            PAW_PROBE_REFERENCE="$reference" scripts/ci/repro-probe.sh
+          sudo chown "$(id -u):$(id -g)" artifacts/iso-repro-report.txt
+
+      - name: Validate generated CJK console font
+        shell: bash
+        run: |
+          set -euo pipefail
+          font_dir="$RUNNER_TEMP/paw-live-build/chroot/opt/paw-migration/fonts"
+          unifont="$RUNNER_TEMP/paw-live-build/chroot/usr/share/unifont/unifont.hex"
+          version="$(awk '$1=="unifont"{print $2}' boot/custom/software-packages.lock | head -n1)"
+          test -s "$RUNNER_TEMP/paw-live-build/chroot/opt/paw-migration/scripts/paw-atomic-write.py"
+          test -s "$RUNNER_TEMP/paw-live-build/chroot/opt/paw-migration/scripts/paw-tty-lib.sh"
+          PAW_ARTIFACT_DIR="$PWD/artifacts" \
+          PAW_CJK_FONT="$font_dir/paw-cjk-16x16.psf" \
+          PAW_CJK_FALLBACK="$font_dir/paw-cjk-8x16.psf" \
+          PAW_UNIFONT_HEX="$unifont" \
+          PAW_UNIFONT_VERSION="$version" \
+            scripts/ci/run-cjk-font-tests.sh
 
       - name: Boot ISO with SeaBIOS and TCG
         shell: bash
@@ -120,11 +202,69 @@ jobs:
           set -euo pipefail
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/qemu-live-smoke.sh "$PWD/boot/custom/paw-live-amd64.iso"
 
+      - name: Run framebuffer CJK tty1 display and keyboard suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" \
+            PAW_CJK_ISO="$PWD/boot/custom/paw-live-amd64.iso" \
+            scripts/ci/run-cjk-qemu-tests.sh
+
+      - name: Exercise PAWDATA layout and persistence on virtual media
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-pawdata-virtual-tests.sh
+
       - name: Run isolated virtual disk and fault-injection suite
         shell: bash
         run: |
           set -euo pipefail
           sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-virtual-tests.sh
+
+      - name: Run offline repair and rollback suite on loop ext4
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-repair-virtual-tests.sh
+
+      - name: Run network and staged connectivity suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-network-virtual-tests.sh
+
+      - name: Run finalize/reboot and tty1 virtual suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-finalize-virtual-tests.sh
+          env PAW_ARTIFACT_DIR="$PWD/artifacts" PAW_REQUIRE_PTY=1 scripts/ci/run-tty-virtual-tests.sh
+
+      - name: Summarize real test counts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            artifacts/pawdata-virtual-test-report.txt \
+            artifacts/virtual-fault-injection-report.txt \
+            artifacts/repair-virtual-test-report.txt \
+            artifacts/network-virtual-test-report.txt \
+            artifacts/finalize-virtual-test-report.txt \
+            artifacts/tty-virtual-test-report.txt \
+            artifacts/cjk-font-test-report.txt \
+            artifacts/qemu-cjk-test-report.txt \
+            artifacts/iso-payload-report.txt \
+            artifacts/iso-repro-report.txt; do
+            if [[ -f "$file" ]]; then
+              echo "===== $file"
+              tail -n 4 "$file"
+            else
+              echo "MISSING $file"
+            fi
+          done | tee artifacts/test-summary.txt
+          echo "Static/syntax, QEMU smoke and ISO build logs are in the retained artifacts."
 
       - name: Upload reviewed build and test outputs (3-day retention)
         if: always()
@@ -134,12 +274,43 @@ jobs:
           path: |
             artifacts/paw-live-amd64.iso
             artifacts/paw-live-amd64.iso.sha256
+            artifacts/iso-identity.txt
             artifacts/debian-base-verification.txt
             artifacts/software-manifest.txt
             artifacts/software-packages.txt
+            artifacts/software-packages.lock
+            artifacts/build-provenance.txt
             artifacts/live-build.log
             artifacts/qemu-smoke-report.txt
+            artifacts/iso-system-area.txt
+            artifacts/pawdata-virtual-test-report.txt
             artifacts/virtual-fault-injection-report.txt
+            artifacts/repair-virtual-test-report.txt
+            artifacts/network-virtual-test-report.txt
+            artifacts/finalize-virtual-test-report.txt
+            artifacts/tty-virtual-test-report.txt
+            artifacts/pty-tty-test.log
+            artifacts/cjk-font-test-report.txt
+            artifacts/qemu-cjk-test-report.txt
+            artifacts/qemu-cjk-*.log
+            artifacts/qemu-cjk/**
           retention-days: 3
           compression-level: 0
+          if-no-files-found: warn
+
+      # The 1 GB bundle above is dominated by the ISO. A text-only companion artifact
+      # makes review and evidence copying cheap; it is intentionally not a second copy
+      # of the ISO.
+      - name: Upload text evidence only (3-day retention)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paw-test-reports
+          path: |
+            artifacts/*.txt
+            artifacts/pty-tty-test.log
+            artifacts/qemu-cjk-*.log
+            artifacts/qemu-cjk/**
+          retention-days: 3
+          compression-level: 6
           if-no-files-found: warn

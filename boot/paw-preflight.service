@@ -1,7 +1,7 @@
 [Unit]
 Description=PAW migration live preflight (read-only)
-After=local-fs.target network-online.target
-Wants=network-online.target
+After=local-fs.target network-online.target paw-data-init.service
+Wants=network-online.target paw-data-init.service
 
 [Service]
 Type=oneshot

@@ -1,0 +1,50 @@
+SeaBIOS (version 1.16.3-debian-1.16.3-2)
+Booting from ROM...
+Probing EDD (edd=off to disable)... ok
+[    0.912402] mtrr: your CPUs had inconsistent fixed MTRR settings
+[    0.913691] mtrr: your CPUs had inconsistent variable MTRR settings
+[    0.913912] mtrr: your CPUs had inconsistent MTRRdefType settings
+[    1.101579] acpi PNP0A03:00: fail to add MMCONFIG information, can't access e
+xtended configuration space under this bridge
+[    8.655415] amd_pstate: the _CPC object is not present in SBIOS or ACPI disab
+led
+[   16.921357] systemd-ssh-generator[185]: Failed to query local AF_VSOCK CID: C
+[   16.931994] (sd-exec-[176]: /usr/lib/systemd/system-generators/systemd-ssh-ge
+[   19.026438] systemd[1]: /etc/systemd/system/paw-xray-client.service:5: Unknow
+[   27.291391] kauditd_printk_skb: 23 callbacks suppressed
+[  110.594754] kauditd_printk_skb: 19 callbacks suppressed
+[  115.766279] kauditd_printk_skb: 10 callbacks suppressed
+[  120.849096] kauditd_printk_skb: 2 callbacks suppressed
+[PAW-TTY1-MENU]
+PAW 首 次 启 动  · PAWDATA 持 久 分 区 初 始 化
+只 针 对 当 前 启 动 本 系 统 的 可 移 动 设 备 ； 不 会 碰 其 他 磁 盘 。
+物 理 设 备 ： /dev/loop0
+型 号 ： QEMU virtual loop media
+容 量 ： 536870912 bytes（ 约  0 GiB）
+序 列 号 ： QEMU-123456
+将 只 追 加 一 个 新 的  PAWDATA 分 区 并 格 式 化 该 新 分 区 ； ISO 启 动 分 区 不 会 被 格 式 化 。
+[PAW-TTY1-PROMPT]
+Enter the last 6 characters of the media serial.
+请 输 入 该 设 备 序 列 号 最 后  6 位 以 继 续 ：
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,6 @@
+PAW_INTERACTIVE_TTY=/dev/tty1
+PAW_INPUT_TIMEOUT=60
+PAW_STATE_DIR=/opt/paw-migration/tests/virtual/state
+PAW_CONFIG_DIR=/opt/paw-migration/tests/virtual/state/configs
+PAW_REPORT_DIR=/opt/paw-migration/tests/virtual/state/reports
+PAW_LOG_DIR=/opt/paw-migration/tests/virtual/state/logs
