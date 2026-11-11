@@ -249,6 +249,12 @@ else
   if [[ "$grub_install_device" == "$disk" ]]; then
     log WARN "No /dev/disk/by-id symlink resolved to $disk; grub-pc cannot be pinned to a stable name."
     grub_debconf_pinned='no_by_id_symlink'
+  elif [[ "$(chroot "$mount_root" debconf-show grub-pc 2>/dev/null | sed -n 's/^[[:space:]]*grub-pc\/cloud_style_installation:[[:space:]]*//p' | head -n1)" == true ]]; then
+    # Cloud images use grub-pc's "cloud style" postinst branch, which installs
+    # via grub-probe and intentionally does not use install_devices.  Record
+    # that honestly; the explicit grub-install below still uses the by-id name.
+    grub_debconf_pinned='cloud_style_no_debconf'
+    log WARN 'grub-pc is in cloud-style mode; debconf install_devices pin is not applicable.'
   elif chroot "$mount_root" sh -c 'dpkg -s grub-pc >/dev/null 2>&1'; then
     printf 'grub-pc grub-pc/install_devices multiselect %s\ngrub-pc grub-pc/install_devices_empty boolean false\n' "$grub_install_device" \
       | chroot "$mount_root" debconf-set-selections
@@ -322,6 +328,8 @@ if grub_pinned=="debconf_noninteractive":
     changes.append(f"grub-pc install_devices pinned to {grub_device} via noninteractive debconf")
 elif grub_pinned=="grub-pc_not_installed":
     changes.append(f"grub-pc debconf package absent; GRUB installed to {grub_device} without a debconf pin")
+elif grub_pinned=="cloud_style_no_debconf":
+    changes.append(f"grub-pc cloud-style installation; debconf pin not applicable; explicit grub-install used {grub_device}")
 elif grub_pinned=="no_by_id_symlink":
     changes.append(f"no by-id symlink; GRUB installed to mutable name {grub_device} (flagged)")
 with open(path,"w",encoding="utf-8") as handle:
