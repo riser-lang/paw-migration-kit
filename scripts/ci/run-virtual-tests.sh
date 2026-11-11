@@ -215,6 +215,7 @@ assert d['ssh_stream_bytes']<d['source_bytes'] and d['independent_sha256_verifie
 PY
 
 dd if=/dev/zero of="$target_loop" bs=1M count=16 conv=notrunc status=none
+write_configs "$source_loop" "$target_loop"
 export PAW_TEST_ZSTD_MODE=missing
 "$root/scripts/paw-stream-clone.sh" "$source_loop" "$target_loop"
 fallback_mode="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["stream_mode"])' "$PAW_REPORT_DIR/stream-transfer-report.json")"
