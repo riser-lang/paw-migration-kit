@@ -1,16 +1,19 @@
 # PAW v2.7.1 第一段 BLOCKERS（本轮更新）
 
-更新日期：2026-11-10
+更新日期：2026-11-11（Stage 3 close / Stage 4 delivery）
 历史证据分支：`fix/v2.6.2-final-readiness`
 当前干净交接分支：`vm/ds-clean-handover-20261110`
+当前代码 HEAD：`24c13f7`
 当前分支基线：`d64071251bb3075d9cb26a967dfcba6cf139250a`
 历史 HEAD：`bf1a705`（第二段）／`376c35d00a943941e64ff2b38c627e9657a47cc9`（第一段）
 对应测试报告：`docs/PAW-V2.7.1-TEST-REPORT.md`
 保护边界：只使用虚拟磁盘/QEMU；未触碰旧 VPS、生产 PAW、真实 TF 卡或真实硬盘。
 
-> 当前分支的字体门禁已本机 26/26 通过；新分支 Run `42825407549` 已全绿
-> （26/26 gate、25/25 CJK、56/56 TTY）。历史 Run `42804949796` 的绿色结果
-> 只对应 `bf1a705`，不能写成新门禁的 CI 证据。
+> **Stage 3 已关闭**：18–26 步全部有真实 PASS 日志，包含 `auto_reboot` 先原子
+> 持久化并 `sync` 再执行重启，以及 SeaBIOS 从克隆目标盘启动到 `ubuntu login:`。
+> 证据见 `reports/PAW-STAGE3-RESUME-20261110.md`。Stage 4 正在等待代码 HEAD
+> `24c13f7` 的最终 CI Run `42941005270` 和 ISO 文件本身的 SHA256 复核。
+> 历史 Run `42804949796` 只对应 `bf1a705`，不是当前分支证据。
 
 ## 状态汇总
 
@@ -30,8 +33,9 @@
 | PAW-271-B12 | 中 | 新增授权面板的中文字形未进 QEMU CJK 截图套件 | **CLOSED（QEMU final 用例，25 断言）** | 实机屏幕仍归 B03 |
 | PAW-271-B13 | 低 | 本机 PTY 不可用（当前 Linux 沙箱 `/dev/ptmx` → Out of pty devices；历史 Windows 无 `termios`） | **OPEN（环境）** | 由 CI `PAW_REQUIRE_PTY=1` 覆盖 |
 | PAW-271-B14 | 高 | 字体门禁只在“报告 PASS”时允许写盘；8x16 回退是 WARN，必须拒绝 | **CLOSED（Run 42825407549）** | 缺报告/哈希/字体/setfont/过期 boot_id 全部 fail-closed；CI 26/26 + QEMU CJK 25/25；Run 42817841755 的 `(M) frame buffer device` 回归已由 4572280 修复并复跑通过 |
-| PAW-271-B15 | 高 | 第二阶段 Ubuntu 24.04 克隆盘真实启动已完成虚拟证据，但生产块设备/SSH 克隆入口和完整项目离线修复未执行 | **PARTIAL_VIRTUAL_BOOT / BLOCK_CLONE_OPEN** | 已用真实 Ubuntu raw、240GB 稀疏虚拟盘、SeaBIOS 启动、GPT/ext4 扩容、真实 GRUB/initramfs 和第三次启动登录证明；还需生产 clone 入口和 `paw-offline-repair.sh` 全链路。见 `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md` |
-| PAW-271-B16 | 高 | 第三阶段完整迁移链路、第四阶段最终 ISO 未完成 | **OPEN（后续段）** | 需全部真实程序入口测试；候选测试 ISO 已下载并重算 ISO SHA256（953,155,584 bytes，`c34cb137...e068fb`，不是 ZIP 哈希），最终发布 ISO/介质仍 OPEN |
+| PAW-271-B15 | 高 | 第二阶段早期克隆用了 `PAW_SIMULATION=1`，生产块设备/SSH 入口和完整离线修复未执行 | **CLOSED（虚拟块设备范围）** | Stage 3 改用真实 `paw-stream-clone.sh`/`paw-stream-verify.sh` 在 QEMU virtio `/dev/vdb`→`/dev/vdc`、真实 loopback SSH、`mode=remote-zstd-level1-thread1` 上完成，并真实执行完整 `paw-offline-repair.sh`、GPT/ext4 扩容和两次目标启动。真实 SSD 仍归 P1-4/B03 之外的物理验收。见 `reports/PAW-STAGE3-RESUME-20261110.md` |
+| PAW-271-B16 | 高 | 第三阶段完整迁移链路未完成 | **CLOSED（QEMU 虚拟块设备）** | 26 步全部有真实 PASS 日志；`auto_reboot` 状态先持久化+`sync` 再重启，目标盘由 SeaBIOS 二次启动到 `ubuntu login:`。物理硬件仍 OPEN。 |
+| PAW-271-B17 | 高 | 第四阶段最终 ISO 尚未由当前代码 HEAD 下载并复核 | **IN_PROGRESS** | Run `42941005270`（`24c13f7`）必须是 success；下载 artifact 后从 ISO 文件计算 SHA256（不是 ZIP），写入 `PAW-V2.7.1-ISO-SHA256.txt` 和交付文档。 |
 
 ## PAW-271-B11 操作员面板不上屏幕（第二段修复）
 
@@ -140,9 +144,12 @@
   （字体槽位 418/417、`(M) frame buffer device` 名称误判），均已修复；Run
   `42825407549` 已全绿（gate 26/26、CJK 25/25、TTY 56/56）。这是第一段收尾
   的必要条件，不是最终发布验收。
-- 整体仍为 **PARTIAL**：新分支 CI、第二阶段生产块/SSH 克隆入口与完整离线修复、
-  第三/四阶段、真实 ASUS、真实重启、最终发布 ISO 现场验收、真实硬件全部 OPEN。
-- 第二阶段已有 **VIRTUAL_BOOT_PASS** 证据：真实 Ubuntu 24.04 raw、240GB 稀疏
-  目标、项目 clone/verify（显式 simulation）、GPT/ext4 扩容、真实 GRUB/initramfs、
-  SeaBIOS 启动和无 seed 第三次启动登录；不能把 simulation clone 写成生产 clone。
+- 整体为 **STAGE 3 COMPLETE / STAGE 4 IN_PROGRESS / PHYSICAL OPEN**：
+  26 步链路和真实块设备克隆入口已在 QEMU 中完成，最终发布 ISO 正在用当前
+  代码 HEAD 的新 Run 生成并复核；真实 ASUS、真实重启、真实 TF/SSD 和现场验收
+  仍 OPEN。
+- 第二阶段/第三阶段已有 **虚拟块设备全链路 PASS**：真实 Ubuntu 24.04 raw、
+  240GB 稀疏目标、真实项目 clone/verify（无 simulation 标志、loopback SSH）、
+  完整离线修复、GPT/ext4 扩容、真实 GRUB/initramfs、SeaBIOS 二次启动登录。
+  这仍不是物理 SSD 验收。
 - PR #2 保持 Draft，未合并。

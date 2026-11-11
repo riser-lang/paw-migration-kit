@@ -4,10 +4,18 @@
 控制台：`/dev/tty1`（普通显示器 + 键盘）
 串口：`ttyS0,115200n8` 仅用于诊断日志，不作为交互输入
 
-> 本指南对应当前第一段收尾版本（基线 `d640712` + 字体失败安全门禁）。新分支
-> CI、第二阶段生产块/SSH 克隆入口、第三/四阶段和真实 ASUS B85M-G Plus 现场
-> 验收尚未完成；第二阶段已有虚拟 Ubuntu 启动证据，但不能当作生产克隆验收。
-> 若屏幕显示异常，请按第 7 节采集证据，不要直接写入任何磁盘。
+> 本指南对应当前交付分支 `vm/ds-clean-handover-20261110`（代码 HEAD
+> `24c13f7`，基线 `d640712` + 字体失败安全门禁）。Stage 3 的 26 步真实程序
+> 链路已在 QEMU 虚拟块设备上全部 PASS：真实 `paw-stream-clone.sh` /
+> `paw-stream-verify.sh`、独立 SHA256、完整离线修复、GPT/ext4 扩容、首次启动、
+> 自动重启和 SeaBIOS 二次启动到 `ubuntu login:`。**真实 ASUS 主板、真实 TF
+> 卡/SSD、真实腾讯云 Rescue 和物理重启仍未验证**，不能把虚拟结果当成实机
+> 验收。
+>
+> Stage 4 最终 ISO 的字节数和 SHA256 以仓库根目录
+> `PAW-V2.7.1-ISO-SHA256.txt` 及同一 CI Run 的侧车为准；写入 TF 卡前必须
+> 从 ISO 文件本身重算，不要使用 ZIP 哈希。若屏幕显示异常，请按第 7 节采集
+> 证据，不要直接写入任何磁盘。
 
 ## 1. 启动前
 
@@ -56,9 +64,9 @@
   `status=FAIL` 并阻断所有破坏性操作；只读查看/诊断仍可用。
 - 授权面板之前就会过门禁；如果没有 PASS，不会出现“输入序列号末六位”的破坏性
   授权提示。
-- 当前 VM 的字体门禁已做 26 项故障注入；新分支 CI Run `42825407549` 已全绿
-  （gate 26/26、CJK 25/25、TTY 56/56），现场仍以目标机的实际
-  `console-font.json` 为准。
+- 字体门禁已做 26 项故障注入；分支 CI Run `42825407549` 已全绿
+  （gate 26/26、CJK 25/25、TTY 56/56）。Stage 3 全链路又逐次复核了同启动
+  `console-font.json`；现场仍以目标机的实际 `console-font.json` 为准。
 
 ## 3. 首次 PAWDATA 初始化
 
@@ -120,6 +128,10 @@ PAW 迁移成功：克隆、独立 SHA256 校验、离线修复、GPT/ext4 扩�
   “自动重启命令执行失败！迁移数据已完成，请立即手动重启”，状态为
   `NEEDS_MANUAL_ACTION`。
 - 已成功下发重启后再次运行不会重复重启。
+- 该顺序已在 Stage 3 中实测：`paw-finalize-reboot.sh` 先原子写
+  `reboot-status.json` 并 `sync`，再执行 `systemctl reboot`；因此即使重启立即
+  终止进程，下一次启动仍能读到 `status=PASS`、`reboot_invoked=true`，不会
+  重复重启。
 
 ## 6. 串口诊断（可选）
 
@@ -185,3 +197,28 @@ journalctl -u paw-console-font.service -b --no-pager
 - [ ] `max_holders=1`，getty 未抢占 tty1
 - [ ] 迁移完成中文提示与倒计时可读，按 C 可取消
 - [ ] 记录 `console-font.json`、`fb0` 名称、内核版本、字体 SHA256
+
+## 10. 本版验证范围与实机边界
+
+### 10.1 已在虚拟块设备上验证
+
+- 26 步迁移链路：授权、真实块设备克隆、独立 SHA256、完整离线修复、
+  GPT/ext4 扩容、首次启动检查、自动重启、目标盘二次启动到 `ubuntu login:`。
+- 克隆为 `paw-stream-clone.sh` 的 `remote-zstd-level1-thread1` 模式，源/目标为
+  QEMU virtio 块设备，SSH 为真实 loopback 服务，**没有** `PAW_SIMULATION`
+  标志；目标是 240 GiB 稀疏虚拟盘。
+- 证据：`reports/PAW-STAGE3-RESUME-20261110.md`；目标启动日志 SHA256
+  `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565`。
+
+### 10.2 仍未验证（必须由你在实体机完成）
+
+- 真实 TF 卡写入/回读、读卡器型号/容量/序列号核对。
+- 真实 ASUS B85M-G Plus Legacy BIOS 启动、显示器中文菜单、USB/PS2 键盘。
+- 真实 SSD SMART/只读扫描/温度、真实内存与 Memtest86+ 观察。
+- 真实腾讯云 Rescue Mode SSH、真实源盘身份、真实整盘克隆。
+- 真实 `systemctl reboot` 和真实 Ubuntu 首次启动后的 PAW/Tailscale/Xray/
+  Funnel/MCP 验收。
+
+这些项目在没有实机结果前只能标 OPEN；任何 QEMU、loop、mock 成功都不等于
+实机 PASS。旧 VPS 在正式验收前仍是生产权威，失败时按回滚说明停止，不要
+重启/救援/修改生产 VPS。

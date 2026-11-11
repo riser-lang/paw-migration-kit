@@ -1,12 +1,14 @@
 # PAW v2.7.1 第一段遗留问题修复报告
 
-执行日期：2026-11-10
+执行日期：2026-11-10 / 2026-11-11（UTC）
 历史证据分支：`fix/v2.6.2-final-readiness`（下文第 1–6 节保留该分支的历史记录）
 当前干净交接分支：`vm/ds-clean-handover-20261110`
 当前分支基线：`d64071251bb3075d9cb26a967dfcba6cf139250a`（远端最新开发分支）
 历史实现提交：`376c35d00a943941e64ff2b38c627e9657a47cc9`
 PR #2：保持 **Draft**，未合并。
-最终发布 ISO：**未构建/未发布**。
+Stage 3：**COMPLETE**（26 步真实 PASS，含真实块设备克隆、离线修复、扩容、
+自动重启和二次启动）。Stage 4 最终 ISO：**构建/复核中**（Run `42941005270`，
+代码 HEAD `24c13f7`）。真实硬件仍 OPEN。
 
 ## 0. 2026-11-10 干净交接与 P0-1 字体失败安全门禁
 
@@ -21,6 +23,25 @@ PR #2：保持 **Draft**，未合并。
 - 当前 VM 的 bash 执行通道仍设置 `NoNewPrivs: 1` 且 `sudo -n` 失败；因此本机
   只能执行不需要 root 的测试。需要 root/loop 的测试仍由 GitHub Actions 执行，
   本机结果如实标 BLOCKED，不冒充 PASS。
+
+### 0.1 Stage 3 对离线修复的补充验证（2026-11-11）
+
+Stage 3 在重建的 Ubuntu 24.04 目标盘上真实执行了完整
+`paw-offline-repair.sh`，不是 loop 夹具：
+
+- `offline-repair.json`：`status=PASS`、`simulation=false`、
+  `grub_install=i386-pc`、`backup_path` 指向客机
+  `/opt/paw-migration/tests/stage3/state/backups/offline-repair-20261111T011718Z`；
+- netplan DHCP `e*`、cloud-init 网络禁用、旧 udev 覆盖禁用、machine-id/SSH
+  host key 重新生成、clone-local Tailscale 状态清理、initramfs 加入实际存在的
+  ahci/r8169、`update-initramfs` 与 GRUB 配置重建；
+- `authorized_keys_touched=false`、`PAW_application_data_touched=false`；
+- 修复后目标盘由 SeaBIOS 二次启动到 `ubuntu login:`；宿主证据副本
+  `evidence/stage3-target-second-boot.log` SHA256
+  `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565`。
+
+因此“完整项目离线修复未在真实克隆目标上执行”的旧缺口已在虚拟块设备范围内
+关闭；真实 SSD 现场修复仍 OPEN。
 
 ### 0.2 P0-1 实现
 

@@ -1,6 +1,6 @@
-# PAW v2.7.1 第一段测试报告（本轮）
+# PAW v2.7.1 测试报告（第一段 + Stage 3/4 交付更新）
 
-执行日期：2026-11-10
+执行日期：2026-11-10 / 2026-11-11（UTC）
 历史证据分支：`fix/v2.6.2-final-readiness`（下文历史 Run/计数只属于该分支）
 当前干净交接分支：`vm/ds-clean-handover-20261110`
 当前分支基线：`d64071251bb3075d9cb26a967dfcba6cf139250a`
@@ -57,15 +57,34 @@ PR #2：保持 Draft，未合并。
   与 sidecar 一致（不是 ZIP 哈希）。
 - 旧 Run `42804949796`（`bf1a705`）是历史绿色证据，不能当作当前分支门禁的
   CI 结果。
-- 最终发布 ISO、真实 ASUS 屏幕/键盘、真实 TF 卡/SSD、真实腾讯云 Rescue、
-  真实迁移：**OPEN**。
-- 第二阶段 Ubuntu 24.04 克隆盘：**VIRTUAL_BOOT_PASS / BLOCK_CLONE_OPEN**。
-  已实际执行真实 raw → 240GB 稀疏目标、项目 `paw-stream-clone.sh` 与
-  `paw-stream-verify.sh`（显式 `PAW_SIMULATION=1`，SHA256 3,758,096,384 bytes）、
-  GPT/ext4 扩容、真实 `grub-install`/`update-grub`/`update-initramfs`、SeaBIOS
-  启动和无 seed 第三次启动登录；生产块/SSH clone 和完整离线修复仍 OPEN。证据：
-  `reports/PAW-STAGE2-REAL-UBUNTU-BOOT-20261110.md`。
-- 第三/四阶段：**OPEN**（见 `PAW-MIGRATION-BLOCKERS.md`）。
+- Stage 3 已完成：26 步全链路有真实 PASS 日志，包含真实块设备克隆入口（无
+  `PAW_SIMULATION` 标志）、独立 SHA256、完整离线修复、GPT/ext4 扩容、首次启动、
+  `auto_reboot` 和 SeaBIOS 二次启动到 `ubuntu login:`。证据：
+  `reports/PAW-STAGE3-RESUME-20261110.md`。
+- Stage 4 进行中：当前代码 HEAD `24c13f7` 的最终 CI Run `42941005270` 完成后，
+  下载 artifact 并从 ISO 文件本身重算 SHA256；最终 ISO、真实 ASUS 屏幕/键盘、
+  真实 TF 卡/SSD、真实腾讯云 Rescue 和真实迁移仍 **OPEN**。
+- 第二阶段早期 `PAW_SIMULATION=1` 的克隆缺口已由 Stage 3 的真实
+  `paw-stream-clone.sh`/`paw-stream-verify.sh`（QEMU virtio `/dev/vdb`→`/dev/vdc`、
+  真实 loopback SSH、`mode=remote-zstd-level1-thread1`）补齐；这是虚拟块设备
+  证据，不是物理 SSD 验收。
+
+### 0.4 Stage 3 全链路实测（2026-11-11）
+
+| 项目 | 实测结果 |
+|---|---|
+| 授权 | `/dev/vdc` serial `PAW-DST-123456`，输入序列号末六位后授权 `CONSUMED` |
+| 克隆入口 | `paw-stream-clone.sh`，`mode=remote-zstd-level1-thread1`，真实 loopback SSH，**无 simulation 标志** |
+| 字节 | `source_bytes=3,758,096,384`，`ssh_stream_bytes=591,462,695`，`restored_bytes=3,758,096,384` |
+| 独立 SHA256 | `efcae25cf0bcbe51ec9b842c097d641139a48825fd43191067ba6d3f9efcf2a9`，`independent_sha256_verified=true` |
+| 离线修复 | `paw-offline-repair.sh`，`simulation=false`，真实 `grub-install --target=i386-pc`，备份保留 |
+| GPT/ext4 | `/dev/vdc1` 256,623,230,464 bytes；ext4 62,652,155 blocks；root-is-last 守卫有效 |
+| 首次启动 | `paw-firstboot-check.sh` `status=PASS`，`CLONE-INCOMPLETE` 不存在 |
+| 自动重启 | `paw-finalize-reboot.sh` 先原子写 `reboot-status.json` 并 `sync`，再执行 `systemctl reboot`；`status_persisted_before_reboot=true` |
+| 目标二次启动 | 独立 QEMU/SeaBIOS（无 direct-kernel）从 `target.img` 启动，内核 `6.8.0-147-generic`，串口出现 `Ubuntu 24.04.5 LTS ubuntu ttyS0` / `ubuntu login:` |
+| 目标启动证据 | `evidence/stage3-target-second-boot.log` SHA256 `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565`（宿主原始 `target-boot2.log` 为 `7a1b6e96…b4f16c`，差异仅尾部 QEMU 正常终止行） |
+
+真实硬件、物理重启和物理介质仍不在本报告范围内；不能把 QEMU 结果写成实机 PASS。
 - 本机 PAWDATA/克隆/修复/网络 loop 套件：**BLOCKED（环境）**，当前 bash 通道
   `NoNewPrivs=1`、`sudo -n` 失败、无法 attach loop。
 

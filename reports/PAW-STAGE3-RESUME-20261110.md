@@ -3,7 +3,8 @@
 - 日期：2026-11-10 / 2026-11-11（UTC）
 - 分支：`vm/ds-clean-handover-20261110`
 - 执行模型：DS V4.1 Flash
-- 报告状态：**IN_PROGRESS（滚动写入，任何 PASS 只在本文件对应的真实日志存在时成立）**
+- 报告状态：**STAGE 3 COMPLETE（18–26 全部 PASS）；STAGE 4 IN_PROGRESS**
+  （任何 PASS 只在本文件对应的真实日志存在时成立）
 - 保护边界：只用 `~/paw-stage34-20261110` 下的虚拟镜像；未访问旧 VPS、未进入 Rescue
   Mode、未读生产整盘、未写真实 TF 卡/SSD、未改生产 PAW/Tailscale/Funnel/Xray/Nginx/443/
   防火墙/COS、未合并 PR、未改仓库可见性。
@@ -170,9 +171,12 @@ lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
 
 ## 6. Stage 4（进行中）
 
-
-最终发布 ISO 构建、ISO 文件本身 SHA256 复核、全部中文交付文档和最终交付报告
-在 Stage 3 链路完成后执行；五项真实硬件项保持 OPEN。
+Stage 3 链路完成后，最终发布 ISO 由分支 `vm/ds-clean-handover-20261110`
+代码 HEAD `24c13f7` 触发的新 CI Run `42941005270` 构建；ISO 文件下载后必须
+从 ISO 本身重算 SHA256（不采用 ZIP 哈希），再写入交付文档和
+`PAW-V2.7.1-ISO-SHA256.txt`。中文用户指南、状态、阻断清单、验收清单和最终
+交付报告随该 ISO 的实测哈希更新。五项真实硬件项保持 OPEN，不因虚拟链路 PASS
+而关闭。
 
 ## 7. 本阶段证据与独立哈希
 
@@ -192,8 +196,12 @@ lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
 ### 7.2 目标盘首次启动
 
 - 独立 QEMU（无 `-kernel`/`-initrd`，SeaBIOS 从 `target.img` 启动）：
-  `target-boot2.log`，SHA256
+  证据副本 `evidence/stage3-target-second-boot.log`，SHA256
   `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565`。
+- 宿主原始捕获 `target-boot2.log` 的 SHA256 为
+  `7a1b6e9649c20210dcd8472fe0a0e4bb7000d0cae72e09bc9b035a3367b4f16c`；
+  它与证据副本的差异只有尾部 QEMU 被测试驱动正常终止的一行，登录结论相同。
+  报告以证据副本的哈希为准，未把两个不同文件写成同一个哈希。
 - 串口证据：
   `Welcome to Ubuntu 24.04.5 LTS!`、
   `Ubuntu 24.04.5 LTS ubuntu ttyS0`、`ubuntu login:`。
@@ -229,6 +237,8 @@ lab 构建日志：`~/paw-stage34-20261110/lab-build4.log`，`rc=0`。
 ## 8. 结论
 
 Stage 3 后段 9 步（18–26）全部有真实 PASS 证据；目标盘已由 SeaBIOS 从克隆盘启动
-到 Ubuntu 24.04.5 LTS 的 `ubuntu login:`。五项真实硬件项仍为 OPEN，未在本阶段
-触碰。Stage 4 的最终发布 ISO、ISO 文件本身 SHA256 复核、中文交付文档和最终报告
-在后续提交中完成。
+到 Ubuntu 24.04.5 LTS 的 `ubuntu login:`。链路的克隆/校验/修复/扩容/首次启动/
+重启都走生产脚本入口和真实块设备（QEMU virtio），不是 `PAW_SIMULATION=1` 的
+本地管道夹具；因此上一阶段遗留的“生产块设备/SSH 克隆入口与完整离线修复”
+缺口在虚拟块设备范围内已经补齐（真实硬件仍 OPEN）。Stage 4 的最终发布 ISO、
+ISO 文件本身 SHA256 复核、中文交付文档和最终报告在后续提交中完成。
