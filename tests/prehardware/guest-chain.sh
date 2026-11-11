@@ -506,7 +506,7 @@ cp "$PAW_CONFIG_DIR/source.json" "$interrupt/configs/source.json"
 cp "$PAW_REPORT_DIR/source-discovery.json" "$interrupt/reports/source-discovery.json"
 cp "$PAW_REPORT_DIR/console-font.json" "$interrupt/reports/console-font.json"
 cp "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$interrupt/reports/paw-hardware-health-report.json"
-truncate -s 8589934592 "$state/interrupt-target.img"
+truncate -s "$src_bytes" "$state/interrupt-target.img"  # sparse; must be >= the 50 GiB source
 loop="$(losetup -f --show "$state/interrupt-target.img")"
 cleanup_interrupt(){
   losetup -d "$loop" 2>/dev/null || true

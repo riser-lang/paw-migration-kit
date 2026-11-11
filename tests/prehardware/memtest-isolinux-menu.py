@@ -79,7 +79,10 @@ class QMP:
 
     def key(self, value: str) -> None:
         self.hmp(f"sendkey {value}")
-        time.sleep(0.15)
+        time.sleep(0.35)
+
+    def screenshot(self, path: str) -> None:
+        self.command("screendump", {"filename": path})
 
 
 def main() -> int:
@@ -95,7 +98,7 @@ def main() -> int:
         except FileNotFoundError:
             pass
     cmd = [
-        QEMU, "-accel", "tcg,thread=multi", "-cpu", "Haswell", "-smp", "4", "-m", "3072",
+        QEMU, "-accel", "tcg,thread=multi", "-cpu", "Haswell", "-smp", os.environ.get("PAW_QEMU_SMP", "2"), "-m", os.environ.get("PAW_QEMU_MEM", "2048"),
         "-L", DATA, "-no-user-config", "-nodefaults", "-display", "none", "-vga", "std",
         "-monitor", "none", "-rtc", "base=utc", "-boot", "order=d,menu=off",
         "-cdrom", iso, "-serial", f"file:{serial_path}",
@@ -112,13 +115,13 @@ def main() -> int:
         # the countdown and selects the first entry, then three Down keys reach
         # the top-level Memtest86+ entry (Live, Live fail-safe, Utilities,
         # Memtest).  Enter starts it through the real `linux` directive.
-        time.sleep(7.5)
+        time.sleep(float(os.environ.get("PAW_MENU_WAIT", "3.0")))
         qmp.screenshot(f"{work}/menu.ppm")
-        qmp.key("home")
-        for _ in range(3):
-            qmp.key("down")
+        # The top-level entry is labelled "^Memory test", so its hotkey is m.
+        qmp.key("m")
+        qmp.screenshot(f"{work}/menu-selected.ppm")
         qmp.key("ret")
-        time.sleep(45)
+        time.sleep(float(os.environ.get("PAW_MEMTEST_SECONDS", "45")))
         qmp.screenshot(f"{work}/memtest.ppm")
     finally:
         try:
@@ -133,12 +136,14 @@ def main() -> int:
     with open(serial_path, "rb") as handle:
         text = handle.read().decode("utf-8", "replace")
     banner = "Memtest86+ v7.20" in text
-    testing = "Status: Testing" in text or "Pass:" in text
+    testing = "Status: Testing" in text or "Status: Pass" in text or "Pass:" in text
     zero_errors = "Errors: 0" in text
+    require_pass = os.environ.get("PAW_REQUIRE_PASS", "0") == "1"
+    full_pass = "Status: Pass" in text and ("Pass:  1" in text or "Pass: 1" in text)
     print(f"ISO={iso}")
     print(f"SERIAL={serial_path}")
-    print(f"MEMTEST_BANNER={banner} TESTING={testing} ZERO_ERRORS={zero_errors}")
-    if banner and testing and zero_errors:
+    print(f"MEMTEST_BANNER={banner} TESTING={testing} ZERO_ERRORS={zero_errors} FULL_PASS={full_pass}")
+    if banner and testing and zero_errors and (full_pass or not require_pass):
         print("RESULT=PASS")
         return 0
     print("RESULT=FAIL (menu selection did not reach a running Memtest86+ v7.20)")
