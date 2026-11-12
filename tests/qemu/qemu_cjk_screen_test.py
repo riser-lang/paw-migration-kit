@@ -262,12 +262,12 @@ def run_case(args, font: Psffont) -> None:
                 "源盘组合身份：",
                 "固定 SSH 主机指纹：",
                 "目标 SSD：设备=",
-                "数据来源：固定 SSH 主机指纹的 Rescue Mode 整盘流",
-                "数据损失：目标 SSD 的整盘内容将被源盘覆盖，目标盘原有分区和数据会全部丢失。",
-                "如确认覆盖，请输入目标 SSD 序列号最后 6 位：",
+                "数据来源:固定 SSH 主机指纹的 Rescue Mode 整盘流",
+                "数据损失:目标 SSD 的整盘内容将被源盘覆盖,目标盘原有分区和数据会全部丢失.",
+                "如确认覆盖,请输入目标 SSD 序列号最后 6 位:",
             ]
             if serial:
-                expected.append(f"目标序列号：{serial}")
+                expected.append(f"目标序列号:{serial}")
             check_cjk(decoded, expected, "final-panel")
 
             # Attempt 1 must be rejected: wrong suffix.
@@ -277,7 +277,7 @@ def run_case(args, font: Psffont) -> None:
             say("PAW-TTY1-FINAL-BAD" in text, "final: wrong suffix rejected on tty1", text[-400:])
             decoded, text = qemu.wait_screen("确认值与目标 SSD 序列号不匹配", 20, font,
                                              os.path.join(out, "screen-final-bad-cjk"))
-            check_cjk(decoded, ["错误：确认值与目标 SSD 序列号不匹配，已安全停止，没有写入任何数据。"],
+            check_cjk(decoded, ["错误:确认值与目标 SSD 序列号不匹配,已安全停止,没有写入任何数据."],
                       "final-bad")
             say("PAW-TTY1-FINAL-OK" not in text, "final: no acceptance marker after rejection")
 
@@ -291,7 +291,7 @@ def run_case(args, font: Psffont) -> None:
             say("PAW-TTY1-FINAL-OK" in text, "final: correct suffix accepted on tty1", text[-400:])
             decoded, text = qemu.wait_screen("开始整盘覆盖迁移", 20, font,
                                              os.path.join(out, "screen-final-ok-cjk"))
-            check_cjk(decoded, ["输入已确认；开始整盘覆盖迁移，请不要断电。"], "final-ok")
+            check_cjk(decoded, ["输入已确认;开始整盘覆盖迁移,请不要断电."], "final-ok")
             qemu.poweroff()
             session = dump_guest_json(
                 args.image, "/opt/paw-migration/tests/final/state/reports/final-confirm.json")
@@ -374,7 +374,7 @@ def run_case(args, font: Psffont) -> None:
             decoded, text = qemu.wait_screen("PAW-TTY1-INPUT-OK", 40, font, os.path.join(out, "screen-accepted"))
             say("PAW-TTY1-INPUT-OK" in text, "ok: correct serial suffix accepted on tty1", text[-400:])
             decoded, text = qemu.wait_screen("输入已确认", 15, font, os.path.join(out, "screen-accepted-cjk"))
-            check_cjk(decoded, ["输入已确认；开始追加 PAWDATA 分区（仅新分区会被格式化）。"], "ok-accepted")
+            check_cjk(decoded, ["输入已确认;开始追加 PAWDATA 分区(仅新分区会被格式化)."], "ok-accepted")
             decoded, text = qemu.wait_screen("PAW-MENU-TTY1", 150, font, os.path.join(out, "screen-menu"))
             say("PAW-MENU-TTY1" in text, "ok: Chinese console menu appeared on the same tty1", text[-400:])
             decoded, text = qemu.wait_screen("PAW 迁移准备控制台", 20, font, os.path.join(out, "screen-menu-cjk"))

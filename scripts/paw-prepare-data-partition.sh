@@ -7,6 +7,17 @@ for c in lsblk sfdisk blockdev partprobe partx udevadm blkid mkfs.ext4 mountpoin
 
 if [[ ${PAW_SIMULATION:-0} == 1 ]]; then
   assert_sim_loop_device "$disk"
+elif [[ ${PAW_TEST_MODE:-0} == 1 && ${PAW_MEDIA_ARM:-} == I_HAVE_VERIFIED_LIVE_MEDIA ]]; then
+  # Test-only armed real-USB path: the caller already verified that this
+  # removable device is the live medium; re-check the kernel's RM bit and
+  # require the operator confirmation passed down from paw-data-prepare.
+  [[ "$(lsblk -dn -o RM "$disk" | xargs)" == 1 ]] || die 'Test live-media override is not removable.'
+  serial="$(lsblk -dn -o SERIAL "$disk" | xargs)"
+  size="$(blockdev --getsize64 "$disk")"
+  [[ -n "$serial" && "$size" =~ ^[0-9]+$ ]] || die 'Removable media serial or size is unavailable.'
+  confirm="${PAW_DATA_CONFIRM_SUFFIX:-}"
+  [[ ${#serial} -ge 6 && "$confirm" == "${serial: -6}" ]] || die 'Removable media confirmation did not match.'
+  unset confirm serial PAW_DATA_CONFIRM_SUFFIX
 else
   [[ ${PAW_MEDIA_ARM:-} == I_HAVE_VERIFIED_LIVE_MEDIA ]] || die 'Media partition changes are not armed.'
   live_source="$(findmnt -n -o SOURCE --target /run/live/medium 2>/dev/null || true)"
