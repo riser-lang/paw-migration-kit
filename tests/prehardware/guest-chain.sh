@@ -132,16 +132,37 @@ fi
 [[ -n "$src_root" ]] || fail source_os 'no ext4 root partition on source disk'
 mkdir -p /mnt/paw-source
 mount -o ro "$src_root" /mnt/paw-source || fail source_os "cannot mount $src_root read-only"
-source_pretty="$(. /mnt/paw-source/etc/os-release 2>/dev/null; printf '%s' "${PRETTY_NAME:-}")"
-source_version="$(. /mnt/paw-source/etc/os-release 2>/dev/null; printf '%s' "${VERSION_ID:-}")"
-[[ "$source_version" == 24.04 ]] || fail source_os "source os-release VERSION_ID=$source_version"
+# The release name lives in /etc/os-release, which cloud images commonly make a
+# symlink to /usr/lib/os-release.  Read both paths and record which one was
+# used; a broken symlink must not silently become an empty "VERSION_ID=".
+source_os_file=''
+source_pretty=''
+source_version=''
+for candidate in /mnt/paw-source/etc/os-release /mnt/paw-source/usr/lib/os-release; do
+  # shellcheck disable=SC1090 # path is one of the two fixed os-release locations
+  if [[ -r "$candidate" ]]; then
+    source_os_file="$candidate"
+    source_pretty="$(. "$candidate" 2>/dev/null; printf '%s' "${PRETTY_NAME:-}")"
+    source_version="$(. "$candidate" 2>/dev/null; printf '%s' "${VERSION_ID:-}")"
+    [[ -n "$source_version" ]] && break
+  fi
+done
 source_kernel="$(ls /mnt/paw-source/boot/vmlinuz-* 2>/dev/null | head -n1)"
 source_kernel="${source_kernel##*/vmlinuz-}"
 i915_src="$(find /mnt/paw-source/usr/lib/modules -name 'i915.ko*' 2>/dev/null | head -n1)"
 r8169_src="$(find /mnt/paw-source/usr/lib/modules -name 'r8169.ko*' 2>/dev/null | head -n1)"
-[[ -n "$i915_src" && -n "$r8169_src" ]] || fail source_os 'source Ubuntu lacks i915/r8169 modules'
 umount /mnt/paw-source
-step source_os PASS "pretty=$source_pretty version=$source_version kernel=$source_kernel i915_module=yes r8169_module=yes read_only_mount=true"
+[[ -n "$source_kernel" ]] || fail source_os 'source root has no /boot/vmlinuz-* kernel'
+[[ -n "$i915_src" && -n "$r8169_src" ]] || fail source_os 'source Ubuntu lacks i915/r8169 modules'
+# A source whose os-release is missing or incomplete is not silently promoted to
+# PASS.  The composite identity (root UUID, capacity, GPT layout, BIOS Boot and
+# pinned SSH host key) is verified later by source_identity; until that check
+# passes the chain continues with an explicit WARN and no version claim.
+if [[ "$source_version" == 24.04 ]]; then
+  step source_os PASS "pretty=$source_pretty version=$source_version os_release=$source_os_file kernel=$source_kernel i915_module=yes r8169_module=yes read_only_mount=true"
+else
+  step source_os WARN "source os-release VERSION_ID='${source_version}' file='${source_os_file:-missing}'; version not claimed, deferring to composite source identity (root UUID/capacity/GPT/BIOS Boot/pinned host key) checked later; kernel=$source_kernel i915_module=yes r8169_module=yes read_only_mount=true"
+fi
 copy_out
 
 
