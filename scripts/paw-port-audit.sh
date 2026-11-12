@@ -34,10 +34,9 @@ for line in open(ss_path,encoding="utf-8"):
     c=cls(host)
     p=allowed.get(port)
     action="UNKNOWN"
-    public=False
+    public=(c=="public")
     if p:
         binds=p.get("bind",[])
-        if c=="public": public=True
         action="ALLOW" if (c in binds or "outbound" in binds and c=="outbound") else "REVIEW"
         if c=="public" and p.get("listen_wildcard_allowed") and proto=="udp": action="ALLOW_WILDCARD"
         elif c=="public" and not p.get("public",False): action="VIOLATION_PUBLIC"

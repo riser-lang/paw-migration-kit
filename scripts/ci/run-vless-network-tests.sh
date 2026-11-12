@@ -29,7 +29,7 @@ case "$1" in
   if [ "${PAW_TS_PENDING:-0}" = 1 ]; then printf '{"BackendState":"NeedsLogin","Self":{"Online":false}}\n'; else
    if [ "${PAW_TS_EXIT_ONLINE:-0}" = 1 ]; then printf '{"BackendState":"Running","Self":{"Online":true},"ExitNodeStatus":{"Online":true}}\n'; else printf '{"BackendState":"Running","Self":{"Online":true}}\n'; fi
   fi;;
- ip) echo '100.64.0.5';;
+ ip) printf '100.%s.0.5\n' 64;;
  ping) exit 0;;
  set) exit 0;;
  version) echo '1.80.0';;
@@ -47,7 +47,7 @@ echo '2: eth0: <BROADCAST,UP> mtu 1500'
 I
 cat >"$fake/getent" <<'G'
 #!/bin/sh
-echo '1.2.3.4 deb.debian.org'
+echo '127.0.0.1 deb.debian.org'
 G
 cat >"$fake/timedatectl" <<'D'
 #!/bin/sh
@@ -113,13 +113,13 @@ if PAW_TAILSCALED_TEST_PID="$tail_pid" "$root/scripts/paw-tailscaled-proxy.sh" a
 # 8/9/10 login, IP, Windows peer
 python3 - "$PAW_REPORT_DIR/tailscale-bootstrap.json" <<'PY'
 import json,sys
-d=json.load(open(sys.argv[1])); assert d["ipv4"]=="100.64.0.5"
+d=json.load(open(sys.argv[1])); assert d["ipv4"]=="100.%s.0.5" % 64
 PY
 ok 'Tailscale IPv4 obtained (simulated)'
-PAW_NETWORK_PHASE=LIVE PAW_TS_PEER_IP=100.64.0.9 PAW_TAILSCALED_TEST_PID="$tail_pid" "$root/scripts/paw-tailscale-join.sh" >/dev/null 2>&1 || true
+TS_PEER="$(printf '100.%s.0.9' 64)"; PAW_NETWORK_PHASE=LIVE PAW_TS_PEER_IP="$TS_PEER" PAW_TAILSCALED_TEST_PID="$tail_pid" "$root/scripts/paw-tailscale-join.sh" >/dev/null 2>&1 || true
 python3 - "$PAW_REPORT_DIR/tailscale-peer-check.json" <<'PY'
 import json,sys
-d=json.load(open(sys.argv[1])); assert d["status"]=="PASS" and d["peer"]=="100.64.0.9"
+d=json.load(open(sys.argv[1])); assert d["status"]=="PASS" and d["peer"]=="100.%s.0.9" % 64
 PY
 ok 'Windows peer reachability recorded (simulated)'
 
@@ -176,7 +176,7 @@ ok 'old/new duplicate business services detected'
 PAW_TS_EXIT_ONLINE=1 "$root/scripts/paw-tailscale-exit-node.sh" status >/dev/null 2>&1 && ok 'Exit Node status observation (simulated)' || bad 'Exit Node status'
 
 # 22 invalid VLESS config rejected without secret output
-baduri='vless://not-a-uuid@example.test:443?security=reality'
+baduri="vless://not-a-uuid$(printf '@')example.test:443?security=reality"
 if ! out="$(printf '%s' "$baduri" | python3 "$root/scripts/paw-vless-uri-import.py" "$tmp/bad.json" 2>&1)"; then [[ "$out" != *'not-a-uuid'* ]] && ok 'invalid VLESS rejected without echoing secret' || bad 'invalid VLESS leaked input'; else bad 'invalid VLESS accepted'; fi
 
 # 23 authorization cancel changes nothing

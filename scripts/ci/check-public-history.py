@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Scan reachable Git blob contents without printing matched secret values."""
+import ipaddress
 import re
 import subprocess
 import sys
@@ -19,6 +20,15 @@ safe_ips = {b"127.0.0.1", b"0.0.0.0", b"255.255.255.255"}
 safe_ips.update(f"192.0.2.{i}".encode() for i in range(256))
 safe_ips.update(f"198.51.100.{i}".encode() for i in range(256))
 safe_ips.update(f"203.0.113.{i}".encode() for i in range(256))
+cgnat = ipaddress.ip_network("100.64.0.0/10")
+def safe_ip(raw):
+    if raw in safe_ips:
+        return True
+    try:
+        ip = ipaddress.ip_address(raw.decode("ascii"))
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_unspecified or ip in cgnat
 findings = []
 
 objects = subprocess.run(
@@ -54,9 +64,12 @@ for entry in objects:
         continue
     for label, pattern in patterns.items():
         for match in pattern.finditer(data):
-            if label == "IPv4 literal" and match.group(0) in safe_ips:
+            if label == "IPv4 literal" and safe_ip(match.group(0)):
                 continue
-            if label == "email address" and match.group(0) in (b"getty@tty1.service", b"serial-getty@ttyS0.service"):
+            if label == "email address" and match.group(0) in (
+                b"getty@tty1.service", b"serial-getty@ttyS0.service",
+                b"not-a-uuid@example.test",
+            ):
                 continue
             line = data.count(b"\n", 0, match.start()) + 1
             findings.append(f"{label}: {path}:{line} blob={oid[:12]}")

@@ -162,6 +162,27 @@ else
   fail 'P1 media removal arm rejected'
 fi
 
+# Port audit: a wildcard listener must be reported with public_bind=true even
+# when no policy entry exists.  A regression here hid the real public surface.
+portdir="$work/port-audit"; mkdir -p "$portdir/state" "$portdir/reports"
+printf 'udp UNCONN 0 0 0.0.0.0:60616 0.0.0.0:*\n' >"$portdir/ss.txt"
+rc=0
+PAW_ROOT="$root" PAW_STATE_DIR="$portdir/state" PAW_REPORT_DIR="$portdir/reports" \
+  PAW_SS_FIXTURE="$portdir/ss.txt" bash "$root/scripts/paw-port-audit.sh" "$portdir/audit.json" \
+  >/dev/null 2>&1 || rc=$?
+if ((rc == 2)) && python3 - "$portdir/audit.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1]))
+v=d["violations"][0]
+assert v["class"]=="public" and v["action"]=="VIOLATION_UNKNOWN_PUBLIC"
+assert v["public_bind"] is True, v
+PY
+then
+  pass 'P1 public port audit marks unknown wildcard listeners public_bind=true'
+else
+  fail 'P1 public port audit lost public_bind on an unknown wildcard listener'
+fi
+
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 cat "$report"
 ((failed == 0))

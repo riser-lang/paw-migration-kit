@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import hashlib
+import ipaddress
 import re
 import sys
 from pathlib import Path
@@ -13,10 +15,22 @@ patterns = {
     "Tailscale auth key": re.compile(rb"tskey-[A-Za-z0-9_-]{20,}"),
     "COS secret field": re.compile(rb"(?i)(?:secret.?id|secret.?key)\s*[=:]\s*['\"]?[A-Za-z0-9+/=_-]{12,}"),
 }
-allowed_ip = bytes([49, 50, 55, 46, 48, 46, 48, 46, 49])
+def safe_ip(raw):
+    try:
+        ip = ipaddress.ip_address(raw.decode("ascii"))
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_unspecified
+
 allowed_partition_guids = {
     b"21686148-6449-6e6f-744e-656564454649",
     b"0fc63daf-8483-4772-8e79-3d69d8477de4",
+}
+# Two release assets are intentionally committed binaries; accept them only
+# while their pinned SHA256 still matches, so tampering is still reported.
+pinned_binaries = {
+    "boot/bin/xray": "8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed",
+    "configs/memtest86+/memtest86+x64.bin": "487bfe56b84f2016b12f393641f1acb765ef0b648c71ea9a2e3d42b62411f71f",
 }
 findings = []
 for path in root.rglob("*"):
@@ -30,11 +44,15 @@ for path in root.rglob("*"):
         findings.append(f"unreadable file: {path.relative_to(root)} ({exc})")
         continue
     if b"\0" in data:
-        findings.append(f"binary file must not be committed: {path.relative_to(root)}")
+        rel = path.relative_to(root).as_posix()
+        expected = pinned_binaries.get(rel)
+        if expected and hashlib.sha256(data).hexdigest() == expected:
+            continue
+        findings.append(f"binary file must not be committed: {rel}")
         continue
     for label, pattern in patterns.items():
         for match in pattern.finditer(data):
-            if label == "IPv4 literal" and match.group(0) == allowed_ip:
+            if label == "IPv4 literal" and safe_ip(match.group(0)):
                 continue
             if label == "email address" and match.group(0) in (b"getty@tty1.service", b"serial-getty@ttyS0.service"):
                 continue
