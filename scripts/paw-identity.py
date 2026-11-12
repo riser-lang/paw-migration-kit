@@ -174,6 +174,10 @@ def collect(device: str) -> dict:
 
 
 def inventory(boot_device: str = "", source_device: str = "") -> dict:
+    # Production inventories only whole disks.  The QEMU final-authorization
+    # fixture uses a loop device as a disposable target stand-in; it opts in
+    # explicitly so a loop can never become an eligible production target.
+    include_loop = os.environ.get("PAW_IDENTITY_INCLUDE_LOOP") == "1"
     raw = out(["lsblk", "--json", "--bytes", "--output",
                "NAME,PATH,TYPE,SIZE,MODEL,SERIAL,WWN,TRAN,RM,MOUNTPOINTS,PARTTYPE,FSTYPE,PKNAME,ROTA"])
     try:
@@ -182,7 +186,8 @@ def inventory(boot_device: str = "", source_device: str = "") -> dict:
         tree = {}
     devices = []
     for item in tree.get("blockdevices", []) or []:
-        if item.get("type") != "disk":
+        kind = item.get("type")
+        if kind != "disk" and not (include_loop and kind == "loop"):
             continue
         path = item.get("path") or "/dev/" + str(item.get("name", ""))
         ident = collect(path)
@@ -192,6 +197,8 @@ def inventory(boot_device: str = "", source_device: str = "") -> dict:
                       str(c.get("parttype") or "").lower().startswith("ebd0a0a2-") for c in kids)
         efi = any(str(c.get("parttype") or "").lower() == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" for c in kids)
         reasons = []
+        if kind == "loop":
+            reasons.append("loop_device")
         if int(item.get("size") or 0) <= 0:
             reasons.append("zero_capacity")
         if str(item.get("rm", "0")) == "1":

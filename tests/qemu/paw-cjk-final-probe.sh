@@ -20,6 +20,9 @@ export PAW_FONT_GATE_REPORT=/opt/paw-migration/tests/virtual/state/reports/conso
 export PAW_INTERACTIVE_TTY=/dev/tty1
 export PAW_INPUT_TIMEOUT=90
 export PAW_TTY_SESSION_NAME=final-confirm
+# The disposable target is a loop device in this fixture.  Opt the identity
+# inventory into loop visibility explicitly; real systems never set this.
+export PAW_IDENTITY_INCLUDE_LOOP=1
 mkdir -p "$PAW_CONFIG_DIR" "$PAW_REPORT_DIR" "$PAW_LOG_DIR"
 
 case_name=final
