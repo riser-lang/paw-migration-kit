@@ -21,14 +21,14 @@ jobs:
           mkdir -p "$RUNNER_TEMP/cloud"
           cd "$RUNNER_TEMP/cloud"
           curl -fL --retry 5 -o SHA256SUMS https://cloud-images.ubuntu.com/releases/24.04/release/SHA256SUMS
-          curl -fL --retry 5 -o ubuntu.img https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
+          curl -fL --retry 5 -o ubuntu-24.04-server-cloudimg-amd64.img https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
           grep -E 'ubuntu-24.04-server-cloudimg-amd64\.img$' SHA256SUMS > selected
           sha256sum -c selected
       - name: Prepare images
         run: |
           mkdir -p "$RUNNER_TEMP/prep"
           sudo -E env PATH="$PATH" tests/prehardware/prepare-images.sh "$RUNNER_TEMP/prep" \
-            --cloud-image "$RUNNER_TEMP/cloud/ubuntu.img" --force 2>&1 | tee "$RUNNER_TEMP/prepare.log"
+            --cloud-image "$RUNNER_TEMP/cloud/ubuntu-24.04-server-cloudimg-amd64.img" --force 2>&1 | tee "$RUNNER_TEMP/prepare.log"
       - name: Show result
         if: always()
         run: |
