@@ -275,9 +275,9 @@ def run_case(args, font: Psffont) -> None:
             decoded, text = qemu.wait_screen("PAW-TTY1-FINAL-BAD", 60, font,
                                              os.path.join(out, "screen-final-bad"))
             say("PAW-TTY1-FINAL-BAD" in text, "final: wrong suffix rejected on tty1", text[-400:])
-            decoded, text = qemu.wait_screen("确认值与目标 SSD 序列号不匹配", 20, font,
+            decoded, text = qemu.wait_screen("确认值与目标 SSD 稳定身份不匹配", 20, font,
                                              os.path.join(out, "screen-final-bad-cjk"))
-            check_cjk(decoded, ["错误:确认值与目标 SSD 序列号不匹配,已安全停止,没有写入任何数据."],
+            check_cjk(decoded, ["错误:确认值与目标 SSD 稳定身份不匹配,已安全停止,没有写入任何数据."],
                       "final-bad")
             say("PAW-TTY1-FINAL-OK" not in text, "final: no acceptance marker after rejection")
 
