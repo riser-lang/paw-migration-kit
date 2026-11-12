@@ -2,7 +2,7 @@
 
 日期：2026-11-12
 分支：`vm/ds-final-prehardware-remediation-20261112`
-状态：**4/5 CJK 场景已由 Run #95 验证；render 夹具已修复，待新 CI 全量验证**
+状态：**5/5 CJK 场景已在最终 CI 通过（Run 43271681363，HEAD `31d26d7`）**
 
 ## 1. Run #95 结果
 
@@ -64,9 +64,28 @@ Cases: 4 passed, 1 failed, 0 blocked
 每种都检查实际中文、实际标点、ASCII 标记、16x16 PSF 位图、framebuffer、
 tty1、键盘输入和错误提示；不能只看串口文本。
 
-## 5. 证据
+## 5. 最终结果
+
+Run 43271681363（HEAD `31d26d7`）的
+`Run framebuffer CJK tty1 display and keyboard suite`：
+
+```
+ok       17 passed, 0 failed
+bad      17 passed, 0 failed
+timeout  17 passed, 0 failed
+render   27 passed, 0 failed
+final    25 passed, 0 failed
+Cases: 5 passed, 0 failed, 0 blocked
+Font SHA256: a4412a14b3e95a8ef44a671fb5031d1dee94a4e64fde7f610e9f72f734789e5d
+```
+
+该步骤还完成了 26 项 font fail-closed gate 断言和 1 项字体验证；
+所有中文提示、ASCII 标记、16x16 PSF 位图、framebuffer、tty1 键盘输入
+均由真实 QEMU 屏幕/键盘路径检查，而不是仅比对串口文本。
+
+## 6. 证据
 
 - `tests/qemu/paw-cjk-render-probe.sh`
 - `tests/qemu/qemu_cjk_screen_test.py`
-- Run #95 的 `qemu-cjk-test-report.txt`（4/5）
-- 新 CI 的 `qemu-cjk-*.log` 与 `evidence/final/cjk-*.json`
+- `reports/evidence/prehardware-20261112/run-43271681363-full.log`
+- 最终 CI 的 `qemu-cjk-*.log` 与 `evidence/final/cjk-*.json`

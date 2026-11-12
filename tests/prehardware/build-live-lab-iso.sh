@@ -14,7 +14,7 @@ rm -rf "$work/rootfs" "$work/iso-boot"
 mkdir -p "$work/iso-boot"
 xorriso -osirrox on -indev "$input_iso" -extract /live/filesystem.squashfs "$work/filesystem.squashfs" >/dev/null 2>&1
 unsquashfs -d "$work/rootfs" "$work/filesystem.squashfs" >/dev/null
-install -d "$work/rootfs/opt/paw-migration/tests/prehardware" "$work/rootfs/opt/paw-migration/tests/stage3/state"
+install -d "$work/rootfs/opt/paw-migration/boot" "$work/rootfs/opt/paw-migration/tests/prehardware" "$work/rootfs/opt/paw-migration/tests/stage3/state"
 rm -rf "$work/rootfs/opt/paw-migration/scripts" "$work/rootfs/opt/paw-migration/configs"
 cp -a "$root/scripts" "$work/rootfs/opt/paw-migration/scripts"
 cp -a "$root/configs" "$work/rootfs/opt/paw-migration/configs"
