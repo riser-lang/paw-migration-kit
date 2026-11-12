@@ -34,6 +34,7 @@ prompt(){
 fail(){
   step "$1" FAIL "${2:-}"
   say "PAW3_CHAIN_RESULT=FAIL STEP=$1"
+  copy_out || true
   sync
   exit 1
 }
@@ -488,6 +489,7 @@ SMART support is: Enabled
 === START OF READ SMART DATA SECTION ===
 SMART overall-health self-assessment test result: PASSED
 Self-test execution status:      (   0) The previous self-test routine completed
+Temperature:                        35 Celsius
 TXT
 elif [[ "$args" == *" -H "* ]]; then
   echo 'SMART overall-health self-assessment test result: PASSED'
