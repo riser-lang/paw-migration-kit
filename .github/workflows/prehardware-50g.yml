@@ -115,6 +115,15 @@ jobs:
             tests/prehardware/build-lab.sh "$WORK/lab-50g.iso" "$WORK" \
             2>&1 | tee artifacts/media-build.log
 
+      - name: Make the disposable images writable by the QEMU user
+        run: |
+          # Image preparation and media building run under sudo.  qemu-img and
+          # truncate leave the target image owned by root with mode 0644, and
+          # QEMU must open the 240 GB target read-write.  Keep the files inside
+          # the disposable WORK tree; chown only that tree.
+          sudo chown -R "$(id -u):$(id -g)" "$WORK"
+          ls -l "$WORK/boot/source50.raw" "$WORK/boot/target240.img" "$WORK/boot/media32.img"
+
       - name: Run 50 GiB source to 240 GB target chain (QEMU/TCG)
         run: |
           set -o pipefail
@@ -152,6 +161,7 @@ jobs:
             [[ -e "$WORK/$f" ]] && sudo cp "$WORK/$f" "artifacts/evidence/$f" || true
           done
           sudo cp "$WORK/console-main.log" artifacts/console-main.log 2>/dev/null || true
+          sudo cp "$WORK/qemu-main.out" artifacts/qemu-main.out 2>/dev/null || true
           if [[ -d "$WORK/share" ]]; then
             sudo cp -a "$WORK/share/." artifacts/evidence/share/ 2>/dev/null || true
           fi
@@ -174,6 +184,7 @@ jobs:
             artifacts/lab-iso-build.log
             artifacts/media-build.log
             artifacts/chain-runner.log
+            artifacts/qemu-main.out
             artifacts/runner-rc.txt
             artifacts/console-main.log
             artifacts/guest-markers.txt

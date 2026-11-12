@@ -341,7 +341,24 @@ def run_main(args):
                             stderr=subprocess.STDOUT)
     tail = SerialTail(f"{args.work}/serial.sock", log_path)
     tail.start()
-    qmp = QMP(f"{args.work}/qmp.sock")
+    try:
+        qmp = QMP(f"{args.work}/qmp.sock")
+    except RuntimeError:
+        # The QMP socket never appeared: QEMU exited while opening a disk or a
+        # device.  Surface its captured stderr instead of a bare traceback.
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        try:
+            detail = open(f"{args.work}/qemu-main.out", "rb").read().decode("utf-8", "replace")
+        except OSError:
+            detail = "(qemu-main.out unavailable)"
+        print(f"QEMU failed before QMP startup (rc={proc.returncode}):", file=sys.stderr)
+        print(detail[-8000:], file=sys.stderr)
+        return 1
     result = "TIMEOUT"
     target_boot_seen = False
     chain_pass = False
