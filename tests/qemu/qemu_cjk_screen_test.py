@@ -333,7 +333,7 @@ def run_case(args, font: Psffont) -> None:
                 "PAW 迁移成功:克隆,独立 SHA256 校验,离线修复,GPT/ext4 扩容和重启前交接检查全部通过.",
                 "完成记录已原子写入并同步到磁盘.",
                 "系统将在 5 秒后自动重启进入正式 Ubuntu;按 C 取消自动重启.",
-                "自动重启命令已成功下发",
+                "自动重启命令已下发",
             ], "render-complete")
             qemu.poweroff()
             status = dump_guest_json(args.image,
