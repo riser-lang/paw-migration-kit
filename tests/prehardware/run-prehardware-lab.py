@@ -234,7 +234,7 @@ def qemu_cmd(args, devices=True):
             # There is deliberately no virtio guest disk in this path.
             cmd += [
                 "-device", "qemu-xhci,id=usb0",
-                "-drive", f"file={media_image},if=none,id=media,format=raw,readonly=on,cache=unsafe",
+                "-drive", f"file={media_image},if=none,id=media,format=raw,cache=unsafe",
                 "-device", "usb-storage,id=usb-media,drive=media,bus=usb0.0,removable=on,bootindex=0,serial=PAW-MEDIA-123456",
             ]
         else:

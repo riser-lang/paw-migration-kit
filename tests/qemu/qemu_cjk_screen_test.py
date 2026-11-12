@@ -257,11 +257,11 @@ def run_case(args, font: Psffont) -> None:
             decoded, text = qemu.wait_screen("如确认覆盖", 30, font,
                                              os.path.join(out, "screen-final-panel-cjk"))
             expected = [
-                "PAW 最终迁移授权（请完整阅读后再确认）",
-                "源系统：Rescue Mode",
-                "源盘组合身份：",
-                "固定 SSH 主机指纹：",
-                "目标 SSD：设备=",
+                "PAW 最终迁移授权(请完整阅读后再确认)",
+                "源系统:Rescue Mode",
+                "源盘组合身份:",
+                "固定 SSH 主机指纹:",
+                "目标 SSD:设备=",
                 "数据来源:固定 SSH 主机指纹的 Rescue Mode 整盘流",
                 "数据损失:目标 SSD 的整盘内容将被源盘覆盖,目标盘原有分区和数据会全部丢失.",
                 "如确认覆盖,请输入目标 SSD 序列号最后 6 位:",
@@ -330,10 +330,10 @@ def run_case(args, font: Psffont) -> None:
                                              os.path.join(out, "screen-complete-pass"))
             say("[PAW-REBOOT] PASS" in text, "render: finalizer completed with mock reboot", text[-500:])
             check_cjk(decoded, [
-                "PAW 迁移成功：克隆、独立 SHA256 校验、离线修复、GPT/ext4 扩容和首次启动检查全部通过。",
-                "完成记录已原子写入并同步到磁盘。",
-                "系统将在 5 秒后自动重启进入正式 Ubuntu；按 C 取消自动重启。",
-                "自动重启命令已下发。",
+                "PAW 迁移成功:克隆,独立 SHA256 校验,离线修复,GPT/ext4 扩容和重启前交接检查全部通过.",
+                "完成记录已原子写入并同步到磁盘.",
+                "系统将在 5 秒后自动重启进入正式 Ubuntu;按 C 取消自动重启.",
+                "自动重启命令已成功下发",
             ], "render-complete")
             qemu.poweroff()
             status = dump_guest_json(args.image,
@@ -357,16 +357,16 @@ def run_case(args, font: Psffont) -> None:
         decoded, text = qemu.wait_screen("请输入该设备序列号最后", 15, font,
                                          os.path.join(out, "screen-prompt-cjk"))
         serial = qemu.serial()
-        say("控制台字体已加载：fbcon" in serial,
+        say("Console font loaded: fbcon" in serial,
             f"{args.case}: kernel font service reports fbcon 16x16 load", serial[-800:])
         say("bochs-drmdrmfb" in serial or "bochs" in serial,
             f"{args.case}: framebuffer device is bochs-drm", serial[-500:])
         check_cjk(decoded, [
-            "PAW 首次启动 · PAWDATA 持久分区初始化",
-            "只针对当前启动本系统的可移动设备；不会碰其他磁盘。",
-            "将只追加一个新的 PAWDATA 分区并格式化该新分区；ISO 启动分区不会被格式化。",
-            "请输入该设备序列号最后 6 位以继续：",
-            "序列号：QEMU-123456",
+            "PAW 首次启动 - PAWDATA 持久分区初始化",
+            "只针对当前启动本系统的可移动设备;不会碰其他磁盘.",
+            "将只追加一个新的 PAWDATA 分区并格式化该新分区;ISO 启动分区不会被格式化.",
+            "请输入该设备序列号最后 6 位以继续:",
+            "序列号:QEMU-123456",
         ], args.case)
 
         if args.case == "ok":
@@ -380,7 +380,7 @@ def run_case(args, font: Psffont) -> None:
             decoded, text = qemu.wait_screen("PAW 迁移准备控制台", 20, font, os.path.join(out, "screen-menu-cjk"))
             decoded, text = qemu.wait_screen("登记 Memtest86+ 人工确认结果", 15, font, os.path.join(out, "screen-menu-items"))
             check_cjk(decoded, [
-                "PAW 迁移准备控制台（v2.7）",
+                "PAW 迁移准备控制台(v2.7)",
                 "登记 Memtest86+ 人工确认结果",
                 "初始化/修复 PAWDATA 持久分区",
                 "最终中文授权并开始迁移",
@@ -413,14 +413,14 @@ def run_case(args, font: Psffont) -> None:
             qemu.send("000000\n")
             decoded, text = qemu.wait_screen("PAW-TTY1-INPUT-BAD", 40, font, os.path.join(out, "screen-bad"))
             say("PAW-TTY1-INPUT-BAD" in text, "bad: wrong serial suffix stopped on tty1", text[-400:])
-            decoded, text = qemu.wait_screen("错误：序列号末六位不匹配", 15, font, os.path.join(out, "screen-bad-cjk"))
-            check_cjk(decoded, ["错误：序列号末六位不匹配，已安全停止，没有写入任何分区。"], "bad")
+            decoded, text = qemu.wait_screen("错误:序列号末六位不匹配", 15, font, os.path.join(out, "screen-bad-cjk"))
+            check_cjk(decoded, ["错误:序列号末六位不匹配,已安全停止,没有写入任何分区."], "bad")
             say("PAW-TTY1-INPUT-OK" not in text, "bad: no INPUT-OK marker after rejection")
         elif args.case == "timeout":
             decoded, text = qemu.wait_screen("PAW-TTY1-INPUT-TIMEOUT", 45, font, os.path.join(out, "screen-timeout"))
             say("PAW-TTY1-INPUT-TIMEOUT" in text, "timeout: no-input timeout stopped safely on tty1", text[-400:])
-            decoded, text = qemu.wait_screen("错误：等待输入超过 5 秒", 15, font, os.path.join(out, "screen-timeout-cjk"))
-            check_cjk(decoded, ["错误：等待输入超过 5 秒，已安全停止，没有写入任何分区。"], "timeout")
+            decoded, text = qemu.wait_screen("错误:等待输入超过 5 秒", 15, font, os.path.join(out, "screen-timeout-cjk"))
+            check_cjk(decoded, ["错误:等待输入超过 5 秒,已安全停止,没有写入任何分区."], "timeout")
             say("PAW-TTY1-INPUT-OK" not in text, "timeout: no INPUT-OK marker after timeout")
 
         qemu.poweroff()
