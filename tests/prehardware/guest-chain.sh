@@ -430,14 +430,15 @@ copy_out
 # Target enrollment, operator memory attestation, hardware preflight.
 # ---------------------------------------------------------------------------
 [[ -b "$DST_DEV" ]] || fail target_enrollment "$DST_DEV is not a block device"
-target_index="$(python3 - "$DST_DEV" <<'PY'
+target_index="$(python3 - "$DST_DEV" "$SRC_DEV" <<'PY'
 import json,subprocess,sys
-want=sys.argv[1]
+want,source=sys.argv[1],sys.argv[2]
 d=json.loads(subprocess.check_output(["lsblk","--json","--bytes","--output","NAME,PATH,TYPE,SIZE,MODEL,SERIAL,RM,MOUNTPOINTS"],text=True))
 items=[]
 for x in d.get("blockdevices",[]):
     p=x.get("path") or "/dev/"+str(x.get("name",""))
     if x.get("type")!="disk": continue
+    if p == source: continue
     if str(x.get("rm","0"))=="1" or not x.get("serial") or int(x.get("size") or 0)<=0: continue
     if any(m for c in x.get("children") or [] for m in c.get("mountpoints") or [] if m): continue
     items.append(p)
