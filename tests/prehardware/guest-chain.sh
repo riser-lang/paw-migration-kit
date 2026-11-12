@@ -528,10 +528,12 @@ HW
 chmod 0755 "$hwbin"/*
 : >/run/paw3-hw-adapter.log
 command -v badblocks >/run/paw3-hw-badblocks-path.txt || true
-if ! PATH="$hwbin:$PATH" PAW_SMART_POLL_SECONDS=1 PAW_READ_SCAN_LAST_BLOCK=65536 \
-  "$PAW_ROOT/scripts/paw-hardware-preflight.sh" "$DST_DEV" >"$PAW_LOG_DIR/hardware.log" 2>&1; then
+PATH="$hwbin:$PATH" PAW_SMART_POLL_SECONDS=1 PAW_READ_SCAN_LAST_BLOCK=65536 \
+  "$PAW_ROOT/scripts/paw-hardware-preflight.sh" "$DST_DEV" >"$PAW_LOG_DIR/hardware.log" 2>&1
+hw_rc=$?
+if ((hw_rc != 0)); then
   tail -n 80 "$PAW_LOG_DIR/hardware.log" >&2 || true
-  fail hardware "paw-hardware-preflight.sh exit=$?"
+  fail hardware "paw-hardware-preflight.sh exit=$hw_rc"
 fi
 python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" <<'PY' || fail hardware 'could not classify hardware report'
 import json,sys

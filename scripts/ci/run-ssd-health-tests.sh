@@ -314,6 +314,7 @@ run_preflight(){
   if [[ "$status" == "$expected" ]]; then pass "$name => $expected (rc=$rc)"; else fail "$name expected $expected got '${status:-missing}' rc=$rc"; fi
 }
 run_preflight healthy PASS
+run_preflight utf8_sensor_c_locale PASS LC_ALL=C
 run_preflight live_medium_excluded BLOCKED PAW_MOCK_LIVE_MEDIUM=1
 run_preflight mounted_target BLOCKED PAW_MOCK_MOUNTED=1
 run_preflight smart_health_failed FAIL PAW_MOCK_SMART_MODE=healthfail

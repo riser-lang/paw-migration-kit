@@ -112,7 +112,7 @@ else status=WARN; reasons+=('dmesg unavailable for SATA review'); fi
 
 sensor_report="$PAW_REPORT_DIR/hardware-sensors.txt"
 : >"$sensor_report"
-if command -v sensors >/dev/null 2>&1 && sensors -A >"$sensor_report" 2>&1 && grep -Eq '[+-]?[0-9]+([.][0-9]+)?(degC|.?C)' "$sensor_report"; then
+if command -v sensors >/dev/null 2>&1 && sensors -A >"$sensor_report" 2>&1 && sed 's/°C/degC/g; s/℃/degC/g' "$sensor_report" | grep -Eq '[+-]?[0-9]+([.][0-9]+)?(degC|C)'; then
   log INFO 'CPU/mainboard sensor readings recorded; thresholds are not inferred.'
 else
   [[ $status == FAIL ]] || status=WARN
