@@ -36,6 +36,17 @@ known_safe_blobs = {
     "e7a262bc721378045dc093794d26174a38144c1a":
         "legacy fake getent fixture in run-vless-network-tests.sh; replaced with 127.0.0.1",
 }
+# Documented public infrastructure/package metadata tokens in raw CI evidence
+# logs; see check-public-safety.py.  Each is matched exactly, never by path.
+benign_evidence_tokens = {
+    b"140.248.150.132": "public snapshot.debian.org CDN address",
+    b"1.2.5.1": "Debian package version 1.2.5.1-3",
+    b"2.11.1.0": "Debian package version 2.11.1.0.20170917-3",
+    b"859eca24-9c9d-4339-8a5b-93d75d48b128": "GitHub runner temp-directory UUID",
+    b"c998e451-09ad-44a4-959f-b97a9c4a1c3b": "GitHub runner temp-directory UUID",
+    b"2e1fa2df-b5d9-4ff3-ab55-ac79705522f8": "GitHub runner temp-directory UUID",
+    b"sshd@.service.wants": "systemd unit path, not an email address",
+}
 findings = []
 
 objects = subprocess.run(
@@ -67,13 +78,18 @@ for entry in objects:
     batch.stdout.read(1)
     if header[1] != b"blob":
         continue
-    if path.replace("\\", "/").endswith("scripts/ci/check-public-history.py"):
+    normalized_path = path.replace("\\", "/")
+    if normalized_path.endswith("scripts/ci/check-public-history.py"):
         continue
     if size > 20_000_000 or b"\0" in data:
         continue
     for label, pattern in patterns.items():
         for match in pattern.finditer(data):
             if label == "IPv4 literal" and safe_ip(match.group(0)):
+                continue
+            if (normalized_path.startswith("reports/evidence/")
+                    and normalized_path.endswith(".log")
+                    and match.group(0) in benign_evidence_tokens):
                 continue
             if label == "email address" and match.group(0) in (
                 b"getty@tty1.service", b"serial-getty@ttyS0.service",

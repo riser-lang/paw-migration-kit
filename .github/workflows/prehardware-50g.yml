@@ -1,0 +1,184 @@
+name: PAW 50GiB virtual pre-hardware chain
+
+# Runs the exact 50 GiB source -> 240 GB target chain on a GitHub-hosted
+# ubuntu-24.04 runner.  The ISO under test is the artifact produced by a
+# successful build-live-and-test run, so this workflow never rebuilds the
+# release payload and never touches a physical SSD, VPS or TF card.
+on:
+  workflow_dispatch:
+    inputs:
+      iso_run_id:
+        description: GitHub Actions run id that produced paw-live-build-test-results
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: paw-prehardware-50g
+  cancel-in-progress: false
+
+jobs:
+  chain-50g:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      WORK: ${{ runner.temp }}/paw50
+      ISO_RUN_ID: ${{ inputs.iso_run_id }}
+    steps:
+      - name: Check out the exact tested commit
+        uses: actions/checkout@v4
+
+      - name: Record runner capacity and QEMU version
+        run: |
+          mkdir -p artifacts
+          {
+            date -u +%FT%TZ
+            uname -a
+            echo "nproc=$(nproc)"
+            free -g
+            df -h / /mnt "$RUNNER_TEMP"
+            qemu-system-x86_64 --version || true
+            qemu-img --version || true
+            sgdisk --version || true
+          } | tee artifacts/host-baseline.txt
+
+      - name: Install virtual lab tools
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            qemu-system-x86 qemu-utils xorriso squashfs-tools gdisk \
+            cloud-guest-utils e2fsprogs util-linux zstd pv openssh-client \
+            busybox-static cpio xz-utils fdisk parted rsync
+
+      - name: Fetch the ISO artifact from the selected build run
+        run: |
+          gh run view "$ISO_RUN_ID" --json headSha,status,conclusion,workflowName,url \
+            > artifacts/iso-run.json
+          python3 - <<'PY'
+          import json, os
+          d = json.load(open("artifacts/iso-run.json"))
+          print(json.dumps(d, indent=2))
+          assert d["conclusion"] == "success", f"ISO run conclusion is {d['conclusion']}"
+          assert d["headSha"] == os.environ["GITHUB_SHA"], (
+              f"ISO run head {d['headSha']} != workflow SHA {os.environ['GITHUB_SHA']}")
+          PY
+          mkdir -p artifacts/from-run
+          gh run download "$ISO_RUN_ID" -n paw-live-build-test-results -D artifacts/from-run
+          cp artifacts/from-run/paw-live-amd64.iso artifacts/paw-live-amd64.iso
+          cp artifacts/from-run/paw-live-amd64.iso.sha256 artifacts/ || true
+          cp artifacts/from-run/iso-identity.txt artifacts/ || true
+          (cd artifacts && sha256sum paw-live-amd64.iso | tee iso-sha256-independent.txt)
+          ls -l artifacts/paw-live-amd64.iso
+          cat artifacts/iso-identity.txt || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Download and independently checksum Ubuntu 24.04 cloud image
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/cloud"
+          cd "$RUNNER_TEMP/cloud"
+          base=https://cloud-images.ubuntu.com/releases/24.04/release
+          curl -fL --retry 5 --retry-delay 5 -o SHA256SUMS "$base/SHA256SUMS"
+          curl -fL --retry 5 --retry-delay 5 -o ubuntu-24.04-server-cloudimg-amd64.img \
+            "$base/ubuntu-24.04-server-cloudimg-amd64.img"
+          grep -E 'ubuntu-24.04-server-cloudimg-amd64\.img$' SHA256SUMS > SHA256SUMS.selected
+          sha256sum -c SHA256SUMS.selected | tee "$GITHUB_WORKSPACE/artifacts/cloud-image-verify.txt"
+          cp SHA256SUMS.selected "$GITHUB_WORKSPACE/artifacts/"
+          qemu-img info ubuntu-24.04-server-cloudimg-amd64.img | tee "$GITHUB_WORKSPACE/artifacts/cloud-image-info.txt"
+
+      - name: Prepare exact 50 GiB source and 240 GB target
+        run: |
+          set -o pipefail
+          mkdir -p "$WORK"
+          sudo -E env PATH="$PATH" tests/prehardware/prepare-images.sh "$WORK" \
+            --cloud-image "$RUNNER_TEMP/cloud/ubuntu-24.04-server-cloudimg-amd64.img" \
+            --iso "$GITHUB_WORKSPACE/artifacts/paw-live-amd64.iso" \
+            --force 2>&1 | tee artifacts/image-preparation.log
+
+      - name: Build test-only toram Live ISO from the release payload
+        run: |
+          set -o pipefail
+          sudo -E env PATH="$PATH" PAW_EXPECTED_SOURCE_BYTES=53687091200 \
+            tests/prehardware/build-live-lab-iso.sh \
+            "$GITHUB_WORKSPACE/artifacts/paw-live-amd64.iso" \
+            "$WORK/lab-50g.iso" "$WORK/livebuild" 2>&1 | tee artifacts/lab-iso-build.log
+
+      - name: Build 32 GB USB media carrying the test Live ISO
+        run: |
+          set -o pipefail
+          sudo -E env PATH="$PATH" PAW_MEDIA_ONLY=1 \
+            tests/prehardware/build-lab.sh "$WORK/lab-50g.iso" "$WORK" \
+            2>&1 | tee artifacts/media-build.log
+
+      - name: Run 50 GiB source to 240 GB target chain (QEMU/TCG)
+        run: |
+          set -o pipefail
+          export QEMU_BIN=/usr/bin/qemu-system-x86_64
+          export QEMU_LIB=/usr/lib/x86_64-linux-gnu
+          export QEMU_MODULE_DIR=/usr/lib/x86_64-linux-gnu/qemu
+          export QEMU_DATA_DIR=/usr/share/qemu
+          set +e
+          python3 tests/prehardware/run-prehardware-lab.py \
+            --work "$WORK" --mode main --timeout 16200 --target-timeout 1800 \
+            2>&1 | tee artifacts/chain-runner.log
+          rc=${PIPESTATUS[0]}
+          echo "runner_rc=$rc" | tee artifacts/runner-rc.txt
+          exit "$rc"
+
+      - name: Verify chain evidence against exact capacities
+        if: always()
+        run: |
+          log="$WORK/console-main.log"
+          [[ -s "$log" ]] || { echo "missing $log" >&2; echo '{"status":"FAIL"}' > artifacts/chain-acceptance.json; exit 1; }
+          python3 tests/prehardware/verify-chain-evidence.py \
+            --log "$log" \
+            --output artifacts/chain-acceptance.json \
+            --summary artifacts/chain-acceptance.txt
+          grep -E 'PAW3_STEP=|PAW3_CHAIN_RESULT=|login:' "$log" > artifacts/guest-markers.txt || true
+
+      - name: Collect evidence and disk accounting
+        if: always()
+        run: |
+          mkdir -p artifacts/evidence
+          df -h / /mnt "$RUNNER_TEMP" > artifacts/df-after.txt || true
+          du -sh "$WORK" > artifacts/work-usage.txt || true
+          for f in console-main.log image-preparation.txt manifest-media.txt df-before.txt df-after.txt; do
+            [[ -e "$WORK/boot/$f" ]] && sudo cp "$WORK/boot/$f" "artifacts/evidence/$f" || true
+            [[ -e "$WORK/$f" ]] && sudo cp "$WORK/$f" "artifacts/evidence/$f" || true
+          done
+          sudo cp "$WORK/console-main.log" artifacts/console-main.log 2>/dev/null || true
+          if [[ -d "$WORK/share" ]]; then
+            sudo cp -a "$WORK/share/." artifacts/evidence/share/ 2>/dev/null || true
+          fi
+          sudo chown -R "$(id -u):$(id -g)" artifacts || true
+          echo "EVIDENCE_FILES=$(find artifacts -type f | wc -l)" | tee artifacts/evidence-files.txt
+
+      - name: Publish 14-day chain evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paw-50g-chain-evidence
+          path: |
+            artifacts/host-baseline.txt
+            artifacts/iso-run.json
+            artifacts/iso-identity.txt
+            artifacts/iso-sha256-independent.txt
+            artifacts/cloud-image-verify.txt
+            artifacts/cloud-image-info.txt
+            artifacts/image-preparation.log
+            artifacts/lab-iso-build.log
+            artifacts/media-build.log
+            artifacts/chain-runner.log
+            artifacts/runner-rc.txt
+            artifacts/console-main.log
+            artifacts/guest-markers.txt
+            artifacts/chain-acceptance.json
+            artifacts/chain-acceptance.txt
+            artifacts/df-after.txt
+            artifacts/work-usage.txt
+            artifacts/evidence/**
+          retention-days: 14

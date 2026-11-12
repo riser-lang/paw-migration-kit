@@ -7,13 +7,6 @@ if [[ -z "$dev" || ! -b "$dev" ]]; then
   log WARN 'Target SSD absent; no hardware checks were run.'; exit 3
 fi
 
-# Identity gate: a block device name alone is never sufficient.  The enrolled
-# serial, real capacity and (when recorded) model must match before any SMART
-# query or read scan.  The boot medium and the source disk are explicitly
-# excluded even if an operator passes the wrong path.
-raw_device_identity(){
-  lsblk -dn -o "$1" "$dev" | xargs
-}
 identity_blocked(){
   local reason="$1"
   python3 - "$PAW_REPORT_DIR/paw-ssd-identity.json" "$dev" "$reason" <<'PY' || true
@@ -29,27 +22,48 @@ PY
   log WARN "SSD identity/safety gate blocked hardware checks: $reason"
   exit 3
 }
+
+# Identity gate: a block device name alone is never sufficient.  The unified
+# helper compares the enrolled composite identity, including WWN/by-id/sysfs
+# and (before the first write) the partition fingerprint.  A disk without a
+# serial is accepted when it has another stable anchor; a disk with no stable
+# anchor, or two indistinguishable disks, is refused.
 enroll="$PAW_CONFIG_DIR/target-ssd.json"
 [[ -r "$enroll" ]] || identity_blocked 'target SSD is not enrolled'
-python3 - "$enroll" <<'PY' || identity_blocked 'target SSD enrollment is not approved or is incomplete'
+python3 - "$enroll" <<'PY' || identity_blocked 'target SSD enrollment is not approved or has no stable identity'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
 assert d.get("approved") is True
-assert isinstance(d.get("serial"),str) and d["serial"]
-assert isinstance(d.get("capacity_bytes"),int) and d["capacity_bytes"]>0
+assert d.get("hardware_identity_sha256") or d.get("composite_identity_sha256") or d.get("serial")
+if d.get("capacity_bytes") is not None:
+    assert isinstance(d.get("capacity_bytes"),int) and d["capacity_bytes"]>0
 PY
-expected_serial="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["serial"])' "$enroll")"
-expected_bytes="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["capacity_bytes"])' "$enroll")"
-expected_model="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("model") or "")' "$enroll")"
-actual_serial="$(raw_device_identity SERIAL)"
-actual_model="$(raw_device_identity MODEL)"
-actual_bytes="$(blockdev --getsize64 "$dev")"
-[[ -n "$actual_serial" ]] || identity_blocked 'device has no readable serial; identity cannot be proven'
-[[ "$actual_serial" == "$expected_serial" ]] || identity_blocked "serial mismatch: actual='$actual_serial' enrolled='$expected_serial'"
-[[ "$actual_bytes" == "$expected_bytes" ]] || identity_blocked "capacity mismatch: actual=$actual_bytes enrolled=$expected_bytes"
-if [[ -n "$expected_model" && "$actual_model" != "$expected_model" ]]; then
-  identity_blocked "model mismatch: actual='$actual_model' enrolled='$expected_model'"
+set +e
+python3 "$PAW_ROOT/scripts/paw-identity.py" verify --config "$enroll" --device "$dev" --phase prewrite --check-unique \
+  >"$PAW_REPORT_DIR/paw-ssd-identity.json" 2>"$PAW_REPORT_DIR/paw-ssd-identity.err"
+identity_rc=$?
+set -e
+if (( identity_rc != 0 )); then
+  reason="$(python3 - "$PAW_REPORT_DIR/paw-ssd-identity.json" <<'PY' 2>/dev/null || true
+import json,sys
+try:
+    d=json.load(open(sys.argv[1],encoding="utf-8")); print(d.get("reason") or d.get("status") or "identity verification failed")
+except Exception:
+    print("identity verification failed")
+PY
+)"
+  [[ -n "$reason" ]] || reason="identity verification failed (rc=$identity_rc)"
+  identity_blocked "$reason"
 fi
+read -r actual_serial actual_model actual_bytes expected_serial expected_model expected_bytes < <(python3 - "$PAW_REPORT_DIR/paw-ssd-identity.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+vals=[d.get("serial") or "-", d.get("model") or "-", str(d.get("capacity_bytes") or 0),
+      str(d.get("enrolled_serial") or "-"), str(d.get("enrolled_model") or "-"),
+      str(d.get("enrolled_capacity_bytes") or 0)]
+print(" ".join(v.replace(" ","_") for v in vals))
+PY
+)
 mounted_on="$(lsblk -nrpo MOUNTPOINTS "$dev" | sed '/^$/d' | tr '\n' ' ' | xargs)"
 [[ -z "$mounted_on" ]] || identity_blocked "target has mounted filesystem(s): $mounted_on"
 live_source="$(findmnt -n -o SOURCE --target /run/live/medium 2>/dev/null || true)"
@@ -67,20 +81,19 @@ if [[ -r "$PAW_CONFIG_DIR/source.json" ]]; then
   source_dev="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("device_path") or "")' "$PAW_CONFIG_DIR/source.json")"
 fi
 [[ -z "$source_dev" || "$source_dev" != "$dev" ]] || identity_blocked 'device is the registered source disk'
-python3 - "$PAW_REPORT_DIR/paw-ssd-identity.json" "$dev" "$actual_serial" "$actual_model" "$actual_bytes" "$expected_serial" "$expected_model" "$expected_bytes" <<'PY'
+python3 - "$PAW_REPORT_DIR/paw-ssd-identity.json" "$dev" <<'PY'
 import datetime,json,os,sys
-path,dev,serial,model,cap,eser,emodel,ecap=sys.argv[1:]
-doc={"schema":"paw.ssd-identity.v1","status":"PASS","device":dev,
- "serial":serial,"model":model,"capacity_bytes":int(cap),
- "enrolled_serial":eser,"enrolled_model":emodel,"enrolled_capacity_bytes":int(ecap),
- "identity_basis":"serial+real_capacity+model","device_name_used_as_identity":False,
- "boot_medium_excluded":True,"source_disk_excluded":True,"mounted":False,
- "updated_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+path,dev=sys.argv[1:]
+with open(path,encoding="utf-8") as handle: doc=json.load(handle)
+doc.update({"status":"PASS","device":dev,"boot_medium_excluded":True,
+ "source_disk_excluded":True,"mounted":False,
+ "updated_at":datetime.datetime.now(datetime.timezone.utc).isoformat()})
 tmp=path+".tmp"
 with open(tmp,"w",encoding="utf-8") as h: json.dump(doc,h,indent=2,ensure_ascii=False)
 os.chmod(tmp,0o600); os.replace(tmp,path)
 PY
-log INFO "SSD identity verified by serial/capacity/model: $actual_serial $actual_bytes bytes"
+identity_basis="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("identity_basis",""))' "$PAW_REPORT_DIR/paw-ssd-identity.json")"
+log INFO "SSD identity verified by composite fingerprint: basis=$identity_basis serial=${actual_serial:--} bytes=$actual_bytes"
 if "$PAW_ROOT/scripts/paw-ssd-smart-check.sh" "$dev"; then :; else
   rc=$?; reasons+=('SMART check failed or unsupported; inspect raw report')
   if ((rc == 2)); then status=WARN; else status=FAIL; fi

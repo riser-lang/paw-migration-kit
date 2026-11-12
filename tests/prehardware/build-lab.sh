@@ -3,8 +3,8 @@
 #   * release ISO root filesystem (injected with this branch's scripts)
 #   * a bootable lab guest disk (BIOS Boot + ext4 root, /dev/vda2)
 #   * a 32 GB PF/USB media image carrying the release ISO
-# The source image (legacy filename source50.raw; currently 12 GiB) and the
-# 240 GB target are created by prepare-images.sh.
+# The source image (source50.raw, exactly 50 GiB) and the 240 GB target are
+# created by prepare-images.sh.  This builder never substitutes a 12 GiB image.
 # Unprivileged: mke2fs -d + fakeroot, no host loop or mount.
 set -Eeuo pipefail
 iso="${1:?usage: build-lab.sh ISO WORKDIR}"
@@ -13,6 +13,42 @@ repo="$(cd "$(dirname "$0")/../.." && pwd)"
 xorriso="${XORRISO:-xorriso}"
 
 mkdir -p "$work"/{iso,rootfs,boot}
+
+build_media(){
+  echo "[prehw] creating 32 GB USB media image carrying the supplied ISO"
+  local media="$work/boot/media32.img" base="$work/boot/media32-base.img"
+  if [[ ! -s "$base" ]]; then
+    truncate -s 32000000000 "$base"
+    dd if="$iso" of="$base" bs=16M conv=notrunc conv=sparse status=none
+    sync
+  fi
+  # Default: every independent first-boot acceptance gets a fresh sparse copy
+  # of the immutable base.  A two-boot persistence test explicitly arms reuse
+  # with PAW_REUSE_MEDIA=1 so the second boot sees the PAWDATA created first.
+  if [[ ${PAW_REUSE_MEDIA:-0} != 1 || ! -s "$media" ]]; then
+    rm -f "$media"
+    cp --sparse=always "$base" "$media"
+    sync
+  fi
+  {
+    echo "iso=$iso"
+    echo "iso_bytes=$(stat -c %s "$iso")"
+    echo "media=$media"
+    echo "media_bytes=$(stat -c %s "$media")"
+    echo "media_allocated_bytes=$(( $(stat -c %b "$media") * 512 ))"
+  } >"$work/boot/manifest-media.txt"
+  cat "$work/boot/manifest-media.txt"
+}
+
+# The 50 GiB main chain already has a release ISO with the branch scripts
+# injected by build-live-lab-iso.sh; only the USB media is needed here.  This
+# avoids unsquashing and re-injecting the release rootfs a second time.
+if [[ ${PAW_MEDIA_ONLY:-0} == 1 ]]; then
+  build_media
+  echo "[prehw] media build complete: $work/boot"
+  exit 0
+fi
+
 install -d -m 0755 "$work/iso/live"
 if [[ ! -s "$work/iso/live/filesystem.squashfs" ]]; then
   echo "[prehw] extracting ISO live files"
@@ -124,30 +160,12 @@ sgdisk --clear \
 dd if="$rootpart" of="$guest" bs=1M seek=2 conv=notrunc status=none
 rm -f "$rootpart"
 
-echo "[prehw] creating 32 GB USB media image carrying the release ISO"
-media="$work/boot/media32.img"
-base="$work/boot/media32-base.img"
-if [[ ! -s "$base" ]]; then
-  truncate -s 32000000000 "$base"
-  dd if="$iso" of="$base" bs=16M conv=notrunc conv=sparse status=none
-  sync
-fi
-# Default: every independent first-boot acceptance gets a fresh sparse copy of
-# the immutable base.  A two-boot persistence test explicitly arms reuse with
-# PAW_REUSE_MEDIA=1 so the second boot sees the PAWDATA created by the first.
-if [[ ${PAW_REUSE_MEDIA:-0} != 1 || ! -s "$media" ]]; then
-  rm -f "$media"
-  cp --sparse=always "$base" "$media"
-  sync
-fi
+build_media
 
-cat >"$work/boot/manifest.txt" <<MANIFEST
-iso=$iso
-iso_bytes=$(stat -c %s "$iso")
-media_bytes=$(stat -c %s "$media")
+cat >>"$work/boot/manifest-media.txt" <<MANIFEST
 guest_bytes=$(stat -c %s "$guest")
 kernel=$work/iso/live/vmlinuz
 initrd=$work/boot/initrd.img
 MANIFEST
-cat "$work/boot/manifest.txt"
+cat "$work/boot/manifest-media.txt"
 echo "[prehw] lab build complete: $work/boot"

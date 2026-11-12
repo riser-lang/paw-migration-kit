@@ -135,11 +135,31 @@ def source_snapshot(config: dict) -> dict:
 
 
 def target_snapshot(config: dict) -> dict:
-    keys = ("device_path", "model", "serial", "capacity_bytes")
-    missing = [k for k in keys if config.get(k) in (None, "")]
+    required = ("device_path", "model", "capacity_bytes")
+    missing = [k for k in required if config.get(k) in (None, "")]
     require(not missing, "TARGET_BINDING_MISSING", f"target-ssd.json missing {missing}")
     require(bool(config.get("approved")), "TARGET_NOT_APPROVED", "target enrollment is not approved")
-    return {k: (int(config[k]) if k == "capacity_bytes" else str(config[k] or "")) for k in keys}
+    hardware = str(config.get("hardware_identity_sha256") or "").lower()
+    composite = str(config.get("composite_identity_sha256") or "").lower()
+    serial = str(config.get("serial") or "")
+    require(bool(serial or hardware or composite), "TARGET_BINDING_MISSING",
+            "target-ssd.json has no serial or stable identity hash")
+    if hardware:
+        hardware = validate_sha(hardware)
+    if composite:
+        composite = validate_sha(composite)
+    return {
+        "device_path": str(config.get("device_path")),
+        "model": str(config.get("model") or ""),
+        "serial": serial,
+        "capacity_bytes": int(config["capacity_bytes"]),
+        "wwn": str(config.get("wwn") or "").lower(),
+        "by_id": list(config.get("by_id") or []),
+        "sysfs_path": str(config.get("sysfs_path") or ""),
+        "identity_basis": str(config.get("identity_basis") or ("serial" if serial else "")),
+        "hardware_identity_sha256": hardware,
+        "composite_identity_sha256": composite,
+    }
 
 
 def binding_matches(transaction: dict, source: dict, target: dict) -> None:
@@ -148,9 +168,14 @@ def binding_matches(transaction: dict, source: dict, target: dict) -> None:
     for key in ("device_path", "root_uuid", "capacity_bytes", "composite_identity_sha256"):
         require(expected_source.get(key) == source.get(key), "SOURCE_CHANGED",
                 f"source {key} differs from the authorized transaction")
-    for key in ("device_path", "serial", "capacity_bytes"):
-        require(expected_target.get(key) == target.get(key), "TARGET_CHANGED",
-                f"target {key} differs from the authorized transaction")
+    if expected_target.get("hardware_identity_sha256") or target.get("hardware_identity_sha256"):
+        for key in ("hardware_identity_sha256", "composite_identity_sha256"):
+            require(expected_target.get(key) == target.get(key), "TARGET_CHANGED",
+                    f"target {key} differs from the authorized transaction")
+    else:
+        for key in ("device_path", "serial", "capacity_bytes"):
+            require(expected_target.get(key) == target.get(key), "TARGET_CHANGED",
+                    f"target {key} differs from the authorized transaction")
 
 
 def auth_matches(transaction: dict, authorization: dict) -> None:
@@ -160,8 +185,17 @@ def auth_matches(transaction: dict, authorization: dict) -> None:
             "authorization migration_id does not match transaction")
     require(authorization.get("authorization_id") == transaction.get("authorization_id"), "AUTH_ID_MISMATCH",
             "authorization_id does not match transaction")
-    require(authorization.get("target_serial") == transaction.get("target", {}).get("serial"), "AUTH_TARGET_MISMATCH",
-            "authorization target serial does not match transaction")
+    target = transaction.get("target", {})
+    auth_hw = str(authorization.get("target_hardware_identity_sha256") or "")
+    if target.get("hardware_identity_sha256") or auth_hw:
+        require(auth_hw == target.get("hardware_identity_sha256"), "AUTH_TARGET_MISMATCH",
+                "authorization target hardware identity does not match transaction")
+        require(str(authorization.get("target_composite_identity_sha256") or "") ==
+                target.get("composite_identity_sha256"), "AUTH_TARGET_MISMATCH",
+                "authorization target composite identity does not match transaction")
+    else:
+        require(authorization.get("target_serial") == target.get("serial"), "AUTH_TARGET_MISMATCH",
+                "authorization target serial does not match transaction")
     require(authorization.get("source_composite_identity_sha256") ==
             transaction.get("source", {}).get("composite_identity_sha256"), "AUTH_SOURCE_MISMATCH",
             "authorization source identity does not match transaction")
@@ -188,10 +222,16 @@ def cmd_init(args) -> int:
             "authorization has no migration_id")
     require(bool(re.fullmatch(r"[0-9a-f-]{36}", authorization_id)), "AUTH_AUTHORIZATION_ID",
             "authorization has no authorization_id")
-    require(authorization.get("target_serial") == target["serial"], "AUTH_TARGET_MISMATCH",
-            "authorization target serial does not match enrollment")
-    require(authorization.get("target_device") == target["device_path"], "AUTH_TARGET_MISMATCH",
-            "authorization target device does not match enrollment")
+    if target.get("hardware_identity_sha256"):
+        require(authorization.get("target_hardware_identity_sha256") == target["hardware_identity_sha256"],
+                "AUTH_TARGET_MISMATCH", "authorization target hardware identity does not match enrollment")
+        require(authorization.get("target_composite_identity_sha256") == target["composite_identity_sha256"],
+                "AUTH_TARGET_MISMATCH", "authorization target composite identity does not match enrollment")
+    else:
+        require(authorization.get("target_serial") == target["serial"], "AUTH_TARGET_MISMATCH",
+                "authorization target serial does not match enrollment")
+        require(authorization.get("target_device") == target["device_path"], "AUTH_TARGET_MISMATCH",
+                "authorization target device does not match enrollment")
     require(authorization.get("source_composite_identity_sha256") == source["composite_identity_sha256"],
             "AUTH_SOURCE_MISMATCH", "authorization source identity does not match enrollment")
     expires = dt.datetime.fromisoformat(str(authorization.get("expires_at", "")))

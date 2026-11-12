@@ -227,7 +227,7 @@ def qemu_cmd(args, devices=True):
     for spec in getattr(args, "fw_cfg", []):
         cmd += ["-fw_cfg", spec]
     if devices:
-        media_image = getattr(args, "usb_media", None) or f"{args.work}/boot/tf32.img"
+        media_image = getattr(args, "usb_media", None) or f"{args.work}/boot/media32.img"
         if args.mode == "main":
             # Acceptance path: the live system boots like the physical target —
             # from a removable USB Mass Storage device on a real xHCI controller.
@@ -478,7 +478,7 @@ def main():
     ap.add_argument("--fw-cfg", action="append", default=[],
                     help="QEMU -fw_cfg NAME,FILE specification (repeatable)")
     ap.add_argument("--usb-media", default=None,
-                    help="raw 32 GB USB Mass Storage image for --mode main (default WORK/boot/tf32.img)")
+                    help="raw 32 GB USB Mass Storage image for --mode main (default WORK/boot/media32.img)")
     args = ap.parse_args()
     os.makedirs(f"{args.work}/share", exist_ok=True)
     if args.mode == "prepare":

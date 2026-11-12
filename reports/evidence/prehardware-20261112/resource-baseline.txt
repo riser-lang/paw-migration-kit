@@ -1,0 +1,86 @@
+PAW pre-hardware resource baseline and 50 GiB gate
+recorded_at=2026-11-12T14:43:01Z
+host=VM-63-23-ubuntu (Ubuntu 24.04, kernel 6.8.0-101-generic, x86_64)
+cpu_count=2
+memory_total_bytes=7994241024
+memory_available_bytes=6158184448
+swap_total_bytes=10674495488
+
+THREE NUMBERS FIRST
+available_bytes=15978684416
+peak_required_bytes=139374182400
+can_run_50gib_chain=NO
+final_gate=BLOCKED
+
+Filesystem before second /tmp cleanup:
+/dev/vda2  size=53687091200  used=34471096320  avail=15979036672  use=69%
+Filesystem after second /tmp cleanup:
+/dev/vda2  size=52721041408  used=34471096320  avail=15978684416  use=69%
+(df reports the ext4 usable size as 52,721,041,408 bytes; the partition is 50 GiB.)
+Inodes: total=3276800 used=386296 free=2890504 use=12%
+Swap: total=10674495488 used=1164677120 free=9509818368
+
+Largest directory consumers (du -sh):
+4.5G /home/agentuser/prehardware-20261111
+2.3G /home/agentuser/.cache
+2.2G /home/agentuser/final-20261112
+1.2G /home/agentuser/paw-stage34-20261110
+871M /tmp
+740M /var/cache
+726M /var/log
+633M /home/agentuser/chrome-profile
+298M /var/lib
+127M /home/agentuser/tools
+83M  /home/agentuser/paw-stage34-keep
+
+Step 0 cleanup performed
+- Removed stale /tmp images/tars/QEMU logs only after checking that no QEMU,
+  loop or device-mapper consumer was active:
+    pgrep -a qemu      -> no output
+    losetup -a         -> no output
+    dmsetup ls         -> no output
+- First /tmp cleanup freed 2,751,012,864 bytes (cleanup-20261112.log).
+- Second /tmp cleanup removed /tmp/ubuntu-24.04.5-live-server-amd64.iso and
+  /tmp/x[0-9]*.xwd and freed 528,297,984 bytes.
+- total_tmp_freed_bytes=3279310848
+- No committed repository evidence was deleted.
+- Home cleanup/archival of ~/prehardware-20261111, ~/final-20261112,
+  ~/paw-stage34-20261110, ~/.cache and ~/.dsh/jobs was attempted but the
+  sandbox returned "Permission denied" for /home/agentuser paths.  The
+  danger-full-access retry was refused because no approval channel exists.
+  Those directories therefore remain and no bytes-freed claim is made for
+  them.  This is an environment limitation, not a successful cleanup.
+- git status: modified scripts/workflow only plus new untracked evidence and
+  scripts/paw-identity.py; no stashes; worktree list contains only this repo.
+- Re-reported post-cleanup available: 15,978,684,416 bytes (14.88 GiB).
+
+Exact capacities used by the gate (never 12 GiB)
+source_capacity_bytes=53687091200       (50 GiB)
+target_capacity_bytes=240000000000      (240 GB decimal)
+boot_media_bytes=32000000000            (32 GB decimal)
+
+Peak formula (conservative, full source allocation):
+  peak = source_actual_allocated + target_actual_written + boot_media
+  source_actual_allocated = 53687091200
+  target_actual_written   = 53687091200 (the clone writes every source byte)
+  boot_media              = 32000000000
+  peak                    = 139374182400 bytes
+  twenty_percent_reserve  =  27874836480 bytes
+  required_with_reserve   = 167249018880 bytes
+  available               =  15978684416 bytes
+  deficit_with_reserve    = 151270334464 bytes
+
+Even the absolute floor is impossible: the 32,000,000,000-byte media alone is
+larger than the 15,978,684,416 bytes available, before any target write.  The
+20% reserve rule requires available >= peak*1.2; with peak >= 32,000,000,000
+the threshold is >= 38,400,000,000 bytes (35.76 GiB), while available is
+14.88 GiB.  A sparse target image does not reduce the bytes written by the
+clone, and the source must not be shrunk or relabelled as 12 GiB.
+
+DECISION
+Item 3 (exact 50 GiB -> 240 GB -> 32 GB QEMU TCG chain) is BLOCKED by the
+resource gate.  Do not run the chain on this host and do not substitute a
+12 GiB source.  Reordered work: (1) offline-repair root-cause fix, (2) SSD
+stable identity, (4) full CI on the final runtime commit, (5) final ISO and
+independent hash, (6) documentation/handoff.  Final status cannot be A;
+it is B only if items 1, 2, 4 and 5 produce green evidence, otherwise C.

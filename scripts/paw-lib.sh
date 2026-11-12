@@ -61,14 +61,24 @@ PY
   grep -q '"status"[[:space:]]*:[[:space:]]*"PASS"' "$PAW_REPORT_DIR/paw-hardware-health-report.json" || die 'Hardware health report is not PASS.'
 }
 assert_authorization_for_target(){
-  local dev="$1" parent serial expected
+  local dev="$1" parent expected identity_json actual_hw serial
   parent="$(parent_disk "$dev")"
-  serial="$(lsblk -dn -o SERIAL "$parent" | xargs)"
   expected="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("device_path", ""))' "$PAW_CONFIG_DIR/target-ssd.json")"
-  python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$serial" "$parent" "$expected" <<'PY'
+  [[ -r "$PAW_CONFIG_DIR/target-ssd.json" ]] || die 'Target enrollment is missing.'
+  identity_json="$(python3 "$PAW_ROOT/scripts/paw-identity.py" verify --config "$PAW_CONFIG_DIR/target-ssd.json"       --device "$parent" --phase postwrite --check-unique 2>/dev/null)"     || die 'Current target hardware identity no longer matches the enrolled target.'
+  actual_hw="$(python3 -c 'import json,sys;print(json.load(sys.stdin).get("hardware_identity_sha256",""))' <<<"$identity_json")"
+  serial="$(python3 -c 'import json,sys;print(json.load(sys.stdin).get("serial",""))' <<<"$identity_json")"
+  python3 - "$PAW_REPORT_DIR/operator-authorization.json" "$serial" "$parent" "$expected" "$actual_hw" <<'PY'
 import json,sys
-d=json.load(open(sys.argv[1],encoding="utf-8"))
-if d.get("status") not in ("AUTHORIZED","CONSUMED") or d.get("target_serial")!=sys.argv[2] or d.get("target_device")!=sys.argv[3] or sys.argv[3]!=sys.argv[4]:
+auth=json.load(open(sys.argv[1],encoding="utf-8"))
+serial,parent,expected,actual_hw=sys.argv[2:]
+if auth.get("status") not in ("AUTHORIZED","CONSUMED"):
+    raise SystemExit("authorization is not active")
+if auth.get("target_hardware_identity_sha256"):
+    if auth["target_hardware_identity_sha256"] != actual_hw:
+        raise SystemExit("authorization does not match the current target hardware identity")
+    # Device paths are locators only; the stable identity is allowed to move.
+elif auth.get("target_serial") != serial or auth.get("target_device") != parent or parent != expected:
     raise SystemExit("authorization does not match the current target")
 PY
 }
@@ -115,10 +125,12 @@ assert_sim_loop_device(){
   [[ -n "$root" && -n "$backing" && "$(realpath -e "$backing" 2>/dev/null || true)" == "$root"/* ]] || die 'Loop backing file must be inside tests/virtual.'
 }
 assert_registered_target_device(){
-  local dev="$1" expected actual parent
-  expected="$(sed -n 's/.*"serial"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PAW_CONFIG_DIR/target-ssd.json")"
-  parent="$(parent_disk "$dev")"; actual="$(lsblk -dn -o SERIAL "$parent" | xargs)"
-  [[ -n "$expected" && "$actual" == "$expected" ]] || die 'Registered target serial mismatch.'
+  local dev="$1" parent
+  parent="$(parent_disk "$dev")"
+  [[ -r "$PAW_CONFIG_DIR/target-ssd.json" ]] || die 'Registered target enrollment is missing.'
+  python3 "$PAW_ROOT/scripts/paw-identity.py" verify --config "$PAW_CONFIG_DIR/target-ssd.json" \
+    --device "$parent" --phase postwrite --check-unique >/dev/null 2>&1 \
+    || die 'Registered target hardware identity mismatch or ambiguous target.'
 }
 rescue_ssh(){
   local host port user identity known endpoint

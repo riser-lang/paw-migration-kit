@@ -1,0 +1,64 @@
+=== CLEANUP 2026-11-12T14:31:10Z ===
+-- pre df --
+Filesystem       1B-blocks        Used   Available Use% Mounted on
+/dev/vda2      52721041408 37747322880 12702457856  75% /
+-- qemu procs --
+none
+-- loop devices --
+-- targets --
+52612300800	/tmp/rootcheck.img
+268435456	/tmp/d.img
+143469254	/tmp/test-fbcon-initrd.img
+134217728	/tmp/lt
+67108864	/tmp/grubtest.img
+66865199	/tmp/xray26327
+55224242	/tmp/bootfiles
+29130752	/tmp/artifact-tail2.bin
+21136402	/tmp/Xray-linux-64.zip
+20000001	/tmp/cloudtest.bin
+774282	/tmp/paw-run6.log
+774208	/tmp/paw-run7.log
+774149	/tmp/paw-run-final.log
+771384	/tmp/paw-run5.log
+769405	/tmp/paw-run4.log
+768527	/tmp/paw-run3.log
+764016	/tmp/paw-run.log
+762209	/tmp/paw-run8.log
+347696	/tmp/paw-new-scripts
+313600	/tmp/paw-dpkg-status
+263799	/tmp/paw-base-scripts
+132853	/tmp/paw-kconfig
+100136	/tmp/paw-font-build
+55904	/tmp/paw-cjk-font.json
+18155	/tmp/paw-cjk-16x16.psf
+8196	/tmp/paw-cjk-8x16.psf
+7606	/tmp/paw-final-check
+5154	/tmp/paw-final-artifacts
+3013	/tmp/paw-run.json
+2776	/tmp/paw-port-test
+1454	/tmp/paw-p0c
+1454	/tmp/paw-p0
+1437	/tmp/paw-p1b
+1361	/tmp/paw-p1
+1076	/tmp/paw-vless-tests.rvtFMV
+1076	/tmp/paw-vless-tests.rMuhfN
+498	/tmp/paw-diag.sh
+402	/tmp/paw-isolation-inventory.tsv
+225	/tmp/paw-diag.service
+81	/tmp/paw-run2.log
+58	/tmp/paw-df-after.txt
+57	/tmp/paw-df-before.txt
+0	/tmp/paw-deb
+-- post df --
+Filesystem       1B-blocks        Used   Available Use% Mounted on
+/dev/vda2      52721041408 34996310016 15453470720  70% /
+freed_bytes=2751012864
+
+second_cleanup_at=2026-11-12T14:42Z
+qemu_before=none
+losetup_before=none
+dmsetup_before=none
+removed=/tmp/ubuntu-24.04.5-live-server-amd64.iso,/tmp/x[0-9]*.xwd
+freed_bytes=528297984
+available_after=15978684416
+home_cleanup=BLOCKED_BY_SANDBOX_PERMISSION_DENIED

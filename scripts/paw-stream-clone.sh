@@ -27,11 +27,15 @@ else
   grep -q '"status"[[:space:]]*:[[:space:]]*"PASS"' "$PAW_REPORT_DIR/source-discovery.json" || die 'Rescue Mode source discovery is not PASS.'
   configured_src="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("device_path", ""))' "$PAW_CONFIG_DIR/source.json")"
   [[ "$src" =~ ^/dev/[A-Za-z0-9/]+$ && "$src" == "$configured_src" ]] || die 'Source device does not match the enrolled source path.'
-  expected="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("serial", ""))' "$PAW_CONFIG_DIR/target-ssd.json")"
   expected_bytes="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("capacity_bytes", ""))' "$PAW_CONFIG_DIR/target-ssd.json")"
-  actual="$(lsblk -dn -o SERIAL "$dst" | xargs)"; target_bytes="$(blockdev --getsize64 "$dst")"
-  [[ -n "$expected" && "$actual" == "$expected" ]] || die 'Target serial mismatch.'
+  # Pre-write check includes the blank disk's partition fingerprint; after this
+  # point the table is intentionally replaced and later gates use the hardware
+  # hash only.
+  python3 "$PAW_ROOT/scripts/paw-identity.py" verify --config "$PAW_CONFIG_DIR/target-ssd.json" \
+    --device "$dst" --phase prewrite --check-unique >/dev/null 2>&1 \
+    || die 'Target stable identity or pre-write partition fingerprint mismatch.'
   assert_authorization_for_target "$dst"
+  target_bytes="$(blockdev --getsize64 "$dst")"
   assert_transaction_stage clone
   [[ "$expected_bytes" =~ ^[0-9]+$ && "$target_bytes" == "$expected_bytes" ]] || die 'Target capacity mismatch.'
   root_uuid="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("root_uuid", ""))' "$PAW_CONFIG_DIR/source.json")"

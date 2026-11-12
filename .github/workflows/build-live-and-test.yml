@@ -202,6 +202,12 @@ jobs:
           env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-p0-remediation-tests.sh
           env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-p1-remediation-tests.sh
 
+      - name: Run SSD stable identity and read-only health gate suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          env PAW_ARTIFACT_DIR="$PWD/artifacts" scripts/ci/run-ssd-health-tests.sh
+
       - name: Run VLESS/Tailscale network-bootstrap suite
         shell: bash
         run: |
@@ -228,6 +234,7 @@ jobs:
             artifacts/network-virtual-test-report.txt \
             artifacts/p0-remediation-report.txt \
             artifacts/p1-remediation-report.txt \
+            artifacts/ssd-identity-test-report.txt \
             artifacts/vless-network-test-report.txt \
             artifacts/finalize-virtual-test-report.txt \
             artifacts/tty-virtual-test-report.txt \
@@ -274,6 +281,9 @@ jobs:
             artifacts/qemu-cjk-test-report.txt
             artifacts/qemu-cjk-*.log
             artifacts/qemu-cjk/**
-          retention-days: 3
+          # The final ISO is a release candidate artifact and must remain
+          # downloadable long enough for independent checksum verification and
+          # the separate 50 GiB chain workflow.
+          retention-days: 14
           compression-level: 0
           if-no-files-found: warn
