@@ -2,7 +2,7 @@
 
 Updated: 2026-11-12 UTC (PAW v2.8 pre-hardware acceptance)
 Current branch: `vm/ds-prehardware-acceptance-20261111`
-Current code HEAD: `a5c423f` (source_os/gpt-expand fixes on top of `b9f5c5b`)
+Current code HEAD: `9bc9580` (12 GiB chain PASS; source identity/getty fixes on top of `b9f5c5b`)
 Base: `d64071251bb3075d9cb26a967dfcba6cf139250a`
 PR: #2 (Draft, not merged); #1 untouched
 Main HEAD: `0d6aefd` (unchanged)

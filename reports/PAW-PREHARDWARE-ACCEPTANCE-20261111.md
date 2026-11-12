@@ -2,7 +2,7 @@
 
 - 日期：2026-11-12（UTC）
 - 分支：`vm/ds-prehardware-acceptance-20261111`
-- 代码基线：初始 `b9f5c5b`；本报告对应分支 `vm/ds-prehardware-acceptance-20261111` 上的修复提交（见 `git log`）
+- 代码基线：`9bc9580`（初始 `b9f5c5b`；12 GiB 全链路 PASS、source identity/getty 读取器修复）
 - 执行模型：DS V4.1 Flash
 - 环境：QEMU/TCG、Debian Live 6.12.113+deb13-amd64、4 vCPU（宿主 2 核）、3 GiB guest RAM
 - 范围：**仅虚拟块设备与模拟网络端点**
