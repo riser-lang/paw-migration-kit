@@ -1,0 +1,13 @@
+run=43206559080
+workflow_url=https://github.com/riser-lang/paw-migration-kit/actions/runs/43206559080
+head_commit=fe6100e
+runtime_files_commit=690ce8f
+artifact=paw-live-build-test-results
+artifact_size_bytes=1030653110
+iso_file=paw-live-amd64.iso
+iso_bytes=953155584
+sidecar_sha256=bc37ebaebe469e40b61b0f7c841fee95690b68ccbaf4dfa73d5414fea3a9b0fe
+local_sha256=bc37ebaebe469e40b61b0f7c841fee95690b68ccbaf4dfa73d5414fea3a9b0fe
+sha256_match=true
+sidecar_path_in_artifact=boot/custom/paw-live-amd64.iso
+verified_at_utc=2026-11-12T11:39:53Z

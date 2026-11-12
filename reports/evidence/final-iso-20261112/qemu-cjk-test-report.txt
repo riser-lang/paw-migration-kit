@@ -1,0 +1,141 @@
+PAW framebuffer CJK tty1 QEMU results
+Executed: 2026-11-12T11:17:20Z
+ISO: /home/runner/work/paw-migration-kit/paw-migration-kit/boot/custom/paw-live-amd64.iso
+xorriso 1.5.6 : RockRidge filesystem manipulator, libburnia project.
+
+Copying of file objects from ISO image to disk filesystem is: Enabled
+xorriso : NOTE : ISO image bears MBR with  -boot_image any partition_offset=16
+xorriso : NOTE : Loading ISO image tree from LBA 0
+xorriso : UPDATE :     310 nodes read in 1 seconds
+xorriso : NOTE : Detected El-Torito boot information which currently is set to be discarded
+Drive current: -indev '/home/runner/work/paw-migration-kit/paw-migration-kit/boot/custom/paw-live-amd64.iso'
+Media current: stdio file, overwriteable
+Media status : is written , is appendable
+Boot record  : El Torito , MBR isohybrid cyl-align-on GPT APM
+Media summary: 1 session, 465408 data blocks,  909m data, 79.0g free
+Volume id    : 'PAW-LIVE'
+xorriso : UPDATE :       1 files restored ( 11870k) in 1 seconds = 8.8xD
+Extracted from ISO image: file '/live/vmlinuz'='/home/runner/work/paw-migration-kit/paw-migration-kit/tests/virtual/cjk-qemu-run/vmlinuz'
+xorriso 1.5.6 : RockRidge filesystem manipulator, libburnia project.
+
+Copying of file objects from ISO image to disk filesystem is: Enabled
+xorriso : NOTE : ISO image bears MBR with  -boot_image any partition_offset=16
+xorriso : NOTE : Loading ISO image tree from LBA 0
+xorriso : UPDATE :     310 nodes read in 1 seconds
+xorriso : NOTE : Detected El-Torito boot information which currently is set to be discarded
+Drive current: -indev '/home/runner/work/paw-migration-kit/paw-migration-kit/boot/custom/paw-live-amd64.iso'
+Media current: stdio file, overwriteable
+Media status : is written , is appendable
+Boot record  : El Torito , MBR isohybrid cyl-align-on GPT APM
+Media summary: 1 session, 465408 data blocks,  909m data, 79.0g free
+Volume id    : 'PAW-LIVE'
+xorriso : UPDATE :       1 files restored ( 778.2m) in 1 seconds = 589.2xD
+Extracted from ISO image: file '/live/filesystem.squashfs'='/home/runner/work/paw-migration-kit/paw-migration-kit/tests/virtual/cjk-qemu-run/filesystem.squashfs'
+[==|                                                         ]  2470/54749   4%[===-                                                        ]  3524/54749   6%[====\                                                       ]  3933/54749   7%[=====|                                                      ]  4800/54749   8%[======/                                                     ]  6390/54749  11%[========-                                                   ]  7764/54749  14%[=========\                                                  ]  8391/54749  15%[=========|                                                  ]  8795/54749  16%[==========/                                                 ]  9331/54749  17%[===========-                                                ] 10706/54749  19%[===========\                                                ] 11083/54749  20%[=============|                                              ] 12090/54749  22%[=============-                                              ] 12889/54749  23%[===============\                                            ] 14508/54749  26%[=================|                                          ] 16344/54749  29%[==================/                                         ] 16982/54749  31%[===================-                                        ] 17992/54749  32%[======================\                                     ] 20479/54749  37%[=================================|                          ] 30916/54749  56%[==================================/                         ] 32306/54749  59%[===================================-                        ] 32886/54749  60%[=====================================-                      ] 34814/54749  63%[=====================================|                      ] 35229/54749  64%[===========================================/                ] 40084/54749  73%[=============================================-              ] 42588/54749  77%[======================================================\     ] 50534/54749  92%[=======================================================|    ] 51178/54749  93%[=======================================================/    ] 51648/54749  94%[========================================================-   ] 52214/54749  95%[=========================================================\  ] 53726/54749  98%[===========================================================\] 54749/54749 100%
+built initramfs /home/runner/work/paw-migration-kit/paw-migration-kit/tests/virtual/cjk-qemu-run/initrd-cjk.img for 6.12.113+deb13-amd64 (139M)
+Kernel: /home/runner/work/paw-migration-kit/paw-migration-kit/tests/virtual/cjk-qemu-run/rootfs/boot/vmlinuz-6.12.113+deb13-amd64
+Initrd: /home/runner/work/paw-migration-kit/paw-migration-kit/tests/virtual/cjk-qemu-run/initrd-cjk.img
+PASS font under test is 16x16
+PASS ok: PAWDATA prompt reached on fbcon
+PASS ok: kernel font service reports fbcon 16x16 load
+PASS ok: framebuffer device is bochs-drm
+PASS ok: framebuffer cells match shipped PSF glyphs
+PASS ok: 中文屏幕显示「PAW 首次启动 - PAWDATA 持久分区初…」
+PASS ok: 中文屏幕显示「只针对当前启动本系统的可移动设备;不会碰其他磁盘…」
+PASS ok: 中文屏幕显示「将只追加一个新的 PAWDATA 分区并格式化该…」
+PASS ok: 中文屏幕显示「请输入该设备序列号最后 6 位以继续:…」
+PASS ok: 中文屏幕显示「序列号:QEMU-123456…」
+PASS ok: correct serial suffix accepted on tty1
+PASS ok-accepted: framebuffer cells match shipped PSF glyphs
+PASS ok-accepted: 中文屏幕显示「输入已确认;开始追加 PAWDATA 分区(仅新…」
+PASS ok: Chinese console menu appeared on the same tty1
+PASS ok-menu: framebuffer cells match shipped PSF glyphs
+PASS ok-menu: 中文屏幕显示「PAW 迁移准备控制台(v2.7)…」
+PASS ok-menu: 中文屏幕显示「登记 Memtest86+ 人工确认结果…」
+PASS ok-menu: 中文屏幕显示「初始化/修复 PAWDATA 持久分区…」
+PASS ok-menu: 中文屏幕显示「最终中文授权并开始迁移…」
+PASS ok: menu keyboard choice 7 opened the report listing
+PASS ok: console menu status records /dev/tty1
+PASS ok: menu choice 7 recorded on tty1
+PASS ok: console menu has exactly one non-helper tty1 holder
+PASS ok: status file records actual output tty /dev/tty1
+PASS ok: PAWDATA panel and serial input share /dev/tty1
+PASS ok: tty1 has exactly one non-helper holder
+Summary: 26 passed, 0 failed
+PASS font under test is 16x16
+PASS bad: PAWDATA prompt reached on fbcon
+PASS bad: kernel font service reports fbcon 16x16 load
+PASS bad: framebuffer device is bochs-drm
+PASS bad: framebuffer cells match shipped PSF glyphs
+PASS bad: 中文屏幕显示「PAW 首次启动 - PAWDATA 持久分区初…」
+PASS bad: 中文屏幕显示「只针对当前启动本系统的可移动设备;不会碰其他磁盘…」
+PASS bad: 中文屏幕显示「将只追加一个新的 PAWDATA 分区并格式化该…」
+PASS bad: 中文屏幕显示「请输入该设备序列号最后 6 位以继续:…」
+PASS bad: 中文屏幕显示「序列号:QEMU-123456…」
+PASS bad: wrong serial suffix stopped on tty1
+PASS bad: framebuffer cells match shipped PSF glyphs
+PASS bad: 中文屏幕显示「错误:序列号末六位不匹配,已安全停止,没有写入任…」
+PASS bad: no INPUT-OK marker after rejection
+PASS bad: status file records actual output tty /dev/tty1
+PASS bad: PAWDATA panel and serial input share /dev/tty1
+PASS bad: tty1 has exactly one non-helper holder
+Summary: 17 passed, 0 failed
+PASS font under test is 16x16
+PASS timeout: PAWDATA prompt reached on fbcon
+PASS timeout: kernel font service reports fbcon 16x16 load
+PASS timeout: framebuffer device is bochs-drm
+PASS timeout: framebuffer cells match shipped PSF glyphs
+PASS timeout: 中文屏幕显示「PAW 首次启动 - PAWDATA 持久分区初…」
+PASS timeout: 中文屏幕显示「只针对当前启动本系统的可移动设备;不会碰其他磁盘…」
+PASS timeout: 中文屏幕显示「将只追加一个新的 PAWDATA 分区并格式化该…」
+PASS timeout: 中文屏幕显示「请输入该设备序列号最后 6 位以继续:…」
+PASS timeout: 中文屏幕显示「序列号:QEMU-123456…」
+PASS timeout: no-input timeout stopped safely on tty1
+PASS timeout: framebuffer cells match shipped PSF glyphs
+PASS timeout: 中文屏幕显示「错误:等待输入超过 5 秒,已安全停止,没有写入…」
+PASS timeout: no INPUT-OK marker after timeout
+PASS timeout: status file records actual output tty /dev/tty1
+PASS timeout: PAWDATA panel and serial input share /dev/tty1
+PASS timeout: tty1 has exactly one non-helper holder
+Summary: 17 passed, 0 failed
+PASS font under test is 16x16
+PASS render: finalizer Chinese success text reached fbcon
+PASS render: finalizer completed with mock reboot
+PASS render-complete: framebuffer cells match shipped PSF glyphs
+PASS render-complete: 中文屏幕显示「PAW 迁移成功:克隆,独立 SHA256 校验…」
+PASS render-complete: 中文屏幕显示「完成记录已原子写入并同步到磁盘.…」
+PASS render-complete: 中文屏幕显示「系统将在 5 秒后自动重启进入正式 Ubuntu…」
+PASS render-complete: 中文屏幕显示「自动重启命令已下发…」
+PASS render: reboot status is PASS
+PASS render: mock reboot was invoked exactly once
+PASS render: test used the mock reboot command
+Summary: 11 passed, 0 failed
+PASS font under test is 16x16
+PASS final: authorization panel reached fbcon
+PASS final: guest reported a >=6 character synthetic target serial
+PASS final-panel: framebuffer cells match shipped PSF glyphs
+PASS final-panel: 中文屏幕显示「PAW 最终迁移授权(请完整阅读后再确认)…」
+PASS final-panel: 中文屏幕显示「源系统:Rescue Mode…」
+PASS final-panel: 中文屏幕显示「源盘组合身份:…」
+PASS final-panel: 中文屏幕显示「固定 SSH 主机指纹:…」
+PASS final-panel: 中文屏幕显示「目标 SSD:设备=…」
+PASS final-panel: 中文屏幕显示「数据来源:固定 SSH 主机指纹的 Rescue…」
+PASS final-panel: 中文屏幕显示「数据损失:目标 SSD 的整盘内容将被源盘覆盖,…」
+PASS final-panel: 中文屏幕显示「如确认覆盖,请输入目标 SSD 序列号最后 6 …」
+PASS final-panel: 中文屏幕显示「目标序列号:QEMU-123456…」
+PASS final: wrong suffix rejected on tty1
+PASS final-bad: framebuffer cells match shipped PSF glyphs
+PASS final-bad: 中文屏幕显示「错误:确认值与目标 SSD 序列号不匹配,已安全…」
+PASS final: no acceptance marker after rejection
+PASS final: panel reappeared for the second attempt
+PASS final: correct suffix accepted on tty1
+PASS final-ok: framebuffer cells match shipped PSF glyphs
+PASS final-ok: 中文屏幕显示「输入已确认;开始整盘覆盖迁移,请不要断电.…」
+PASS final: authorization session records /dev/tty1
+PASS final: both rejection and acceptance markers were recorded
+PASS final: only the probe shell and the authorization script hold tty1
+PASS final: no login or getty process competes for tty1
+Summary: 25 passed, 0 failed
+Cases: 5 passed, 0 failed, 0 blocked
+Font: /home/runner/work/paw-migration-kit/paw-migration-kit/tests/virtual/cjk-qemu-run/rootfs/opt/paw-migration/fonts/paw-cjk-16x16.psf
+Font SHA256: 8517b41ec3c5a5699f01fdf2ac35d6c898f615141c099ca63ffc8842c310a657

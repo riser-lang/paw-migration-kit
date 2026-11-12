@@ -1,0 +1,29 @@
+Offline repair virtual tests
+e2fsck 1.47.0 (5-Feb-2023)
+Pass 1: Checking inodes, blocks, and sizes
+Pass 2: Checking directory structure
+Pass 3: Checking directory connectivity
+Pass 4: Checking reference counts
+Pass 5: Checking group summary information
+/dev/loop0p1: 61/130816 files (0.0% non-contiguous), 13102/130816 blocks
+2026-11-12T11:29:25Z [WARN] Target kernel has no i915 module (HD Graphics 4600); graphical console remains a physical-open item.
+Initializing machine ID from random generator.
+ssh-keygen: generating new host keys: RSA ECDSA ED25519 
+chroot: failed to run command ‘sh’: No such file or directory
+2026-11-12T11:29:27Z [WARN] Target has no depmod; module dependency indexes were not rebuilt.
+chroot: failed to run command ‘env’: No such file or directory
+/dev/loop0p1 is in use.
+e2fsck: Cannot continue, aborting.
+
+
+umount: /mnt/paw-migration-cloned-root: not mounted.
+2026-11-12T11:29:27Z [ERROR] offline adaptation failed; the backup is retained at /home/runner/work/paw-migration-kit/paw-migration-kit/tests/virtual/repair-run/state-a/backups/offline-repair-20261112T112925Z
+FAIL Offline repair simulation path
+FAIL Netplan e* match missing
+FAIL initramfs modules missing
+FAIL machine-id was not regenerated
+FAIL SSH host key was not regenerated
+PASS user authorized_keys preserved
+PASS PAW business data preserved
+FAIL udev rule not disabled
+FAIL Repair report status invalid
