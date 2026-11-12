@@ -168,7 +168,19 @@ ext4 根 UUID 在源盘上只出现一次；上一次尝试在 240 GB **一次�
 向串口控制台发送了无害的 SysRq-H 帮助输出。随后已把读取器改为同时检查完整
 串口快照，避免未来再依赖额外控制台输出；该修复不改变 PASS 判定标准。
 
-## 5. 补充三：VLESS/Tailscale 双阶段
+### 4.5 P2 前提更正：旧日志是 `VERSION_ID=13`，不是“为空”
+
+交接描述把先前的 `source_os` 失败写成“source os-release VERSION_ID 为空”。
+核对旧运行日志 `/tmp/prehw-main7.log`，实际输出是：
+
+`PAW3_STEP=source_os STATUS=FAIL source os-release VERSION_ID=13`
+
+即当时 `/mnt/paw-source` 挂载成功，读到的 12 GiB source root 是 **Debian 13**
+（`VERSION_ID=13`），不是 Ubuntu 24.04，也不是空文件；路径/挂载并没有把
+Live 系统误当成 source。后来用 Ubuntu 24.04.5 cloud rootfs 重建 source，
+`source_os` 才 PASS（`/mnt/paw-source/etc/os-release`，`VERSION_ID=24.04`）。
+本报告以真实日志为准更正该前提；fallback/延迟 WARN 仍保留为防御性处理，
+但**不是**本次失败的实际根因，也没有用它把失败包装成 PASS。
 
 ## 5. 补充三：VLESS/Tailscale 双阶段
 
