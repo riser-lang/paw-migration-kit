@@ -154,7 +154,7 @@ PAW_TEST_REBOOT_EXIT=0 run_finalize 'c' --receipt "$CASE/reports/migration-compl
 [[ $RC -eq 0 ]] && pass 'A6 用户取消时正常退出' || fail "A6 取消返回 $RC"
 status_is CANCELLED && pass 'A6 状态为 CANCELLED' || fail 'A6 状态不是 CANCELLED'
 [[ "$(reboot_count)" == 0 ]] && pass 'A6 取消后 reboot 调用次数为 0' || fail "A6 取消后 reboot 调用次数=$(reboot_count)"
-grep -q '已取消自动重启，请手动重启' "$CASE/output.log" && pass 'A6 明确显示已取消自动重启' || fail 'A6 取消提示缺失'
+grep -q '已取消自动重启,请手动重启' "$CASE/output.log" && pass 'A6 明确显示已取消自动重启' || fail 'A6 取消提示缺失'
 python3 - "$CASE/reports/reboot-status.json" <<'PY' && pass 'A6 取消状态未伪写为已重启' || fail 'A6 取消状态包含 reboot_invoked=true'
 import json,sys
 d=json.load(open(sys.argv[1])); assert d["reboot_invoked"] is False and d.get("cancelled_by_user") is True
