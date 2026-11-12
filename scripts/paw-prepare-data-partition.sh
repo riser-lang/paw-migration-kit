@@ -50,7 +50,69 @@ fi
 # Fail closed before any sfdisk/sgdisk/mkfs/mount write.  The helper itself
 # skips this check only for PAW_SIMULATION=1 loop-backed fixtures.
 require_console_font_pass
+stage_log="$PAW_LOG_DIR/pawdata-stages.log"
+mkdir -p "$PAW_LOG_DIR"
+: >"$stage_log"
+log_stage(){
+  local stage="$1"; shift
+  printf '%s stage=%s %s\n' "$(date -u +%FT%TZ)" "$stage" "$*" >>"$stage_log"
+}
+media_state(){
+  local stage="$1"
+  {
+    printf '%s stage=%s media_state\n' "$(date -u +%FT%TZ)" "$stage"
+    printf '  read_only=%s\n' "$(blockdev --getro "$disk" 2>/dev/null || echo unknown)"
+    printf '  lsblk='; lsblk -dn -o NAME,RM,RO,TRAN,SERIAL,SIZE "$disk" 2>&1 | tr '\n' ';'; printf '\n'
+    printf '  mounted_children='; findmnt -rn -o SOURCE,TARGET,FSTYPE,OPTIONS | awk -v d="$disk" '$1 ~ "^"d {printf "%s|%s|%s|%s;",$1,$2,$3,$4}'; printf '\n'
+  } >>"$stage_log"
+}
+run_logged(){
+  local stage="$1"; shift
+  local err rc
+  err="$(mktemp)"
+  log_stage "$stage" "command=$* read_only=$(blockdev --getro "$disk" 2>/dev/null || echo unknown)"
+  set +e
+  "$@" >"$PAW_LOG_DIR/pawdata-${stage}.out" 2>"$err"
+  rc=$?
+  set -e
+  sed 's/^/  stderr: /' "$err" >>"$stage_log"
+  printf '%s stage=%s exit=%s\n' "$(date -u +%FT%TZ)" "$stage" "$rc" >>"$stage_log"
+  rm -f "$err"
+  return "$rc"
+}
+mount_pawdata(){
+  local stage="$1" err rc
+  err="$(mktemp)"
+  log_stage "$stage" "command=mount -t ext4 -o rw,noatime,errors=remount-ro,noexec,nosuid,nodev $existing $mount_dir read_only=$(blockdev --getro "$disk" 2>/dev/null || echo unknown) fstype=$(blkid -s TYPE -o value "$existing" 2>/dev/null || echo unknown) mountpoint_state=$(mountpoint -q "$mount_dir" && echo mounted || echo unmounted)"
+  set +e
+  mount -t ext4 -o rw,noatime,errors=remount-ro,noexec,nosuid,nodev "$existing" "$mount_dir" 2>"$err"
+  rc=$?
+  set -e
+  sed 's/^/  stderr: /' "$err" >>"$stage_log"
+  printf '%s stage=%s exit=%s fstype_now=%s mountpoint_now=%s\n' "$(date -u +%FT%TZ)" "$stage" "$rc" "$(findmnt -n -o FSTYPE --target "$mount_dir" 2>/dev/null || echo none)" "$(mountpoint -q "$mount_dir" && echo mounted || echo unmounted)" >>"$stage_log"
+  rm -f "$err"
+  return "$rc"
+}
+umount_pawdata(){
+  local stage="$1" err rc
+  err="$(mktemp)"
+  log_stage "$stage" "command=umount $mount_dir read_only=$(blockdev --getro "$disk" 2>/dev/null || echo unknown) fstype=$(findmnt -n -o FSTYPE --target "$mount_dir" 2>/dev/null || echo none) mountpoint_state=$(mountpoint -q "$mount_dir" && echo mounted || echo unmounted)"
+  set +e
+  umount "$mount_dir" 2>"$err"
+  rc=$?
+  set -e
+  sed 's/^/  stderr: /' "$err" >>"$stage_log"
+  printf '%s stage=%s exit=%s mountpoint_now=%s\n' "$(date -u +%FT%TZ)" "$stage" "$rc" "$(mountpoint -q "$mount_dir" && echo mounted || echo unmounted)" >>"$stage_log"
+  rm -f "$err"
+  return "$rc"
+}
 
+media_state preflight
+if [[ "$(blockdev --getro "$disk" 2>/dev/null || echo 1)" != 0 ]]; then
+  log_stage preflight_blocked "live media is read-only; no partition or filesystem write attempted"
+  die "PAWDATA live media is read-only (blockdev --getro != 0); remove read-only attachment and retry."
+fi
+log_stage preflight_writable "blockdev --getro=0"
 for child in $(lsblk -nrpo NAME "$disk"); do
   options="$(findmnt --noheadings --raw --source "$child" --output OPTIONS 2>/dev/null || true)"
   while IFS= read -r opts; do case ",$opts," in *,rw,*) die 'A media partition is mounted read-write; refusing layout change.' ;; esac; done <<<"$options"
@@ -63,6 +125,7 @@ while IFS= read -r child; do
   if [[ "$(blkid -s LABEL -o value "$child" 2>/dev/null || true)" == PAWDATA ]]; then existing="$child"; break; fi
 done < <(lsblk -nrpo NAME "$disk")
 
+log_stage partition_table_before "dumping table before write"
 table="$PAW_LOG_DIR/media-partition-table.before.txt"
 layout="$PAW_LOG_DIR/media-partition-table.before.json"
 sfdisk --dump "$disk" >"$table"
@@ -101,7 +164,8 @@ print(start,size)
 PY
       ) || die 'Could not validate the hybrid MBR layout or append space.'
       [[ "$start" =~ ^[0-9]+$ && "$size" =~ ^[0-9]+$ ]] || die 'Calculated PAWDATA MBR extent is invalid.'
-      printf '%s,%s,83\n' "$start" "$size" | sfdisk --no-reread --append "$disk" >"$PAW_LOG_DIR/media-partition-append.txt"
+      log_stage mbr_append "start=$start size=$size"
+      printf '%s,%s,83\n' "$start" "$size" | sfdisk --no-reread --append "$disk" >"$PAW_LOG_DIR/media-partition-append.txt" || die "sfdisk MBR append failed; see $PAW_LOG_DIR/media-partition-append.txt"
       read -r existing part_number < <(python3 - "$disk" "$start" "$size" <<'PY'
 import json,re,subprocess,sys
 disk,start,size=sys.argv[1],int(sys.argv[2]),int(sys.argv[3])
@@ -134,7 +198,8 @@ print(max(0,free))
 PY
 )"
       [[ "$free_mib" =~ ^[0-9]+$ ]] && ((free_mib >= 128)) || die 'Less than 128 MiB remains after the ISO GPT partitions.'
-      sgdisk --largest-new=0 --typecode=0:8300 --change-name=0:PAWDATA "$disk" >"$PAW_LOG_DIR/media-partition-append.txt"
+      log_stage gpt_append "largest-new PAWDATA after moving second header"
+      sgdisk --largest-new=0 --typecode=0:8300 --change-name=0:PAWDATA "$disk" >"$PAW_LOG_DIR/media-partition-append.txt" || die "sgdisk GPT append failed; see $PAW_LOG_DIR/media-partition-append.txt"
       dd if="$mbr_backup" of="$disk" bs=512 count=1 conv=notrunc status=none
       ;;
     *)
@@ -142,6 +207,7 @@ PY
       ;;
   esac
 
+  log_stage partition_table_after "dumping table after write"
   sfdisk --dump "$disk" >"$PAW_LOG_DIR/media-partition-table.after.txt"
   sfdisk --json "$disk" >"$PAW_LOG_DIR/media-partition-table.after.json"
   if [[ "$table_label" == dos ]]; then
@@ -176,23 +242,27 @@ PY
   fi
   [[ "$after_count" == "$((before_count + 1))" ]] || die 'Partition count changed unexpectedly; refusing to format.'
   [[ -n "$part_number" ]] || die 'New PAWDATA partition number is missing.'
-  partprobe "$disk" || log WARN 'partprobe could not refresh the hybrid ISO partition table; trying partx.'
-  partx --add --nr "$part_number" "$disk" || true
-  udevadm settle
+  log_stage partprobe "refreshing partition nodes"
+  run_logged partprobe partprobe "$disk" || log WARN 'partprobe could not refresh the hybrid ISO partition table; trying partx.'
+  run_logged partx partx --add --nr "$part_number" "$disk" || true
+  run_logged udevadm_settle udevadm settle
+  log_stage partition_node_wait "waiting for $existing"
   for _ in $(seq 1 20); do
     [[ -b "$existing" ]] && break
     sleep 1
   done
   [[ -b "$existing" ]] || die 'PAWDATA partition node did not appear after partition table update.'
   [[ -z "$(blkid -s LABEL -o value "$existing" 2>/dev/null || true)" ]] || die 'New partition already has a filesystem label; refusing to format.'
-  mkfs.ext4 -F -L PAWDATA "$existing" >/dev/null
+  log_stage mkfs "formatting only new partition $existing"
+  run_logged mkfs mkfs.ext4 -F -L PAWDATA "$existing" >/dev/null || die "mkfs.ext4 failed on new PAWDATA partition; see $stage_log"
+  log_stage mkfs_done "new partition formatted ext4"
   formatted_new=1
 fi
 
 mount_dir="${PAW_MOUNTPOINT_OVERRIDE:-/var/lib/paw-migration}"
 install -d -m 0700 "$mount_dir"
 if ! mountpoint -q "$mount_dir"; then
-  mount -t ext4 -o rw,noatime,errors=remount-ro,noexec,nosuid,nodev "$existing" "$mount_dir"
+  mount_pawdata first_mount || die "first PAWDATA mount failed; see $stage_log"
 fi
 chmod 0700 "$mount_dir"
 if [[ -d /run/paw-migration && ! -f "$mount_dir/.paw-state-migrated" ]]; then
@@ -207,10 +277,11 @@ if [[ ${PAW_VERIFY_REMOUNT:-0} == 1 ]]; then
   marker="$mount_dir/.paw-remount-marker"
   printf '%s\n' "$(date -u +%FT%TZ)" >"$marker"
   sync
-  umount "$mount_dir"
-  mount -t ext4 -o rw,noatime,errors=remount-ro,noexec,nosuid,nodev "$existing" "$mount_dir"
+  umount_pawdata remount_umount || die "PAWDATA umount before remount failed; see $stage_log"
+  mount_pawdata remount_mount || die "PAWDATA remount failed; see $stage_log"
   [[ -s "$marker" ]] || die 'PAWDATA remount persistence check failed.'
   rm -f "$marker"; sync
+  log_stage remount_done "persistence marker survived umount/remount"
 fi
 
 python3 - "$PAW_REPORT_DIR/media-partition.json" "$disk" "$existing" "$part_number" "$table_label" "$before_count" "${after_count:-$before_count}" "$formatted_new" <<'PY'
@@ -226,4 +297,5 @@ tmp=path+".tmp"
 with open(tmp,"w",encoding="utf-8") as handle: json.dump(data,handle,indent=2)
 os.chmod(tmp,0o600); os.replace(tmp,path)
 PY
+log_stage complete "PAWDATA ext4 mounted; new_partition=$existing table=$table_label"
 log INFO "PAWDATA ext4 partition is mounted root-only; table=$table_label; new_partition=$existing; only the new partition was formatted."

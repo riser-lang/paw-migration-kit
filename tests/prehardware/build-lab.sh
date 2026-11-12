@@ -126,9 +126,19 @@ rm -f "$rootpart"
 
 echo "[prehw] creating 32 GB USB media image carrying the release ISO"
 media="$work/boot/media32.img"
-if [[ ! -s "$media" ]]; then
-  truncate -s 32000000000 "$media"
-  dd if="$iso" of="$media" bs=16M conv=notrunc conv=sparse status=none
+base="$work/boot/media32-base.img"
+if [[ ! -s "$base" ]]; then
+  truncate -s 32000000000 "$base"
+  dd if="$iso" of="$base" bs=16M conv=notrunc conv=sparse status=none
+  sync
+fi
+# Default: every independent first-boot acceptance gets a fresh sparse copy of
+# the immutable base.  A two-boot persistence test explicitly arms reuse with
+# PAW_REUSE_MEDIA=1 so the second boot sees the PAWDATA created by the first.
+if [[ ${PAW_REUSE_MEDIA:-0} != 1 || ! -s "$media" ]]; then
+  rm -f "$media"
+  cp --sparse=always "$base" "$media"
+  sync
 fi
 
 cat >"$work/boot/manifest.txt" <<MANIFEST

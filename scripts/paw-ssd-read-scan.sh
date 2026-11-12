@@ -9,7 +9,13 @@ duration="${PAW_READ_SCAN_TIMEOUT:-24h}"
 report="$PAW_REPORT_DIR/badblocks-$(basename "$dev").txt"
 log INFO "Read-only surface scan on $dev; destructive write modes are not used; timeout=$duration."
 set +e
-timeout --foreground --signal=TERM --kill-after=30s "$duration" badblocks -sv "$dev" >"$report" 2>&1
+scan_args=()
+if [[ -n ${PAW_READ_SCAN_LAST_BLOCK:-} ]]; then
+  [[ "$PAW_READ_SCAN_LAST_BLOCK" =~ ^[1-9][0-9]*$ ]] || die 'PAW_READ_SCAN_LAST_BLOCK must be a positive block number.'
+  scan_args=("$PAW_READ_SCAN_LAST_BLOCK")
+  log INFO "Read-only surface scan is bounded to last block $PAW_READ_SCAN_LAST_BLOCK by explicit test arm."
+fi
+timeout --foreground --signal=TERM --kill-after=30s "$duration" badblocks -sv "$dev" "${scan_args[@]}" >"$report" 2>&1
 rc=$?
 set -e
 cat "$report"

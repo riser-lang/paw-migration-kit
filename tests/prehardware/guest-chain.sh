@@ -371,6 +371,11 @@ copy_out
 # plus free space; /run/live/medium is mounted exactly as live-boot does.
 # ---------------------------------------------------------------------------
 [[ -b "$MEDIA_DEV" ]] || fail pawdata "$MEDIA_DEV is not a block device"
+media_ro="$(blockdev --getro "$MEDIA_DEV" 2>/dev/null || echo unknown)"
+media_state="$(lsblk -dn -o NAME,RM,RO,TRAN,SERIAL,SIZE "$MEDIA_DEV" 2>&1 | tr '\n' ';')"
+media_mount_source="$(findmnt -n -o SOURCE --target /run/live/medium 2>/dev/null || true)"
+printf '%s\n' "PAW_MEDIA_PRECHECK device=$MEDIA_DEV ro=$media_ro state=$media_state live_medium_source=$media_mount_source" >>"$PAW_LOG_DIR/pawdata-media-precheck.log"
+[[ "$media_ro" == 0 ]] || fail pawdata "USB live media is read-only (blockdev --getro=$media_ro); refusing PAWDATA before any write"
 install -d /run/live/medium
 if ! mountpoint -q /run/live/medium; then
   mount -o ro "${MEDIA_DEV}1" /run/live/medium 2>"$PAW_LOG_DIR/media-mount.log" \
@@ -522,7 +527,8 @@ TXT
 HW
 chmod 0755 "$hwbin"/*
 : >/run/paw3-hw-adapter.log
-if ! PATH="$hwbin:$PATH" PAW_SMART_POLL_SECONDS=1 \
+command -v badblocks >/run/paw3-hw-badblocks-path.txt || true
+if ! PATH="$hwbin:$PATH" PAW_SMART_POLL_SECONDS=1 PAW_READ_SCAN_LAST_BLOCK=65536 \
   "$PAW_ROOT/scripts/paw-hardware-preflight.sh" "$DST_DEV" >"$PAW_LOG_DIR/hardware.log" 2>&1; then
   tail -n 80 "$PAW_LOG_DIR/hardware.log" >&2 || true
   fail hardware "paw-hardware-preflight.sh exit=$?"
