@@ -79,7 +79,8 @@ for entry in objects:
     if header[1] != b"blob":
         continue
     normalized_path = path.replace("\\", "/")
-    if normalized_path.endswith("scripts/ci/check-public-history.py"):
+    if normalized_path.endswith(("scripts/ci/check-public-history.py",
+                                  "scripts/ci/check-public-safety.py")):
         continue
     if size > 20_000_000 or b"\0" in data:
         continue
