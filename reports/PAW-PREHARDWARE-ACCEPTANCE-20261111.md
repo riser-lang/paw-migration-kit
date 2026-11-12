@@ -110,7 +110,9 @@ P1 套件 **24/24 PASS**：`reports/evidence/prehardware-20261111/p1-remediation
 没有给出预期原因。根因：新 mkfs 的 loop 分区在 `lsblk -dn -o FSTYPE` 中短暂
 为空，脚本在到达碰撞检查前就以 `Root partition is not ext4.` 退出。修复为
 `blkid` 直接读取 superblock、短暂重试，并在失败时输出检测到的类型；拒绝路径
-仍不移动 GPT 备份头、不调用 growpart。
+仍不移动 GPT 备份头、不调用 growpart。修复后同一虚拟套件重跑为
+**39 passed, 0 failed**（`reports/evidence/prehardware-20261111/` 之外的宿主
+副本：`~/prehardware-20261111/share/prehw-selftests/`）。
 
 ### 4.3 本次重跑
 

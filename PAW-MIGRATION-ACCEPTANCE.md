@@ -89,6 +89,9 @@ PR #2: Draft, not merged
       names in committed delivery documents; lab evidence redacts the host LAN
       address as `LAN_REDACTED`.
 - [x] No production VPS/Tailscale/Funnel/Xray/Nginx/443/firewall/COS change.
+- [x] `PUBLIC-SAFETY=PASS` on the current tree; `PUBLIC-HISTORY=PASS` over
+      reachable Git objects with one documented legacy fixture exception
+      (`scripts/ci/check-public-history.py`).
 - [x] No Artifact deletion and no repository visibility change.
 - [x] PR #2 remains draft and unmerged; `main` unchanged.
 
