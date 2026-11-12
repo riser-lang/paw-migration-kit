@@ -112,7 +112,10 @@ cleanup_loop(){ [[ -n ${loop:-} ]] && losetup -d "$loop" 2>/dev/null || true; lo
 cleanup_mount(){ [[ -n ${mnt:-} ]] && mountpoint -q "$mnt" && umount "$mnt" 2>/dev/null || true; }
 trap 'cleanup_mount; cleanup_loop' EXIT
 
-last_part(){ sgdisk -p "$1" | awk '$1 ~ /^[0-9]+$/ {print $1}' | sort -n | tail -n1; }
+# The highest partition number is not necessarily the root filesystem.
+# Ubuntu 24.04 cloud images put root on partition 1 and small EFI/BIOS/boot
+# partitions on 14-16, so choose the partition that extends farthest.
+last_part(){ sgdisk -p "$1" | awk '$1 ~ /^[0-9]+$/ { if ($3+0 > max) { max=$3+0; part=$1 } } END { print part }'; }
 part_start(){ sgdisk -i "$2" "$1" | sed -n 's/^First sector: \([0-9]*\).*/\1/p'; }
 part_guid(){ sgdisk -i "$2" "$1" | sed -n 's/^Partition unique GUID: //p'; }
 part_name(){ sgdisk -i "$2" "$1" | sed -n "s/^Partition name: '\(.*\)'/\1/p"; }
