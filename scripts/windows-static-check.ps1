@@ -10,7 +10,7 @@ Get-ChildItem -LiteralPath (Join-Path $Root 'scripts') -Filter '*.ps1' -File | F
 }
 $badblocks = @(Get-ChildItem (Join-Path $Root 'scripts') -Filter '*.sh' -File | Select-String -Pattern 'badblocks\s+.*(?:-w|-n)')
 $format = @(Get-ChildItem (Join-Path $Root 'scripts') -Filter '*.sh' -File | Select-String -Pattern '\bmkfs(?:\.[a-z0-9]+)?\s+-|format-disk|Clear-Disk')
-$approvedDataFormat = @($format | Where-Object { $_.Path -eq (Join-Path $Root 'scripts\paw-prepare-data-partition.sh') -and $_.Line -match '^\s*mkfs\.ext4\s+-F\s+-L\s+PAWDATA\s+"\$existing"\s+>/dev/null\s*$' })
+$approvedDataFormat = @($format | Where-Object { $_.Path -eq (Join-Path $Root 'scripts\paw-prepare-data-partition.sh') -and $_.Line -match '^\s*(?:run_logged\s+mkfs\s+)?mkfs\.ext4\s+-F\s+-L\s+PAWDATA\s+"\$existing"\s+>/dev/null' })
 $format = @($format | Where-Object { $_ -notin $approvedDataFormat })
 if($missing.Count -or $psErrors.Count -or $badblocks.Count -or $format.Count){ throw 'Static safety check failed.' }
 Write-Output "ENTRYPOINTS=$($required.Count) MISSING=0 POWERSHELL_PARSE_ERRORS=0 BADBLOCKS_WRITE_FLAGS=0 FORMAT_COMMANDS=0"
