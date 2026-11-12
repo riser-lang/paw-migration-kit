@@ -151,8 +151,10 @@ if [ "$1" = "--version" ]; then echo "findmnt fake 1"; exit 0; fi
 exit 1
 FM
 chmod 0755 "$txdir/fake-findmnt"
-rootdevnum="$(stat -c '%t:%T' "$rootdev")"
-rootmaj=$((16#${rootdevnum%%:*})); rootmin=$((16#${rootdevnum##*:}))
+# Match the checker exactly: st_rdev is the authoritative number, while the
+# textual %t/%T form is hexadecimal and has bitten this fixture before.
+rootmaj="$(python3 -c 'import os,sys;print(os.major(os.stat(sys.argv[1]).st_rdev))' "$rootdev")"
+rootmin="$(python3 -c 'import os,sys;print(os.minor(os.stat(sys.argv[1]).st_rdev))' "$rootdev")"
 printf '1 0 %s:%s / /mnt/fake ro,relatime - ext4 /dev/fake ro\n' "$rootmaj" "$rootmin" >"$txdir/ro.mountinfo"
 if python3 "$checker" --mountinfo "$txdir/ro.mountinfo" --findmnt "$txdir/fake-findmnt" "$rootdev" >"$txdir/mount-ro.json" 2>/dev/null; then
   pass 'P0-3 read-only mount at an alternate mountpoint passes'
