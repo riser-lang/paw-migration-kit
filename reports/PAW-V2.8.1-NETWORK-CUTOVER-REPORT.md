@@ -78,4 +78,4 @@ scripts/ci/run-vless-network-tests.sh     => 25 passed, 0 failed
 - 真实 VLESS 客户端重启后的残留代理检查：**NEEDS_TEST**
 - 真实腾讯云 Rescue SSH 主机指纹：**NEEDS_TEST**
 
-生产 VPS `paw-main / 公网地址已安全省略` 本轮**未登录、未修改、未重启**。
+生产 VPS `paw-main`（公网地址已安全省略）本轮**未登录、未修改、未重启**。
