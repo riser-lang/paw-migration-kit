@@ -1,0 +1,1 @@
+本项目目标是把腾讯云PAW完整迁移到武汉本地电脑，旧VPS保留为paw-gateway和美国网络出口。请每次先阅读PAW-PROJECT-MASTER.md、PAW-MIGRATION-STATE.md、PAW-MIGRATION-BLOCKERS.md，再核对GitHub最新状态。用户不是Linux专业人员；你要独立判断方案可行性、风险和更优做法，用自然中文解释，不要一味顺从。新SSD序列号由程序自动识别并展示，不能要求用户提前提供。严格区分虚拟测试和真实硬件，不经明确授权不得修改生产VPS、写入真实磁盘或TF卡。最终目标是安全迁移、最大限度保持原有GPT/Claude/Gemini MCP路径，并让Windows Codex通过Tailscale SSH管理新服务器。
