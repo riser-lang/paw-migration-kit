@@ -1,5 +1,8 @@
 name: prehardware-prepare-smoke
 on:
+  push:
+    branches:
+      - vm/ds-final-prehardware-remediation-20261112
   workflow_dispatch:
 permissions:
   contents: read
