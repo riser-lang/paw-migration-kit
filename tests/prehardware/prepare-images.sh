@@ -109,7 +109,13 @@ if [[ "$(id -u)" != 0 ]]; then
 fi
 
 cleanup_loop(){ [[ -n ${loop:-} ]] && losetup -d "$loop" 2>/dev/null || true; loop=''; }
-cleanup_mount(){ [[ -n ${mnt:-} ]] && mountpoint -q "$mnt" && umount "$mnt" 2>/dev/null || true; }
+cleanup_mount(){
+  local m
+  [[ -n ${mnt:-} ]] && mountpoint -q "$mnt/dev/pts" && umount "$mnt/dev/pts" 2>/dev/null || true
+  for m in ${bind_mounts:-}; do mountpoint -q "$m" && umount "$m" 2>/dev/null || true; done
+  bind_mounts=''
+  [[ -n ${mnt:-} ]] && mountpoint -q "$mnt" && umount "$mnt" 2>/dev/null || true
+}
 trap 'cleanup_mount; cleanup_loop' EXIT
 
 # The highest partition number is not necessarily the root filesystem.
@@ -132,6 +138,40 @@ attach_loop(){
     sleep 1
   done
   echo "partition ${loop}p${root_part} did not appear" >&2; return 1
+}
+
+# The stock cloud image is intentionally minimal and lacks linux-modules-extra,
+# which carries the r8169 and i915 drivers a real Ubuntu server install has.
+# Install the matching extra-module package inside the image so the virtual
+# source is representative of a real installed system; never pretend the
+# driver check passed.  This needs network access and runs only on the
+# disposable image copy, never on a host disk.
+install_extra_modules(){
+  local rootdev="$1" kver
+  mnt="$(mktemp -d)"
+  mount "$rootdev" "$mnt"
+  kver="$(find "$mnt/usr/lib/modules" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort -V | tail -n1)"
+  [[ -n "$kver" ]] || { echo 'cloud image has no kernel module directory' >&2; return 1; }
+  if compgen -G "$mnt/usr/lib/modules/$kver/kernel/drivers/net/ethernet/realtek/r8169.ko*" >/dev/null &&      compgen -G "$mnt/usr/lib/modules/$kver/kernel/drivers/gpu/drm/i915/i915.ko*" >/dev/null; then
+    echo "cloud_modules=present kernel=$kver"
+    cleanup_mount
+    return 0
+  fi
+  echo "cloud_modules=installing kernel=$kver"
+  mkdir -p "$mnt/dev" "$mnt/proc" "$mnt/sys" "$mnt/run"
+  mount --bind /dev "$mnt/dev"; bind_mounts="$mnt/dev"
+  mount -t devpts devpts "$mnt/dev/pts" 2>/dev/null || true
+  mount -t proc proc "$mnt/proc"; bind_mounts="$bind_mounts $mnt/proc"
+  mount -t sysfs sysfs "$mnt/sys"; bind_mounts="$bind_mounts $mnt/sys"
+  rm -f "$mnt/etc/resolv.conf"
+  cp /etc/resolv.conf "$mnt/etc/resolv.conf"
+  chroot "$mnt" env DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::ForceIPv4=true update -qq
+  chroot "$mnt" env DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::ForceIPv4=true install -y --no-install-recommends "linux-modules-extra-$kver"
+  chroot "$mnt" /usr/sbin/depmod -a "$kver"
+  compgen -G "$mnt/usr/lib/modules/$kver/kernel/drivers/net/ethernet/realtek/r8169.ko*" >/dev/null || { echo "r8169 still missing for $kver" >&2; return 1; }
+  compgen -G "$mnt/usr/lib/modules/$kver/kernel/drivers/gpu/drm/i915/i915.ko*" >/dev/null || { echo "i915 still missing for $kver" >&2; return 1; }
+  echo "cloud_modules=installed kernel=$kver"
+  cleanup_mount
 }
 
 verify_source(){
@@ -196,6 +236,7 @@ expand_cloud(){
   resize2fs "${loop}p${root_part}" >/dev/null
   new_uuid="$(blkid -o value -s UUID "${loop}p${root_part}")"
   [[ "$new_uuid" == "$old_uuid" ]] || { echo 'filesystem UUID changed during resize' >&2; return 1; }
+  install_extra_modules "${loop}p${root_part}"
   cleanup_loop
   verify_source "$image" expanded-source
   echo "$image"
