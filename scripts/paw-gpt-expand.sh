@@ -10,12 +10,23 @@ else
   assert_transaction_stage expand
   transaction_event EXPAND_STARTED
 fi
-expand_done=0
 trap 'rc=$?; if ((rc != 0)) && [[ ${PAW_SIMULATION:-0} != 1 ]]; then transaction_event NEEDS_MANUAL_ACTION --phase expand --reason "gpt/ext4 expansion failed rc=$rc" || true; fi' EXIT
-for c in growpart resize2fs lsblk sgdisk sfdisk e2fsck mount umount; do need "$c"; done
+for c in growpart resize2fs lsblk blkid sgdisk sfdisk e2fsck mount umount; do need "$c"; done
 [[ "$(lsblk -dn -o PTTYPE "$disk" | xargs)" == gpt ]] || die 'Target is not GPT.'
 part_parent="$(parent_disk "$part")"; [[ "$part_parent" == "$disk" ]] || die 'Root partition is not on the registered target disk.'
-[[ "$(lsblk -dn -o FSTYPE "$part" | xargs)" == ext4 ]] || die 'Root partition is not ext4.'
+# lsblk can briefly report an empty FSTYPE while udev/partition probing catches
+# up after mkfs, especially for loop-backed test partitions.  Read the type
+# directly from the superblock as a fallback so a valid ext4 node is not
+# rejected by a stale lsblk cache; fail with the detected value, never guess.
+part_fstype=''
+for _ in $(seq 1 10); do
+  part_fstype="$(lsblk -dn -o FSTYPE "$part" 2>/dev/null | xargs || true)"
+  [[ -n "$part_fstype" ]] && break
+  part_fstype="$(blkid -o value -s TYPE "$part" 2>/dev/null | xargs || true)"
+  [[ -n "$part_fstype" ]] && break
+  sleep 0.5
+done
+[[ "$part_fstype" == ext4 ]] || die "Root partition is not ext4 (detected '${part_fstype:-none}')."
 n="$(lsblk -dn -o PARTN "$part" | xargs)"; [[ "$n" =~ ^[0-9]+$ ]] || die 'Cannot determine partition number.'; assert_unmounted "$part"
 # growpart can only take free space that follows the partition. If another partition
 # starts later on the disk, the extension is impossible and the only symptom would be
@@ -135,7 +146,6 @@ fs_after_blocks="$(dumpe2fs -h "$part" 2>/dev/null | awk '/^Block count:/{print 
 if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
   transaction_event READY_TO_BOOT
 fi
-expand_done=1
 trap - EXIT
 python3 - "$PAW_REPORT_DIR/gpt-expand.json" "$disk" "$part" "$n" "$before_bytes" "$after_bytes" "${fs_before_blocks:-0}" "${fs_after_blocks:-0}" "$fsck_method" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$PAW_REPORT_DIR/gpt-expand.json"
 import datetime,json,sys
