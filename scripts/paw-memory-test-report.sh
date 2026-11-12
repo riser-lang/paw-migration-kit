@@ -11,7 +11,7 @@ if [[ ! -s "$evidence" ]]; then
 import datetime,json,os,sys,tempfile
 path=sys.argv[1]
 data={"schema":"paw.memory-test.v1","status":"WARN","method":"none",
- "reason":"Memtest86+ 尚未完成人工确认；普通文本日志不能作为可信证据。",
+ "reason":"Memtest86+ has not been confirmed by the operator; a plain text log is not trusted evidence.",
  "trust_level":"unverified","generated_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
 tmp=path+".tmp"
 with open(tmp,"w",encoding="utf-8") as handle: json.dump(data,handle,indent=2,ensure_ascii=False)

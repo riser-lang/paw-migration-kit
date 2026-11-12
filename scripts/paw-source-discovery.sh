@@ -12,24 +12,24 @@ if [[ -z "$expected_uuid" ]]; then
   # shellcheck source=scripts/paw-tty-lib.sh
   source "$PAW_ROOT/scripts/paw-tty-lib.sh"
   export PAW_TTY_SESSION_NAME=source-discovery
-  paw_tty_open_optional || die '无法打开交互终端；未登记源盘。'
+  paw_tty_open_optional || die '无法打开交互终端;未登记源盘.'
   paw_tty_clear
   paw_tty_marker PAW-TTY1-SOURCE-PANEL
   paw_tty_say 'PAW Rescue 源盘身份识别'
-  paw_tty_say '下一步会用已固定的主机指纹，通过临时 SSH 只读读取旧 VPS（Rescue Mode）的磁盘清单。'
-  paw_tty_say '需要核对旧系统根分区的 UUID；不是新电脑的 UUID，也不是 PAWDATA 的 UUID。'
-  paw_tty_say '本程序只读取清单，不写任何磁盘；UUID 不会写入日志。'
+  paw_tty_say '下一步会用已固定的主机指纹,通过临时 SSH 只读读取旧 VPS(Rescue Mode)的磁盘清单.'
+  paw_tty_say '需要核对旧系统根分区的 UUID;不是新电脑的 UUID,也不是 PAWDATA 的 UUID.'
+  paw_tty_say '本程序只读取清单,不写任何磁盘;UUID 不会写入日志.'
   paw_tty_marker PAW-TTY1-SOURCE-PROMPT
-  paw_tty_prompt '请输入旧 VPS 根分区 UUID（输入不回显）：'
+  paw_tty_prompt '请输入旧 VPS 根分区 UUID(输入不回显):'
   if ! paw_tty_read_secret expected_uuid; then
     paw_tty_marker PAW-TTY1-SOURCE-TIMEOUT
     paw_tty_say ''
-    paw_tty_say '错误：UUID 输入超时或中断，已安全停止，未登记任何源盘。'
+    paw_tty_say '错误:UUID 输入超时或中断,已安全停止,未登记任何源盘.'
     paw_tty_close
     die 'Root UUID input timed out or was aborted; no source was registered.'
   fi
   paw_tty_say ''
-  paw_tty_say '已接收 UUID；开始只读识别源盘身份。'
+  paw_tty_say '已接收 UUID;开始只读识别源盘身份.'
   paw_tty_close
 fi
 [[ "$expected_uuid" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || die 'Expected root UUID is malformed.'

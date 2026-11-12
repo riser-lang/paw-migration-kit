@@ -6,11 +6,11 @@ peer="${2:-}"
 case "$action" in
   plan)
     cat <<'EOF'
-Exit Node 只作为可选回退，不是迁移依赖。
-1. 在旧 VPS 的 Tailscale 管理端确认它被批准为 Exit Node。
-2. 新 PAW 在线后执行本脚本 enable <旧VPS Tailscale IP>。
-3. 验证 tailscale status 显示 exit node，且新 PAW 仍能访问局域网。
-4. 关闭时执行 disable，恢复直连出口。
+Exit Node 只作为可选回退,不是迁移依赖.
+1. 在旧 VPS 的 Tailscale 管理端确认它被批准为 Exit Node.
+2. 新 PAW 在线后执行本脚本 enable <旧VPS Tailscale IP>.
+3. 验证 tailscale status 显示 exit node,且新 PAW 仍能访问局域网.
+4. 关闭时执行 disable,恢复直连出口.
 EOF
     ;;
   status)

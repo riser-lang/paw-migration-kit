@@ -19,18 +19,18 @@ PAW_TTY_FALLBACK=0
 
 paw_tty_open(){
   [[ "$PAW_TTY_TIMEOUT" =~ ^[0-9]+$ ]] && ((PAW_TTY_TIMEOUT >= 1 && PAW_TTY_TIMEOUT <= 3600)) || {
-    log ERROR "PAW_INPUT_TIMEOUT 必须是 1-3600 秒的整数。"; return 1;
+    log ERROR "PAW_INPUT_TIMEOUT 必须是 1-3600 秒的整数."; return 1;
   }
   PAW_TTY_SESSION_NAME="${PAW_TTY_SESSION_NAME:-tty-session}"
   if [[ -z "$PAW_TTY_SESSION_FILE" ]]; then
     PAW_TTY_SESSION_FILE="$PAW_REPORT_DIR/$PAW_TTY_SESSION_NAME.json"
   fi
-  [[ -c "$PAW_TTY_DEV" ]] || { log ERROR "交互终端不是字符设备：$PAW_TTY_DEV"; return 1; }
-  exec 3<>"$PAW_TTY_DEV" || { log ERROR "无法打开交互终端：$PAW_TTY_DEV"; return 1; }
+  [[ -c "$PAW_TTY_DEV" ]] || { log ERROR "交互终端不是字符设备:$PAW_TTY_DEV"; return 1; }
+  exec 3<>"$PAW_TTY_DEV" || { log ERROR "无法打开交互终端:$PAW_TTY_DEV"; return 1; }
   PAW_TTY_RESOLVED="$(readlink -f "/proc/$$/fd/3" 2>/dev/null || true)"
   local expected; expected="$(readlink -f "$PAW_TTY_DEV" 2>/dev/null || true)"
   if [[ -z "$PAW_TTY_RESOLVED" || "$PAW_TTY_RESOLVED" != "$expected" ]]; then
-    log ERROR "交互终端解析失败：fd3=$PAW_TTY_RESOLVED expected=$expected"
+    log ERROR "交互终端解析失败:fd3=$PAW_TTY_RESOLVED expected=$expected"
     exec 3>&-
     return 1
   fi
@@ -67,7 +67,7 @@ paw_tty_open_optional(){
   PAW_TTY_RESOLVED='(inherited stdin/stdout)'
   PAW_TTY_RDEV='fallback'
   exec 3>&1
-  log WARN "交互终端 $PAW_TTY_DEV 不可用或输入被重定向；使用继承的 stdin/stdout（这不是实机 tty1 路径）。"
+  log WARN "交互终端 $PAW_TTY_DEV 不可用或输入被重定向;使用继承的 stdin/stdout(这不是实机 tty1 路径)."
   return 0
 }
 
@@ -208,21 +208,21 @@ paw_tty_confirm_serial_suffix(){
   paw_tty_marker PAW-TTY1-PROMPT
   paw_tty_record serial-input prompt 'serial suffix requested on the same tty'
   paw_tty_say 'Enter the last 6 characters of the media serial.'
-  paw_tty_prompt '请输入该设备序列号最后 6 位以继续：'
+  paw_tty_prompt '请输入该设备序列号最后 6 位以继续:'
   paw_tty_read confirm
   rc="$PAW_TTY_READ_RC"
   if ((rc > 128)); then
     paw_tty_marker PAW-TTY1-INPUT-TIMEOUT
     paw_tty_record serial-input timeout "no input within ${PAW_TTY_TIMEOUT}s"
     paw_tty_say ''
-    paw_tty_say "错误：等待输入超过 ${PAW_TTY_TIMEOUT} 秒，已安全停止，没有写入任何分区。"
+    paw_tty_say "错误:等待输入超过 ${PAW_TTY_TIMEOUT} 秒,已安全停止,没有写入任何分区."
     log WARN "PAWDATA serial confirmation timed out after ${PAW_TTY_TIMEOUT}s; nothing was written."
     return 2
   elif ((rc != 0)); then
     paw_tty_marker PAW-TTY1-INPUT-ABORTED
     paw_tty_record serial-input aborted 'input stream closed before confirmation'
     paw_tty_say ''
-    paw_tty_say '错误：未收到完整输入，已安全停止，没有写入任何分区。'
+    paw_tty_say '错误:未收到完整输入,已安全停止,没有写入任何分区.'
     log WARN 'PAWDATA serial confirmation was aborted; nothing was written.'
     return 2
   fi
@@ -230,13 +230,13 @@ paw_tty_confirm_serial_suffix(){
     paw_tty_marker PAW-TTY1-INPUT-BAD
     paw_tty_record serial-input rejected 'serial suffix mismatch'
     paw_tty_say ''
-    paw_tty_say '错误：序列号末六位不匹配，已安全停止，没有写入任何分区。'
+    paw_tty_say '错误:序列号末六位不匹配,已安全停止,没有写入任何分区.'
     log WARN 'PAWDATA serial suffix mismatched; nothing was written.'
     return 1
   fi
   paw_tty_marker PAW-TTY1-INPUT-OK
   paw_tty_record serial-input accepted 'serial suffix matched on tty1'
   paw_tty_say ''
-  paw_tty_say '输入已确认；开始追加 PAWDATA 分区（仅新分区会被格式化）。'
+  paw_tty_say '输入已确认;开始追加 PAWDATA 分区(仅新分区会被格式化).'
   return 0
 }

@@ -1,40 +1,73 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$(dirname "$0")/paw-lib.sh"
-# Legacy BIOS exposes no portable API for changing the one-time boot device.
-# The only safe automatic path is to prove the live USB/TF medium is no longer
-# the intended boot source.  This check records that limitation instead of
-# pretending a systemd reboot can change the firmware order.
+# Legacy BIOS offers no portable API to rewrite a one-time boot device.  The
+# only acceptable automatic-reboot proof is observing that the live PAW medium
+# has actually disappeared.  An operator-supplied flag alone is never accepted:
+# it could be set while the USB/TF card is still attached.
 report="$PAW_REPORT_DIR/reboot-media-order.json"
+wait_seconds="${PAW_MEDIA_REMOVAL_WAIT_SECONDS:-300}"
+[[ "$wait_seconds" =~ ^[0-9]{1,4}$ ]] || die 'PAW_MEDIA_REMOVAL_WAIT_SECONDS must be an integer number of seconds.'
+console=/dev/console
+announce(){
+  printf '%s\n' "$*" >&2 || true
+  [[ -w "$console" ]] && printf '%s\n' "$*" >"$console" || true
+}
 live_source="$(findmnt -n -o SOURCE --target /run/live/medium 2>/dev/null || true)"
 live_parent=''
 if [[ -n "$live_source" ]]; then
   live_parent="$(lsblk -dn -o PKNAME "$live_source" 2>/dev/null | xargs || true)"
 fi
 paw_live_devices=()
-while read -r name label; do
-  [[ "$label" == PAW-LIVE ]] || continue
-  [[ "$name" == /dev/* ]] || name="/dev/$name"
-  paw_live_devices+=("$name")
-done < <(lsblk -nrpo NAME,LABEL 2>/dev/null || true)
+scan_live(){
+  paw_live_devices=()
+  while read -r name label; do
+    [[ "$label" == PAW-LIVE ]] || continue
+    [[ "$name" == /dev/* ]] || name="/dev/$name"
+    paw_live_devices+=("$name")
+  done < <(lsblk -nrpo NAME,LABEL 2>/dev/null || true)
+}
+scan_live
 armed=0
 [[ ${PAW_LIVE_MEDIA_REMOVED:-} == 'I_HAVE_REMOVED_THE_LIVE_USB_AND_TF_MEDIA' ]] && armed=1
-status='PASS'; reason='no live PAW medium is attached; firmware will boot the target disk'
-if (( ${#paw_live_devices[@]} > 0 )); then
-  if (( armed == 1 )); then
-    status='PASS'; reason='operator confirmed live USB/TF removal; BIOS boot order remains operator-controlled'
+observed=0
+reason=''
+if (( ${#paw_live_devices[@]} == 0 )); then
+  observed=1
+  reason='no PAW-LIVE medium is attached; firmware will boot the target disk'
+else
+  announce 'PAW_MEDIA_REMOVAL_REQUIRED 请立即拔出 PAW 启动 U 盘/TF 卡;检测到介质真正消失后才会自动重启.'
+  deadline=$((SECONDS + wait_seconds))
+  while (( SECONDS < deadline )); do
+    sleep 1
+    scan_live
+    if (( ${#paw_live_devices[@]} == 0 )); then
+      observed=1
+      break
+    fi
+  done
+  if (( observed == 1 )); then
+    udevadm settle 2>/dev/null || true
+    reason='live PAW medium disappearance was observed on the block layer; BIOS boot order remains operator-controlled'
+    announce 'PAW_MEDIA_REMOVAL_OBSERVED 启动介质已移除;继续重启进入目标盘.'
   else
-    status='BLOCKED'; reason='PAW-LIVE medium still attached; automatic reboot would likely re-enter the live system. Remove USB/TF and arm PAW_LIVE_MEDIA_REMOVED.'
+    reason="PAW-LIVE medium still attached after ${wait_seconds}s; automatic reboot refused. Remove USB/TF; the removal must be observable, an environment flag alone is not accepted."
   fi
 fi
-python3 - "$report" "$status" "$reason" "$live_source" "$live_parent" "${paw_live_devices[*]:-}" "$armed" <<'PY'
+status=PASS
+(( observed == 1 )) || status=BLOCKED
+python3 - "$report" "$status" "$reason" "$live_source" "$live_parent" "${paw_live_devices[*]:-}" "$armed" "$observed" <<'PY'
 import datetime,json,os,sys
-path,status,reason,live,parent,devices,armed=sys.argv[1:]
-doc={"schema":"paw.reboot-media-order.v1","status":status,"reason":reason,
- "firmware":"legacy BIOS/CSM","boot_order_control":"operator/BIOS BBS; no OS API used",
- "live_medium_mount_source":live or None,"live_medium_parent":parent or None,
+path,status,reason,live,parent,devices,armed,observed=sys.argv[1:]
+doc={"schema":"paw.reboot-media-order.v2","status":status,"reason":reason,
+ "firmware":"legacy BIOS/CSM",
+ "boot_order_control":"operator/BIOS BBS; no OS API used",
+ "live_medium_mount_source":live or None,
+ "live_medium_parent":parent or None,
  "paw_live_devices":devices.split() if devices else [],
- "live_media_removal_armed":armed=="1",
+ "removal_observed_on_block_layer":observed=="1",
+ "operator_flag_present":armed=="1",
+ "operator_flag_alone_accepted":False,
  "auto_reboot_allowed":status=="PASS",
  "updated_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
 tmp=path+".tmp"

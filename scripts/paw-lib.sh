@@ -38,7 +38,7 @@ require_console_font_pass(){
     --expected-font "$expected_font" \
     --expected-tty "$expected_tty" \
     --boot-id "$boot_id" \
-    || die '控制台字体安全门禁未通过：只有本次启动的 fbcon 16x16 中文字体 PASS 才允许磁盘写入；只读诊断仍可用。'
+    || die '控制台字体安全门禁未通过:只有本次启动的 fbcon 16x16 中文字体 PASS 才允许磁盘写入;只读诊断仍可用.'
 }
 require_sim_or_enrollment(){
   [[ ${PAW_SIMULATION:-0} == 1 ]] && return 0
@@ -77,7 +77,7 @@ assert_transaction_stage(){
   local stage="$1" tx
   tx="$(transaction_path)"
   [[ -r "$tx" && -r "$PAW_CONFIG_DIR/source.json" && -r "$PAW_CONFIG_DIR/target-ssd.json" && -r "$PAW_REPORT_DIR/operator-authorization.json" ]] \
-    || die "迁移事务状态不完整，拒绝进入 $stage 阶段。"
+    || die "迁移事务状态不完整,拒绝进入 $stage 阶段."
   python3 "$PAW_ROOT/scripts/paw-transaction.py" assert \
     --transaction "$tx" \
     --authorization "$PAW_REPORT_DIR/operator-authorization.json" \
@@ -85,20 +85,20 @@ assert_transaction_stage(){
     --target-config "$PAW_CONFIG_DIR/target-ssd.json" \
     --stream-verify "$PAW_REPORT_DIR/stream-verify.json" \
     --stage "$stage" \
-    || die "迁移事务状态机拒绝进入 $stage 阶段。"
+    || die "迁移事务状态机拒绝进入 $stage 阶段."
 }
 transaction_event(){
   local event="$1" tx; shift
   tx="$(transaction_path)"
   python3 "$PAW_ROOT/scripts/paw-transaction.py" event --transaction "$tx" --event "$event" "$@" \
-    || die "迁移事务无法记录事件 $event。"
+    || die "迁移事务无法记录事件 $event."
 }
 transaction_init(){
   python3 "$PAW_ROOT/scripts/paw-transaction.py" init \
     --transaction "$(transaction_path)" \
     --authorization "$PAW_REPORT_DIR/operator-authorization.json" \
     --source-config "$PAW_CONFIG_DIR/source.json" \
-    --target-config "$PAW_CONFIG_DIR/target-ssd.json" || die '无法创建迁移事务。'
+    --target-config "$PAW_CONFIG_DIR/target-ssd.json" || die '无法创建迁移事务.'
 }
 
 parent_disk(){ local p; p="$(lsblk -dn -o PKNAME "$1" | xargs)"; [[ -n "$p" ]] && printf '/dev/%s\n' "$p" || printf '%s\n' "$1"; }

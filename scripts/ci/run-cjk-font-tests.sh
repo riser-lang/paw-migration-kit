@@ -30,7 +30,7 @@ if [[ ! -s "$font" ]]; then
 fi
 printf 'Font: %s\nFallback: %s\nUnifont: %s (%s)\n' "$font" "$fallback" "$unifont" "$version" >>"$report"
 
-python3 - "$font" "$fallback" "$root" <<'PY' >>"$report" 2>&1
+if python3 - "$font" "$fallback" "$root" <<'PY' >>"$report" 2>&1
 import struct, sys
 from pathlib import Path
 font_path, fallback_path, root = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
@@ -73,7 +73,7 @@ print(f"PASS PSF2 16x16 512 glyphs, {len(mapped)} Unicode mappings, space slot 3
 print(f"PASS every non-ASCII runtime character is covered ({len(chars)} unique)")
 print(f"PASS fallback PSF1 8x16 512 glyphs, {len(fb)} bytes")
 PY
-rc=$?
+then rc=0; else rc=$?; fi
 if ((rc == 0)); then
   pass 'PSF2/PSF1 headers, space slot, Unicode table and full runtime coverage'
 else

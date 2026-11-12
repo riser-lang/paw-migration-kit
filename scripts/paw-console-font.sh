@@ -82,24 +82,24 @@ if [[ -e "$fb_device" ]]; then
   fi
   fb_name="$(cat "$fb_sysfs/name" 2>/dev/null || true)"
   fb_size="$(cat "$fb_sysfs/virtual_size" 2>/dev/null || true)"
-  [[ "$fbcon_bound" == true ]] || mark_fail "存在 $fb_device，但没有已绑定的 fbcon；拒绝冒充 16x16 主路径。"
+  [[ "$fbcon_bound" == true ]] || mark_fail "$fb_device exists but fbcon is not bound; refusing to claim the 16x16 primary path."
 else
   # vgacon is an emergency diagnostic path only.  It must never produce PASS.
   status="WARN"
-  reason="没有 /dev/fb0；使用 8x16 vgacon 回退，中文可能压缩，禁止磁盘写入。"
+  reason="No /dev/fb0; using the 8x16 vgacon fallback. Chinese may be compressed and disk writes stay blocked."
 fi
 
 if [[ ! -d "$font_dir" ]]; then
-  mark_fail "控制台字体目录不存在：$font_dir"
+  mark_fail "Console font directory is missing: $font_dir"
 elif [[ ! -s "$font" ]]; then
-  mark_fail "控制台字体文件缺失或为空：$font"
+  mark_fail "Console font file is missing or empty: $font"
 elif [[ ! -r "$manifest" ]]; then
-  mark_fail "控制台字体 manifest 缺失：$manifest"
+  mark_fail "Console font manifest is missing: $manifest"
 else
   font_size="$(stat -c %s "$font" 2>/dev/null || printf '0')"
   font_sha="$(sha256sum "$font" 2>/dev/null | awk '{print $1}' || true)"
   if [[ ! "$font_size" =~ ^[0-9]+$ ]] || ((font_size <= 0)); then
-    mark_fail "无法读取控制台字体大小：$font"
+    mark_fail "Cannot read console font size: $font"
   elif ! manifest_values="$(python3 - "$manifest" "$mode" <<'PY'
 import json, re, sys
 path, mode = sys.argv[1:]
@@ -116,13 +116,13 @@ if not re.fullmatch(r"[0-9a-f]{64}", value):
 print(data["schema"], data["cell"], value, sep="\t")
 PY
   )"; then
-    mark_fail "控制台字体 manifest 无效或缺少对应 SHA256：$manifest"
+    mark_fail "Console font manifest is invalid or lacks the matching SHA256: $manifest"
   else
     IFS=$'\t' read -r manifest_schema manifest_cell expected_sha <<<"$manifest_values"
     if [[ ! "$font_sha" =~ ^[0-9a-f]{64}$ ]]; then
-      mark_fail "无法计算控制台字体 SHA256：$font"
+      mark_fail "Cannot compute console font SHA256: $font"
     elif [[ "$font_sha" != "$expected_sha" ]]; then
-      mark_fail "控制台字体 SHA256 与构建 manifest 不一致：$font"
+      mark_fail "Console font SHA256 does not match the build manifest: $font"
     else
       font_loadable=true
     fi
@@ -133,7 +133,7 @@ while [[ ! -c "$tty" && "$SECONDS" -lt "$deadline" ]]; do
   sleep 0.2
 done
 if [[ ! -c "$tty" ]]; then
-  mark_fail "控制台字体：$tty 不是字符设备。"
+  mark_fail "Console font target $tty is not a character device."
 fi
 
 # Load the font even when fbcon is not bound yet (or the fallback is selected):
@@ -141,14 +141,14 @@ fi
 # FAIL, so this cannot open the destructive write gate.
 if [[ "$font_loadable" == true && -c "$tty" ]]; then
   if command -v kbd_mode >/dev/null 2>&1; then
-    kbd_mode -u -C "$tty" 2>/dev/null || log WARN "无法把 $tty 切到 UTF-8 键盘模式；仍尝试加载字体。"
+    kbd_mode -u -C "$tty" 2>/dev/null || log WARN "Cannot switch $tty to UTF-8 keyboard mode; still trying to load the font."
   fi
   setfont_rc=0
   # setfont writes its diagnostics to stderr.  Capture them so a rejected font
   # is recorded in the report instead of only flashing on the console.
   setfont_output="$(setfont -C "$tty" "$font" 2>&1)" || setfont_rc=$?
   if ((setfont_rc != 0)); then
-    mark_fail "setfont 加载失败（rc=$setfont_rc）：$font"
+    mark_fail "setfont failed (rc=$setfont_rc): $font"
   fi
 fi
 
@@ -185,12 +185,12 @@ sys.stdout.write(json.dumps(document, ensure_ascii=False, indent=2) + "\n")
 PY
 
 if [[ "$status" == FAIL ]]; then
-  log ERROR "中文控制台字体未通过：$reason"
+  log ERROR "Chinese console font did not pass: $reason"
   printf '%s\n' "$setfont_output" >&2 || true
   exit 1
 fi
 if [[ "$status" == WARN ]]; then
-  log WARN "中文控制台字体回退：$reason"
+  log WARN "Chinese console font fallback: $reason"
   exit 0
 fi
-log INFO "控制台字体已加载：$mode $(basename "$font")（${fb_name:-vgacon} ${fb_size:-}），sha256=$font_sha。"
+log INFO "Console font loaded: $mode $(basename "$font") (${fb_name:-vgacon} ${fb_size:-}), sha256=$font_sha."

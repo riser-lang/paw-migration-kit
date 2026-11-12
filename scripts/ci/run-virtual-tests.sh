@@ -38,6 +38,10 @@ if [[ " $* " == *" -o SERIAL "* && "$last" == "${PAW_MOCK_TARGET_DEVICE:-}" ]]; 
   printf '%s\n' "${PAW_MOCK_TARGET_SERIAL:-CI-LOOP-ONLY}"
   exit 0
 fi
+if [[ " $* " == *" -o MODEL "* && "$last" == "${PAW_MOCK_TARGET_DEVICE:-}" ]]; then
+  printf '%s\n' "${PAW_MOCK_TARGET_MODEL:-CI Virtual Target}"
+  exit 0
+fi
 exec /usr/bin/lsblk "$@"
 MOCKLSBLK
 chmod 0755 "$mock/lsblk"
@@ -247,7 +251,9 @@ export PAW_SIMULATION=0
 cat >"$mock/smartctl" <<'MOCKSMARTPASS'
 #!/usr/bin/env bash
 case "$1" in
-  -x) echo 'SMART support is: Available'; exit 0 ;;
+  -x) echo 'SMART support is: Available'
+      echo '194 Temperature_Celsius 0x0022 040 050 000 Old_age Always - 40 (Min/Max 20/45)'
+      exit 0 ;;
   -H) echo 'SMART overall-health self-assessment test result: PASSED'; exit 0 ;;
   -c) echo 'Self-test execution status: 0'; echo 'Short self-test routine recommended polling time: 1 minutes'; echo 'Extended self-test routine recommended polling time: 2 minutes'; exit 0 ;;
   -t) echo 'Short offline self-test started'; exit 0 ;;

@@ -42,7 +42,7 @@ CJK_RANGES = (
 def is_cjk_or_ui(ch: str) -> bool:
     """Any printable non-ASCII character that could reach the console.
 
-    This deliberately includes Latin-1 punctuation such as ``·`` and ``°``
+    This deliberately includes Latin-1 punctuation such as ``-`` and ``degC``
     and curly quotes, not just the CJK blocks: a missing glyph shows as the
     replacement box and is just as bad as a blank Chinese character.
     """

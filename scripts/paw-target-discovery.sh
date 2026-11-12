@@ -16,11 +16,11 @@ boot_device="${boot_parent:+/dev/$boot_parent}"
 # shellcheck source=scripts/paw-tty-lib.sh
 source "$PAW_ROOT/scripts/paw-tty-lib.sh"
 export PAW_TTY_SESSION_NAME=target-discovery
-paw_tty_open_optional || die '无法打开交互终端；未登记任何目标盘。'
+paw_tty_open_optional || die '无法打开交互终端;未登记任何目标盘.'
 paw_tty_clear
 paw_tty_marker PAW-TTY1-TARGET-PANEL
-paw_tty_say 'PAW 目标 SSD 只读盘点（只登记，不写磁盘）'
-paw_tty_say '以下为本机可用的非移动、未挂载本地磁盘（NTFS/Windows 磁盘已排除）：'
+paw_tty_say 'PAW 目标 SSD 只读盘点(只登记,不写磁盘)'
+paw_tty_say '以下为本机可用的非移动,未挂载本地磁盘(NTFS/Windows 磁盘已排除):'
 if ! candidate_text="$(python3 - "$out" "$boot_device" <<'PY'
 import json,re,sys
 d=json.load(open(sys.argv[1],encoding="utf-8")); boot=sys.argv[2]
@@ -44,9 +44,9 @@ for n,item in enumerate(devices,1):
     print(f"{n}. device={item.get('path') or '/dev/'+item.get('name','')} model={str(item.get('model') or '').strip()} capacity_bytes={item.get('size')} serial={str(item.get('serial')).strip()}")
 PY
 )"; then
-  paw_tty_say '没有找到可用的非移动、未挂载本地磁盘；未登记任何目标盘。'
+  paw_tty_say '没有找到可用的非移动,未挂载本地磁盘;未登记任何目标盘.'
   paw_tty_close
-  die '没有找到可用的非移动、未挂载本地磁盘；未登记目标盘。'
+  die '没有找到可用的非移动,未挂载本地磁盘;未登记目标盘.'
 fi
 while IFS= read -r line; do [[ -n "$line" ]] && paw_tty_say "$line"; done <<<"$candidate_text"
 unset candidate_text
@@ -61,19 +61,19 @@ for x in d.get("blockdevices",[]):
 PY
 )
 paw_tty_marker PAW-TTY1-TARGET-PROMPT
-paw_tty_prompt '输入目标 SSD 对应的编号（只登记，不写磁盘）：'
+paw_tty_prompt '输入目标 SSD 对应的编号(只登记,不写磁盘):'
 choice=''
 if ! paw_tty_read choice; then
   paw_tty_marker PAW-TTY1-TARGET-TIMEOUT
   paw_tty_close
-  die '编号输入超时或中断；未登记任何目标盘。'
+  die '编号输入超时或中断;未登记任何目标盘.'
 fi
-[[ "$choice" =~ ^[1-9][0-9]*$ ]] && ((choice <= ${#candidates[@]})) || { paw_tty_say '错误：目标编号无效。'; paw_tty_close; die '目标编号无效。'; }
+[[ "$choice" =~ ^[1-9][0-9]*$ ]] && ((choice <= ${#candidates[@]})) || { paw_tty_say '错误:目标编号无效.'; paw_tty_close; die '目标编号无效.'; }
 dev="${candidates[$((choice-1))]}"
 # Re-check immediately before enrollment.  The inventory and the operator's
 # typed choice are separate steps; a hot-plugged Windows disk must not become
 # eligible between them.
-python3 - "$out" "$dev" <<'PY' || { paw_tty_say '错误：所选磁盘包含 NTFS/Windows 分区，已拒绝登记。'; paw_tty_close; die 'Windows/NTFS target disk refused.'; }
+python3 - "$out" "$dev" <<'PY' || { paw_tty_say '错误:所选磁盘包含 NTFS/Windows 分区,已拒绝登记.'; paw_tty_close; die 'Windows/NTFS target disk refused.'; }
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8")); wanted=sys.argv[2]
 for item in d.get("blockdevices",[]):
@@ -87,27 +87,27 @@ else:
     raise SystemExit(1)
 PY
 serial="$(lsblk -dn -o SERIAL "$dev" | xargs)"; capacity="$(blockdev --getsize64 "$dev")"; model="$(lsblk -dn -o MODEL "$dev" | xargs)"
-[[ -n "$serial" && "$capacity" =~ ^[0-9]+$ ]] || { paw_tty_close; die '目标盘序列号或容量不可读。'; }
+[[ -n "$serial" && "$capacity" =~ ^[0-9]+$ ]] || { paw_tty_close; die '目标盘序列号或容量不可读.'; }
 paw_tty_say ''
-paw_tty_say "已选择：设备=$dev 型号=${model:-未知} 容量=$capacity bytes"
-paw_tty_say "该目标序列号：$serial"
-paw_tty_prompt '请按上方显示的序列号输入最后 6 位以登记：'
+paw_tty_say "已选择:设备=$dev 型号=${model:-未知} 容量=$capacity bytes"
+paw_tty_say "该目标序列号:$serial"
+paw_tty_prompt '请按上方显示的序列号输入最后 6 位以登记:'
 suffix=''
 if ! paw_tty_read suffix; then
   paw_tty_marker PAW-TTY1-TARGET-TIMEOUT
   paw_tty_close
-  die '序列号输入超时或中断；未登记任何目标盘。'
+  die '序列号输入超时或中断;未登记任何目标盘.'
 fi
 if [[ ${#serial} -lt 6 || "$suffix" != "${serial: -6}" ]]; then
   paw_tty_marker PAW-TTY1-TARGET-BAD
-  paw_tty_say '错误：目标序列号后缀不匹配；未登记任何目标盘。'
+  paw_tty_say '错误:目标序列号后缀不匹配;未登记任何目标盘.'
   paw_tty_close
-  die '目标序列号后缀不匹配。'
+  die '目标序列号后缀不匹配.'
 fi
 paw_tty_marker PAW-TTY1-TARGET-OK
-paw_tty_say '目标 SSD 已按只读盘点登记；未写入任何扇区。'
+paw_tty_say '目标 SSD 已按只读盘点登记;未写入任何扇区.'
 paw_tty_close
-if [[ -n "$(lsblk -nrpo MOUNTPOINTS "$dev" | sed '/^$/d')" ]]; then die '目标 SSD 存在已挂载分区；拒绝登记。'; fi
+if [[ -n "$(lsblk -nrpo MOUNTPOINTS "$dev" | sed '/^$/d')" ]]; then die '目标 SSD 存在已挂载分区;拒绝登记.'; fi
 python3 - "$PAW_CONFIG_DIR/target-ssd.json" "$dev" "$model" "$capacity" "$serial" <<'PY'
 import json,os,sys,datetime
 path,dev,model,capacity,serial=sys.argv[1:]

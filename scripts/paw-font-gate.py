@@ -32,11 +32,11 @@ def load_json(path: Path, label: str) -> dict:
         with path.open("r", encoding="utf-8") as handle:
             document = json.load(handle)
     except OSError as exc:
-        blocked(f"{label} 不存在或不可读：{path}（{exc}）")
+        blocked(f"{label} is missing or unreadable: {path} ({exc})")
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        blocked(f"{label} 不是有效 JSON：{path}（{exc}）")
+        blocked(f"{label} is not valid JSON: {path} ({exc})")
     if not isinstance(document, dict):
-        blocked(f"{label} 顶层必须是 JSON 对象：{path}")
+        blocked(f"{label} must be a JSON object: {path}")
     return document
 
 
@@ -54,88 +54,88 @@ def validate_psf2(path: Path) -> None:
     try:
         raw = path.read_bytes()
     except OSError as exc:
-        blocked(f"字体文件不可读：{path}（{exc}）")
+        blocked(f"Font file is unreadable: {path} ({exc})")
     if len(raw) < 32:
-        blocked(f"字体文件小于 PSF2 头部：{path}")
+        blocked(f"Font file is shorter than a PSF2 header: {path}")
     magic, version, headersize, flags, length, charsize, height, width = struct.unpack(
         "<8I", raw[:32]
     )
     if raw[:4] != PSF2_MAGIC or version != 0:
-        blocked(f"字体不是 PSF2 v0：{path}")
+        blocked(f"Font is not PSF2 v0: {path}")
     if (headersize, length, charsize, height, width) != (32, 512, 32, 16, 16):
         blocked(
-            "字体几何不符合 fbcon 16x16/512 个字形："
+             "Font geometry is not fbcon 16x16/512 glyphs: "
             f"headersize={headersize} length={length} charsize={charsize} "
             f"height={height} width={width}"
         )
     if not flags & 1:
-        blocked("字体缺少 Unicode 映射表")
+        blocked("Font has no Unicode mapping table")
     if len(raw) < headersize + length * charsize:
-        blocked("字体长度不足以容纳 512 个 16x16 字形")
+        blocked("Font is too short for 512 16x16 glyphs")
     if raw.find(b"\xff", headersize + length * charsize) < 0:
-        blocked("字体 Unicode 映射表没有终止符")
+        blocked("Font Unicode mapping table has no terminator")
 
 
 def main() -> int:
     args = parse_args()
-    report = load_json(args.report, "字体报告")
-    manifest = load_json(args.manifest, "字体 manifest")
+    report = load_json(args.report, "font report")
+    manifest = load_json(args.manifest, "font manifest")
 
     if report.get("schema") != "paw.console-font.v2":
-        blocked(f"字体报告 schema 不是 paw.console-font.v2：{report.get('schema')!r}")
+        blocked(f"Font report schema is not paw.console-font.v2: {report.get('schema')!r}")
     if report.get("status") != "PASS":
-        blocked(f"字体报告状态不是 PASS：{report.get('status')!r}")
+        blocked(f"Font report status is not PASS: {report.get('status')!r}")
     if report.get("mode") != "fbcon":
-        blocked(f"字体模式不是 fbcon：{report.get('mode')!r}")
+        blocked(f"Font mode is not fbcon: {report.get('mode')!r}")
     if report.get("tty") != args.expected_tty:
-        blocked(f"字体报告 tty 不是 {args.expected_tty}：{report.get('tty')!r}")
+        blocked(f"Font report tty is not {args.expected_tty}: {report.get('tty')!r}")
     if not str(report.get("framebuffer") or "").strip():
-        blocked("字体报告缺少 framebuffer 名称，无法证明 fbcon")
+        blocked("Font report lacks a framebuffer name; fbcon is unproven")
     if not str(report.get("framebuffer_size") or "").strip():
-        blocked("字体报告缺少 framebuffer 尺寸")
+        blocked("Font report lacks the framebuffer size")
     if report.get("fbcon_bound") is not True:
-        blocked("字体报告没有证明 fbcon 已绑定")
+        blocked("Font report does not prove fbcon is bound")
     if report.get("boot_id") != args.boot_id or not args.boot_id:
-        blocked("字体报告不属于当前启动（boot_id 不匹配或为空）")
+        blocked("Font report is not from the current boot (boot_id mismatch or empty)")
     if report.get("setfont_exit_code") != 0:
-        blocked(f"setfont 退出码不是 0：{report.get('setfont_exit_code')!r}")
+        blocked(f"setfont exit code is not 0: {report.get('setfont_exit_code')!r}")
 
     actual_font = Path(str(report.get("font") or ""))
     expected_font = args.expected_font.resolve()
     try:
         actual_font_resolved = actual_font.resolve(strict=True)
     except OSError as exc:
-        blocked(f"报告中的字体路径不存在：{actual_font}（{exc}）")
+        blocked(f"Font path in report does not exist: {actual_font} ({exc})")
     if actual_font_resolved != expected_font:
-        blocked(f"报告中的字体不是主 16x16 字体：{actual_font_resolved}")
+        blocked(f"Font in report is not the primary 16x16 font: {actual_font_resolved}")
     if actual_font_resolved.name != "paw-cjk-16x16.psf":
-        blocked(f"字体文件名不是 paw-cjk-16x16.psf：{actual_font_resolved.name}")
+        blocked(f"Font filename is not paw-cjk-16x16.psf: {actual_font_resolved.name}")
 
     try:
         font_size = actual_font_resolved.stat().st_size
         font_sha = hashlib.sha256(actual_font_resolved.read_bytes()).hexdigest()
     except OSError as exc:
-        blocked(f"无法读取字体：{actual_font_resolved}（{exc}）")
+        blocked(f"Cannot read font: {actual_font_resolved} ({exc})")
     if report.get("font_size") != font_size:
-        blocked(f"报告字体大小与实际不符：{report.get('font_size')!r} != {font_size}")
+        blocked(f"Reported font size does not match actual: {report.get('font_size')!r} != {font_size}")
     if not HEX64.fullmatch(str(report.get("font_sha256") or "")):
-        blocked("报告字体 SHA256 不是 64 位小写十六进制")
+        blocked("Reported font SHA256 is not 64 lowercase hex characters")
     if report["font_sha256"] != font_sha:
-        blocked("报告字体 SHA256 与实际文件不符")
+        blocked("Reported font SHA256 does not match the actual file")
     if not HEX64.fullmatch(str(report.get("expected_font_sha256") or "")):
-        blocked("报告缺少 manifest 期望字体 SHA256")
+        blocked("Report lacks the manifest expected font SHA256")
     if report["expected_font_sha256"] != font_sha:
-        blocked("字体 SHA256 与构建 manifest 不一致")
+        blocked("Font SHA256 does not match the build manifest")
 
     if manifest.get("schema") != "paw.cjk-console-font.v1":
-        blocked(f"字体 manifest schema 无效：{manifest.get('schema')!r}")
+        blocked(f"Font manifest schema is invalid: {manifest.get('schema')!r}")
     if manifest.get("cell") != "16x16":
-        blocked(f"字体 manifest 单元不是 16x16：{manifest.get('cell')!r}")
+        blocked(f"Font manifest cell is not 16x16: {manifest.get('cell')!r}")
     manifest_sha = str(manifest.get("primary_font_sha256") or "")
     if not HEX64.fullmatch(manifest_sha):
-        blocked("字体 manifest 缺少有效的主字体 SHA256")
+        blocked("Font manifest lacks a valid primary font SHA256")
     if manifest_sha != font_sha:
-        blocked("字体 SHA256 与 manifest 不一致")
+        blocked("Font SHA256 does not match the manifest")
 
     validate_psf2(actual_font_resolved)
     print(

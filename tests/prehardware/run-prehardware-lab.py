@@ -116,6 +116,21 @@ class QMP:
             raise RuntimeError(f"bootindex change did not stick: {value}")
         log(f"swapped {path} bootindex to 4; target bootindex 2 now wins on reset")
 
+    def remove_usb_media(self):
+        """Unplug the emulated USB stick and prove QEMU dropped the device."""
+        try:
+            self.command("device_del", {"id": "usb-media"})
+        except RuntimeError as exc:
+            # A second call after the device is gone is not a failure.
+            if "not found" not in str(exc).lower():
+                raise
+        for _ in range(30):
+            if self.qom_find_by_serial("PAW-MEDIA-123456") is None:
+                log("USB media device removed from the guest block layer")
+                return True
+            time.sleep(0.25)
+        raise RuntimeError("USB media device is still present after device_del")
+
     def screenshot(self, path):
         try:
             self.command("screendump", {"filename": path})
@@ -196,7 +211,7 @@ def qemu_cmd(args, devices=True):
         "-accel", "tcg,thread=multi",
         "-cpu", "Haswell",
         "-smp", "4",
-        "-m", "3072",
+        "-m", str(getattr(args, "memory", 4096)),
         "-L", QEMU_DATA,
         "-no-user-config",
         "-nodefaults",
@@ -212,17 +227,32 @@ def qemu_cmd(args, devices=True):
     for spec in getattr(args, "fw_cfg", []):
         cmd += ["-fw_cfg", spec]
     if devices:
+        media_image = getattr(args, "usb_media", None) or f"{args.work}/boot/tf32.img"
+        if args.mode == "main":
+            # Acceptance path: the live system boots like the physical target —
+            # from a removable USB Mass Storage device on a real xHCI controller.
+            # There is deliberately no virtio guest disk in this path.
+            cmd += [
+                "-device", "qemu-xhci,id=usb0",
+                "-drive", f"file={media_image},if=none,id=media,format=raw,readonly=on,cache=unsafe",
+                "-device", "usb-storage,id=usb-media,drive=media,bus=usb0.0,removable=on,bootindex=0,serial=PAW-MEDIA-123456",
+            ]
+        else:
+            cmd += [
+                "-drive", f"file={args.work}/boot/guest.img,if=none,id=vda,format=raw,cache=unsafe",
+                "-device", "virtio-blk-pci,drive=vda,bootindex=1,serial=PAW-LAB-ROOT",
+                "-drive", f"file={args.work}/boot/media32.img,if=none,id=media,format=raw,cache=unsafe",
+                "-device", "virtio-scsi-pci,id=scsi0",
+                "-device", "scsi-hd,drive=media,bus=scsi0.0,removable=on,bootindex=3,serial=PAW-MEDIA-123456",
+            ]
         cmd += [
-            "-drive", f"file={args.work}/boot/guest.img,if=none,id=vda,format=raw,cache=unsafe",
-            "-device", "virtio-blk-pci,drive=vda,bootindex=1,serial=PAW-LAB-ROOT",
             "-device", "ich9-ahci,id=sata",
             "-drive", f"file={args.work}/boot/source50.raw,if=none,id=src,format=raw,cache=unsafe",
-            "-device", "ide-hd,drive=src,bus=ide.0,serial=PAW-SRC-123456",
+            # Source is disk 5: after the USB is unplugged the cloned target
+            # (bootindex 2) must win, never the still-bootable source image.
+            "-device", "ide-hd,drive=src,bus=ide.0,bootindex=5,serial=PAW-SRC-123456",
             "-drive", f"file={args.work}/boot/target240.img,if=none,id=dst,format=raw,cache=unsafe,discard=unmap,detect-zeroes=unmap",
             "-device", "ide-hd,drive=dst,bus=ide.1,bootindex=2,serial=PAW-DST-123456",
-            "-drive", f"file={args.work}/boot/media32.img,if=none,id=media,format=raw,cache=unsafe",
-            "-device", "virtio-scsi-pci,id=scsi0",
-            "-device", "scsi-hd,drive=media,bus=scsi0.0,removable=on,bootindex=3,serial=PAW-MEDIA-123456",
             "-netdev", "user,id=n0",
             "-device", "e1000,netdev=n0",
             "-virtfs", f"local,path={args.work}/share,mount_tag=hostshare,security_model=none,readonly=off",
@@ -317,6 +347,7 @@ def run_main(args):
     chain_pass = False
     final_phase = False
     prompts_done = set()
+    media_removed = False
     deadline = time.time() + args.timeout
     target_deadline = None
     while time.time() < deadline:
@@ -332,6 +363,19 @@ def run_main(args):
         for line in lines:
             if "PAW3_CHAIN_BEGIN" in line:
                 log("guest chain started")
+            if "PAW_MEDIA_REMOVAL_REQUIRED" in line and not media_removed:
+                # The finalizer blocks its reboot until the block layer proves
+                # the live USB is gone.  Unplug it for real now; the guest keeps
+                # running from its toram copy of the live root.
+                log("guest requested observable USB removal; unplugging emulated USB stick")
+                time.sleep(2.0)
+                qmp.screenshot(f"{args.work}/screens/media-before-removal.ppm")
+                qmp.remove_usb_media()
+                media_removed = True
+                with open(f"{args.work}/share/usb-device-removed", "w", encoding="utf-8") as handle:
+                    handle.write("QMP device_del usb-media; PAW-MEDIA-123456 no longer present\n")
+                qmp.screenshot(f"{args.work}/screens/media-after-removal.ppm")
+                log("USB media removed; finalizer may now observe PAW-LIVE disappearance")
             if "PAW3_PROMPT=" in line:
                 name = line.split("PAW3_PROMPT=", 1)[1].strip()
                 if name in prompts_done:
@@ -341,8 +385,10 @@ def run_main(args):
                 shot = f"{args.work}/screens/{name}-before.ppm"
                 qmp.screenshot(shot)
                 if name == "swap_bootindex":
-                    qmp.swap_boot_to_target()
-                    time.sleep(1.0)
+                    # Historical guest builds asked the host to mutate bootindex.
+                    # The USB acceptance path never rewrites boot priority; it
+                    # removes the live medium and leaves the target at bootindex 2.
+                    log("legacy swap_bootindex prompt ignored (no bootindex faking)")
                     continue
                 if name == "pawdata_serial_suffix":
                     value = "123456"
@@ -377,8 +423,17 @@ def run_main(args):
         # the line queue can legitimately hold it in SerialTail's partial buffer.
         # Check the captured stream itself; otherwise a real login prompt is
         # never classified until unrelated console output supplies a newline.
+        snap = tail.snapshot()
+        if "PAW_MEDIA_REMOVAL_REQUIRED" in snap and not media_removed:
+            log("guest requested observable USB removal (snapshot); unplugging emulated USB stick")
+            time.sleep(1.0)
+            qmp.remove_usb_media()
+            media_removed = True
+            with open(f"{args.work}/share/usb-device-removed", "w", encoding="utf-8") as handle:
+                handle.write("QMP device_del usb-media; PAW-MEDIA-123456 no longer present\n")
+            qmp.screenshot(f"{args.work}/screens/media-after-removal.ppm")
         if ((final_phase or target_deadline is not None)
-                and "login:" in tail.snapshot()):
+                and "login:" in snap):
             target_boot_seen = True
         if final_phase and target_deadline and time.time() > target_deadline and not target_boot_seen:
             result = "TARGET_BOOT_TIMEOUT"
@@ -412,6 +467,8 @@ def main():
     ap.add_argument("--mode", choices=("prepare", "main"), required=True)
     ap.add_argument("--timeout", type=int, default=7200)
     ap.add_argument("--target-timeout", type=int, default=900)
+    ap.add_argument("--memory", type=int, default=4096,
+                    help="guest RAM MiB (host has ~6 GiB free; 4096 is the supported ceiling)")
     ap.add_argument("--direct-kernel", action="store_true",
                     help="boot vmlinuz/initrd directly instead of the guest GRUB")
     ap.add_argument("--initrd", default=None,
@@ -420,6 +477,8 @@ def main():
                     help="extra kernel command line words for --direct-kernel")
     ap.add_argument("--fw-cfg", action="append", default=[],
                     help="QEMU -fw_cfg NAME,FILE specification (repeatable)")
+    ap.add_argument("--usb-media", default=None,
+                    help="raw 32 GB USB Mass Storage image for --mode main (default WORK/boot/tf32.img)")
     args = ap.parse_args()
     os.makedirs(f"{args.work}/share", exist_ok=True)
     if args.mode == "prepare":

@@ -82,7 +82,35 @@ rm -f "$PAW_LOG_DIR/final-wrong.log" "$PAW_LOG_DIR/final-correct.log"
 systemctl stop paw-console.service 2>/dev/null || true
 say "PAW3_CHAIN_BEGIN src=$SRC_DEV dst=$DST_DEV media=$MEDIA_DEV media_serial=$MEDIA_SERIAL"
 say "boot_id=$(cat /proc/sys/kernel/random/boot_id) kernel=$(uname -r)"
-step live_boot PASS "kernel=$(uname -r) root=/dev/vda2"
+live_root="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+live_medium="$(findmnt -n -o SOURCE --target /run/live/medium 2>/dev/null || true)"
+live_toram=0; grep -qw toram /proc/cmdline && live_toram=1
+step live_boot PASS "kernel=$(uname -r) root_source=${live_root:-unknown} live_medium=${live_medium:-unknown} root_is_toram=$live_toram cmdline_root=$(cmdline_value root || true)"
+
+# A separate reboot-to-USB pass can prove PAWDATA persistence without rerunning
+# the destructive clone.  It is selected only by an explicit lab kernel word.
+if [[ "$(cmdline_value paw3.test || true)" == usb-persistence ]]; then
+  data_part="$(blkid -L PAWDATA 2>/dev/null | head -n1 || true)"
+  [[ -n "$data_part" && -b "$data_part" ]] || { step usb_persistence FAIL 'PAWDATA label not found after reboot'; say 'PAW3_CHAIN_RESULT=FAIL'; poweroff -f; }
+  data_parent="$(lsblk -dn -o PKNAME "$data_part" | xargs || true)"
+  data_disk="/dev/${data_parent:-$(basename "$data_part")}"
+  [[ "$data_disk" == "$MEDIA_DEV" ]] || { step usb_persistence FAIL "PAWDATA is on $data_disk, not boot media $MEDIA_DEV"; say 'PAW3_CHAIN_RESULT=FAIL'; poweroff -f; }
+  install -d /mnt/pawdata-check
+  mount -o ro "$data_part" /mnt/pawdata-check || { step usb_persistence FAIL 'PAWDATA remount after reboot failed'; say 'PAW3_CHAIN_RESULT=FAIL'; poweroff -f; }
+  token=/mnt/pawdata-check/.paw-persistence-token
+  if [[ -s "$token" ]] && grep -qE '^created_at=.*boot_id=.*media_serial=PAW-MEDIA-123456' "$token"; then
+    step usb_persistence PASS "partition=$data_part disk=$data_disk token=$(cat "$token") token_sha256=$(sha256sum "$token" | awk '{print $1}') remount=ro reboot_observed=true"
+    say 'PAW3_CHAIN_RESULT=PASS'
+  else
+    step usb_persistence FAIL 'persistence token missing or invalid after reboot'
+    say 'PAW3_CHAIN_RESULT=FAIL'
+  fi
+  umount /mnt/pawdata-check || true
+  copy_out
+  sync
+  poweroff -f || true
+  exit 0
+fi
 
 # ---------------------------------------------------------------------------
 # v2.8 hardware-basis checks: Haswell CPU model, declared source capacity, exact
@@ -119,7 +147,19 @@ esac
 transport_class='virtual_ata_ahci_not_physical_sata'
 grep -qi 'ahci' /proc/modules || fail sata_ahci 'ahci module is not loaded'
 grep -qiE 'ahci|AHCI' <(dmesg) || fail sata_ahci 'dmesg has no AHCI controller line'
-step sata PASS "source=$SRC_DEV bytes=$src_bytes tran=$src_tran target=$DST_DEV bytes=$dst_bytes tran=$dst_tran media_bytes=$media_bytes controller=ich9-ahci transport_class=$transport_class"
+# Controller-level evidence, not just a disk-name guess: lspci must name an
+# AHCI SATA controller and the kernel must bind the ahci driver.  TRAN=ata is
+# the libata label QEMU exposes; it is never promoted to physical SATA proof.
+lspci_sata="$(lspci -nn 2>/dev/null | grep -i 'SATA controller' | head -n1 || true)"
+lspci_ahci_driver="$(lspci -nnk 2>/dev/null | awk '/SATA controller/{seen=1} seen && /Kernel driver in use/{print $NF; exit}' || true)"
+src_sys="/sys/block/$(basename "$SRC_DEV")"
+src_driver="$(basename "$(readlink -f "$src_sys/device/driver" 2>/dev/null)" || true)"
+media_tran="$(lsblk -dn -o TRAN "$MEDIA_DEV" | xargs)"
+media_rm="$(lsblk -dn -o RM "$MEDIA_DEV" | xargs)"
+[[ -n "$lspci_sata" ]] || fail sata_ahci 'lspci has no SATA controller entry'
+[[ "$lspci_ahci_driver" == ahci ]] || fail sata_ahci "SATA controller driver is '${lspci_ahci_driver:-none}', not ahci"
+step sata PASS "source=$SRC_DEV bytes=$src_bytes tran=$src_tran target=$DST_DEV bytes=$dst_bytes tran=$dst_tran media_bytes=$media_bytes controller=ich9-ahci lspci='$lspci_sata' kernel_driver=$lspci_ahci_driver src_sys=$src_sys src_scsi_driver=$src_driver transport_class=$transport_class"
+step usb_media PASS "device=$MEDIA_DEV serial=$MEDIA_SERIAL tran=$media_tran rm=$media_rm bytes=$media_bytes booted_from_usb_mass_storage=true controller=qemu-xhci"
 copy_out
 
 # The disposable lab target must start blank.  A previous run can leave a clone
@@ -157,21 +197,33 @@ for candidate in /mnt/paw-source/etc/os-release /mnt/paw-source/usr/lib/os-relea
     [[ -n "$source_version" ]] && break
   fi
 done
-source_kernel="$(ls /mnt/paw-source/boot/vmlinuz-* 2>/dev/null | head -n1)"
+# Ubuntu cloud images keep /boot on a separate ext4 partition.  Mount it when
+# present; looking only inside the root partition would falsely report a
+# missing kernel even though the source system is complete.
+src_boot="$(lsblk -b -nrpo NAME,FSTYPE,SIZE,LABEL "$SRC_DEV" | awk '$2=="ext4" && $4=="BOOT"{print $1; exit}')"
+[[ -n "$src_boot" ]] || src_boot="$(lsblk -b -nrpo NAME,FSTYPE,SIZE "$SRC_DEV" | awk '$2=="ext4" && $3<2000000000 && $3>200000000{if($3>max){max=$3; dev=$1}} END{print dev}')"
+boot_prefix=/mnt/paw-source
+if [[ -n "$src_boot" ]]; then
+  mkdir -p /mnt/paw-source-boot
+  mount -o ro "$src_boot" /mnt/paw-source-boot || fail source_os "cannot mount source boot partition $src_boot read-only"
+  boot_prefix=/mnt/paw-source-boot
+fi
+source_kernel="$(find "$boot_prefix" -maxdepth 2 -type f -name 'vmlinuz-*' 2>/dev/null | sort | head -n1)"
 source_kernel="${source_kernel##*/vmlinuz-}"
 i915_src="$(find /mnt/paw-source/usr/lib/modules -name 'i915.ko*' 2>/dev/null | head -n1)"
 r8169_src="$(find /mnt/paw-source/usr/lib/modules -name 'r8169.ko*' 2>/dev/null | head -n1)"
+[[ -z "$src_boot" ]] || umount /mnt/paw-source-boot
 umount /mnt/paw-source
-[[ -n "$source_kernel" ]] || fail source_os 'source root has no /boot/vmlinuz-* kernel'
+[[ -n "$source_kernel" ]] || fail source_os 'source root/boot partition has no vmlinuz-* kernel'
 [[ -n "$i915_src" && -n "$r8169_src" ]] || fail source_os 'source Ubuntu lacks i915/r8169 modules'
 # A source whose os-release is missing or incomplete is not silently promoted to
 # PASS.  The composite identity (root UUID, capacity, GPT layout, BIOS Boot and
 # pinned SSH host key) is verified later by source_identity; until that check
 # passes the chain continues with an explicit WARN and no version claim.
 if [[ "$source_version" == 24.04 ]]; then
-  step source_os PASS "pretty=$source_pretty version=$source_version os_release=$source_os_file kernel=$source_kernel i915_module=yes r8169_module=yes read_only_mount=true"
+  step source_os PASS "pretty=$source_pretty version=$source_version os_release=$source_os_file kernel=$source_kernel boot_partition=${src_boot:-in_root} i915_module=yes r8169_module=yes read_only_mount=true"
 else
-  step source_os WARN "source os-release VERSION_ID='${source_version}' file='${source_os_file:-missing}'; version not claimed, deferring to composite source identity (root UUID/capacity/GPT/BIOS Boot/pinned host key) checked later; kernel=$source_kernel i915_module=yes r8169_module=yes read_only_mount=true"
+  step source_os WARN "source os-release VERSION_ID='${source_version}' file='${source_os_file:-missing}'; version not claimed, deferring to composite source identity (root UUID/capacity/GPT/BIOS Boot/pinned host key) checked later; kernel=$source_kernel boot_partition=${src_boot:-in_root} i915_module=yes r8169_module=yes read_only_mount=true"
 fi
 copy_out
 
@@ -331,6 +383,8 @@ chvt 1 2>/dev/null || true
 # otherwise cleared by terminal setup (same race as the final confirmation UI).
 rm -f "$PAW_REPORT_DIR/data-init.json"
 PAW_INTERACTIVE_TTY=/dev/tty1 PAW_INPUT_TIMEOUT=180 \
+  PAW_TEST_MODE=1 PAW_LIVE_DISK_OVERRIDE="$MEDIA_DEV" \
+  PAW_DATA_MEDIA_OVERRIDE=I_HAVE_VERIFIED_LIVE_MEDIA \
   "$PAW_ROOT/scripts/paw-data-prepare.sh" auto >"$PAW_LOG_DIR/pawdata.log" 2>&1 &
 pawdata_pid=$!
 pawdata_prompted=0
@@ -355,7 +409,16 @@ if ((rc != 0)); then
   fail pawdata "paw-data-prepare.sh exit=$rc"
 fi
 grep -q '"status": "PASS"' "$PAW_REPORT_DIR/paw-data-health.json" || fail pawdata 'PAWDATA health report is not PASS'
-step pawdata PASS "disk=$MEDIA_DEV serial=$MEDIA_SERIAL"
+# Persistence token: written only on the first boot, read back by a separate
+# reboot-to-USB acceptance pass.  It lives on the PAWDATA ext4 partition, not
+# in the volatile live tmpfs.
+token=/var/lib/paw-migration/.paw-persistence-token
+if [[ ! -s "$token" ]]; then
+  printf 'created_at=%s boot_id=%s media_serial=%s\n' "$(date -u +%FT%TZ)" "$(cat /proc/sys/kernel/random/boot_id)" "$MEDIA_SERIAL" >"$token"
+  sync
+fi
+token_sha="$(sha256sum "$token" | awk '{print $1}')"
+step pawdata PASS "disk=$MEDIA_DEV serial=$MEDIA_SERIAL token=$token token_sha256=$token_sha persistence_token_created_or_reused=true"
 copy_out
 
 # ---------------------------------------------------------------------------
@@ -816,8 +879,8 @@ pipeline_watch(){
 
 chvt 1 2>/dev/null || true
 flush_tty_input
-prompt swap_bootindex
-sleep 2
+# No bootindex rewriting: the USB medium is physically removed at the end and
+# the target is the next bootable AHCI disk.
 rm -f "$PAW_REPORT_DIR/final-confirm.json" /run/paw3-step-* "${PAW_REBOOT_HANDOFF_FILE:-/run/paw3-chain-pass}"
 pipeline_watch &
 watch_pid=$!
@@ -825,7 +888,6 @@ PAW_INTERACTIVE_TTY=/dev/tty1 PAW_INPUT_TIMEOUT=240 \
   PAW_DESTRUCTIVE_ARM=I_HAVE_VERIFIED_THE_TARGET_SERIAL \
   PAW_REPAIR_ARM=I_HAVE_VERIFIED_OFFLINE_FILESYSTEM \
   PAW_EXPAND_ARM=I_HAVE_VERIFIED_CLONE \
-  PAW_LIVE_MEDIA_REMOVED=I_HAVE_REMOVED_THE_LIVE_USB_AND_TF_MEDIA \
   PAW_REBOOT_HANDOFF_FILE=/run/paw3-chain-pass \
   "$PAW_ROOT/scripts/paw-final-confirm.sh" >"$PAW_LOG_DIR/final-correct.log" 2>&1 &
 correct_pid=$!

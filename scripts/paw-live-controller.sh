@@ -11,7 +11,7 @@ done
 data_status=BLOCKED
 if "$PAW_ROOT/scripts/paw-data-check.sh" >/dev/null 2>&1; then data_status=PASS; else data_status="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("status","BLOCKED"))' "$PAW_REPORT_DIR/paw-data-health.json" 2>/dev/null || echo BLOCKED)"; fi
 checks+=("data=$data_status")
-[[ "$data_status" == PASS ]] || { status=BLOCKED; details+=('PAWDATA 自动初始化未完成、不可写或剩余空间不足；请按控制台中文提示核对启动卡序列号末六位'); }
+[[ "$data_status" == PASS ]] || { status=BLOCKED; details+=('PAWDATA 自动初始化未完成,不可写或剩余空间不足;请按控制台中文提示核对启动卡序列号末六位'); }
 
 "$PAW_ROOT/scripts/paw-live-preflight.sh" >/dev/null 2>&1 || { status=BLOCKED; details+=('Live 环境预检失败'); }
 
@@ -60,15 +60,15 @@ try:
 except Exception: print("BLOCKED")
 PY
       )"; fi
-    else details+=('目标 SSD 型号/容量/序列号与登记不一致，或源盘尚未确认'); fi
+    else details+=('目标 SSD 型号/容量/序列号与登记不一致,或源盘尚未确认'); fi
   else details+=('目标 SSD 尚未通过只读盘点和登记'); fi
 else details+=('目标 SSD 尚未登记'); fi
 checks+=("target_identity=$target_identity_status")
 checks+=("hardware=$hardware_status")
-[[ "$target_identity_status" == PASS && "$hardware_status" == PASS ]] || { status=BLOCKED; details+=('SMART、只读扫描、温度或内存检查未全部 PASS，或尚未完成本次启动的硬件检查'); }
+[[ "$target_identity_status" == PASS && "$hardware_status" == PASS ]] || { status=BLOCKED; details+=('SMART,只读扫描,温度或内存检查未全部 PASS,或尚未完成本次启动的硬件检查'); }
 if [[ "$hardware_status" != PASS && -r "$PAW_REPORT_DIR/memory-test.json" ]]; then
   mem_state="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("status","UNKNOWN"))' "$PAW_REPORT_DIR/memory-test.json" 2>/dev/null || echo UNKNOWN)"
-  [[ "$mem_state" == OPERATOR_CONFIRMED || "$mem_state" == PASS ]] || details+=("内存检测状态=$mem_state；请从 Memtest86+ 菜单完成检测后回到 PAW Live，运行 /opt/paw-migration/scripts/paw-memtest-confirm.sh 登记")
+  [[ "$mem_state" == OPERATOR_CONFIRMED || "$mem_state" == PASS ]] || details+=("内存检测状态=$mem_state;请从 Memtest86+ 菜单完成检测后回到 PAW Live,运行 /opt/paw-migration/scripts/paw-memtest-confirm.sh 登记")
 fi
 
 network_status="$source_status"
@@ -86,11 +86,11 @@ os.chmod(tmp,0o600); os.replace(tmp,path)
 PY
 
 printf '\nPAW 迁移准备状态\n'
-printf '持久化分区：%s\n源系统识别：%s\n目标 SSD 身份：%s\n硬件检查：%s\nRescue SSH 网络：%s\n' "$data_status" "$source_status" "$target_identity_status" "$hardware_status" "$network_status"
+printf '持久化分区:%s\n源系统识别:%s\n目标 SSD 身份:%s\n硬件检查:%s\nRescue SSH 网络:%s\n' "$data_status" "$source_status" "$target_identity_status" "$hardware_status" "$network_status"
 if [[ "$data_status" != PASS ]]; then
-  printf 'PAWDATA 首次准备：启动服务已自动尝试；若未完成，请按上方中文提示核对序列号末六位，或运行 /opt/paw-migration/scripts/paw-data-prepare.sh。\n'
+  printf 'PAWDATA 首次准备:启动服务已自动尝试;若未完成,请按上方中文提示核对序列号末六位,或运行 /opt/paw-migration/scripts/paw-data-prepare.sh.\n'
 fi
-printf '自动克隆：未启动\n'
-if [[ "$status" != READY_FOR_OPERATOR ]]; then printf '状态：阻断\n原因：%s\n' "${details[*]}"; else printf '%s\n' '状态：全部检查通过；等待 paw-final-confirm 中文界面的一次性授权。'; fi
+printf '自动克隆:未启动\n'
+if [[ "$status" != READY_FOR_OPERATOR ]]; then printf '状态:阻断\n原因:%s\n' "${details[*]}"; else printf '%s\n' '状态:全部检查通过;等待 paw-final-confirm 中文界面的一次性授权.'; fi
 log INFO "AUTOSTART_GATE=$status clone_started=false ${details[*]:-}"
 exit 0

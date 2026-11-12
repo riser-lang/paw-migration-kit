@@ -8,14 +8,14 @@ ram_dir="$run_root/paw-network"
 install -d -m 0700 "$ram_dir"
 umask 077
 
-read -r -p 'VLESS 服务端地址（按服务端配置输入；不会回显到日志）：' address
-read -r -p 'VLESS 服务端端口：' port
-read -r -s -p 'VLESS UUID（输入时不回显）：' uuid; printf '\n'
-read -r -p 'flow（按服务端配置；无则留空）：' flow
-read -r -p 'Reality serverName（按服务端配置）：' server_name
-read -r -p 'uTLS fingerprint（按服务端配置/批准值）：' fingerprint
-read -r -p 'Reality 客户端 publicKey（服务端公钥；不得输入 privateKey）：' public_key
-read -r -p 'Reality shortId（按服务端配置）：' short_id
+read -r -p 'VLESS 服务端地址(按服务端配置输入;不会回显到日志):' address
+read -r -p 'VLESS 服务端端口:' port
+read -r -s -p 'VLESS UUID(输入时不回显):' uuid; printf '\n'
+read -r -p 'flow(按服务端配置;无则留空):' flow
+read -r -p 'Reality serverName(按服务端配置):' server_name
+read -r -p 'uTLS fingerprint(按服务端配置/批准值):' fingerprint
+read -r -p 'Reality 客户端 publicKey(服务端公钥;不得输入 privateKey):' public_key
+read -r -p 'Reality shortId(按服务端配置):' short_id
 
 tmp="$ram_dir/xray-client.json.tmp"
 out="$ram_dir/xray-client.json"

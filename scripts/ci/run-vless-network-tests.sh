@@ -27,7 +27,8 @@ case "$1" in
  up) printf 'https://login.tailscale.com/a/test123\n'; exit 0;;
  status)
   if [ "${PAW_TS_PENDING:-0}" = 1 ]; then printf '{"BackendState":"NeedsLogin","Self":{"Online":false}}\n'; else
-   if [ "${PAW_TS_EXIT_ONLINE:-0}" = 1 ]; then printf '{"BackendState":"Running","Self":{"Online":true},"ExitNodeStatus":{"Online":true}}\n'; else printf '{"BackendState":"Running","Self":{"Online":true}}\n'; fi
+   h="${PAW_FAKE_TS_HOSTNAME:-paw-live-temp}"
+   if [ "${PAW_TS_EXIT_ONLINE:-0}" = 1 ]; then printf '{"BackendState":"Running","Self":{"Online":true,"HostName":"%s","DNSName":"%s.tailnet.ts.net.","ID":"node-test"},"ExitNodeStatus":{"Online":true}}\n' "$h" "$h"; else printf '{"BackendState":"Running","Self":{"Online":true,"HostName":"%s","DNSName":"%s.tailnet.ts.net.","ID":"node-test"}}\n' "$h" "$h"; fi
   fi;;
  ip) printf '100.%s.0.5\n' 64;;
  ping) exit 0;;

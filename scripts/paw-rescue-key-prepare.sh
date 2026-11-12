@@ -10,32 +10,32 @@ install -d -m 0700 "$runtime"
 # shellcheck source=scripts/paw-tty-lib.sh
 source "$PAW_ROOT/scripts/paw-tty-lib.sh"
 export PAW_TTY_SESSION_NAME=rescue-key
-paw_tty_open_optional || die '无法打开交互终端；未生成任何 Rescue 凭据。'
+paw_tty_open_optional || die '无法打开交互终端;未生成任何 Rescue 凭据.'
 paw_tty_clear
 paw_tty_marker PAW-TTY1-RESCUE-PANEL
 paw_tty_say 'PAW Rescue SSH 一次性凭据准备'
-paw_tty_prompt '输入 Tencent Rescue VNC 中显示的公网主机名或 IPv4（不会写入日志）：'
+paw_tty_prompt '输入 Tencent Rescue VNC 中显示的公网主机名或 IPv4(不会写入日志):'
 host=''
 if ! paw_tty_read host; then
   paw_tty_marker PAW-TTY1-RESCUE-TIMEOUT
   paw_tty_close
-  die 'Rescue 主机名输入超时或中断；未生成任何凭据。'
+  die 'Rescue 主机名输入超时或中断;未生成任何凭据.'
 fi
-paw_tty_prompt '输入 Rescue SSH 端口 [22]：'
+paw_tty_prompt '输入 Rescue SSH 端口 [22]:'
 port=''
 if ! paw_tty_read port; then
   paw_tty_marker PAW-TTY1-RESCUE-TIMEOUT
   paw_tty_close
-  die 'Rescue 端口输入超时或中断；未生成任何凭据。'
+  die 'Rescue 端口输入超时或中断;未生成任何凭据.'
 fi
 port="${port:-22}"
 if ! [[ "$host" =~ ^[A-Za-z0-9.-]+$ && "$port" =~ ^[0-9]{1,5}$ ]]; then
   paw_tty_marker PAW-TTY1-RESCUE-BAD
-  paw_tty_say '错误：主机名或端口格式不正确。'
+  paw_tty_say '错误:主机名或端口格式不正确.'
   paw_tty_close
-  die '主机名或端口格式不正确。'
+  die '主机名或端口格式不正确.'
 fi
-((port > 0 && port < 65536)) || { paw_tty_close; die 'SSH 端口超出有效范围。'; }
+((port > 0 && port < 65536)) || { paw_tty_close; die 'SSH 端口超出有效范围.'; }
 python3 - "$runtime/rescue-endpoint.json" "$host" "$port" <<'PY'
 import json,os,sys
 path,host,port=sys.argv[1:]
@@ -53,7 +53,7 @@ if [[ -e "$key" || -e "$key.pub" ]]; then die 'A Rescue Mode key already exists 
 ssh-keygen -q -t ed25519 -N '' -C paw-rescue-one-time -f "$key"
 chmod 0600 "$key"; chmod 0644 "$key.pub"
 paw_tty_say ''
-paw_tty_say '将以下一次性公钥添加到 Rescue Mode 的临时 authorized_keys：'
+paw_tty_say '将以下一次性公钥添加到 Rescue Mode 的临时 authorized_keys:'
 while IFS= read -r line; do paw_tty_say "$line"; done <"$key.pub"
 
 candidate="$runtime/known_hosts.candidate"
@@ -66,25 +66,25 @@ ssh-keyscan -T 8 -p "$scan_port" -t ed25519 "$scan_host" 2>/dev/null >"$candidat
 [[ -s "$candidate" ]] || die 'Could not obtain a Rescue Mode SSH host-key candidate.'
 fingerprint="$(ssh-keygen -lf "$candidate" -E sha256 | awk 'NR==1 {print $2}')"
 paw_tty_say ''
-paw_tty_say '在 Tencent VNC 中核对 SSH 主机指纹；不要只相信 ssh-keyscan 返回值。'
-paw_tty_say "候选 SHA256 指纹：$fingerprint"
+paw_tty_say '在 Tencent VNC 中核对 SSH 主机指纹;不要只相信 ssh-keyscan 返回值.'
+paw_tty_say "候选 SHA256 指纹:$fingerprint"
 paw_tty_marker PAW-TTY1-RESCUE-PROMPT
-paw_tty_prompt '请把 VNC 显示的完整 SHA256 指纹粘贴到这里：'
+paw_tty_prompt '请把 VNC 显示的完整 SHA256 指纹粘贴到这里:'
 confirmed=''
 if ! paw_tty_read confirmed; then
   paw_tty_marker PAW-TTY1-RESCUE-TIMEOUT
-  paw_tty_say '错误：指纹核对输入超时或中断；拒绝连接。'
+  paw_tty_say '错误:指纹核对输入超时或中断;拒绝连接.'
   paw_tty_close
-  die '指纹核对输入超时或中断；拒绝连接。'
+  die '指纹核对输入超时或中断;拒绝连接.'
 fi
 if [[ "$confirmed" != "$fingerprint" ]]; then
   paw_tty_marker PAW-TTY1-RESCUE-BAD
-  paw_tty_say '错误：主机指纹不匹配；拒绝连接。'
+  paw_tty_say '错误:主机指纹不匹配;拒绝连接.'
   paw_tty_close
-  die '主机指纹不匹配；拒绝连接。'
+  die '主机指纹不匹配;拒绝连接.'
 fi
 paw_tty_marker PAW-TTY1-RESCUE-OK
-paw_tty_say '主机指纹已核对通过；Rescue SSH 端点已固定。'
+paw_tty_say '主机指纹已核对通过;Rescue SSH 端点已固定.'
 paw_tty_close
 mv "$candidate" "$runtime/known_hosts"
 chmod 0600 "$runtime/known_hosts"
