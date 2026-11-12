@@ -141,7 +141,7 @@ cat >"$med/bin/lsblk" <<'LS'
 #!/bin/sh
 case "$*" in
   *"-o PKNAME"*) echo sdc ;;
-  *"NAME,LABEL"*) echo '/dev/sdc PAW-LIVE' ;;
+  *"NAME,LABEL"*) if [ "${PAW_MOCK_MEDIA_REMOVED:-0}" = 1 ]; then echo ''; else echo '/dev/sdc PAW-LIVE'; fi ;;
   *) echo '' ;;
 esac
 LS
@@ -155,9 +155,12 @@ import json,sys
 d=json.load(open(sys.argv[1])); assert d["status"]=="BLOCKED" and d["auto_reboot_allowed"] is False, d
 PY
 fi
-if PATH="$med/bin:$PATH" PAW_LIVE_MEDIA_REMOVED=I_HAVE_REMOVED_THE_LIVE_USB_AND_TF_MEDIA PAW_STATE_DIR="$med/state" PAW_REPORT_DIR="$med/reports" PAW_ROOT="$root" \
+# The arm flag alone is never enough: the block layer must also show that the
+# PAW-LIVE medium disappeared.  The mock now models that real observation.
+if PATH="$med/bin:$PATH" PAW_MOCK_MEDIA_REMOVED=1 PAW_MEDIA_REMOVAL_WAIT_SECONDS=2 \
+   PAW_LIVE_MEDIA_REMOVED=I_HAVE_REMOVED_THE_LIVE_USB_AND_TF_MEDIA PAW_STATE_DIR="$med/state" PAW_REPORT_DIR="$med/reports" PAW_ROOT="$root" \
    bash "$root/scripts/paw-reboot-media-check.sh" >"$med/arm.log" 2>&1; then
-  pass 'P1 explicit live-media removal arm allows auto reboot'
+  pass 'P1 explicit arm plus observed live-media removal allows auto reboot'
 else
   fail 'P1 media removal arm rejected'
 fi

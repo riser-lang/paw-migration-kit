@@ -88,7 +88,7 @@ PY
 printf '\nPAW 迁移准备状态\n'
 printf '持久化分区:%s\n源系统识别:%s\n目标 SSD 身份:%s\n硬件检查:%s\nRescue SSH 网络:%s\n' "$data_status" "$source_status" "$target_identity_status" "$hardware_status" "$network_status"
 if [[ "$data_status" != PASS ]]; then
-  printf 'PAWDATA 首次准备:启动服务已自动尝试;若未完成,请按上方中文提示核对序列号末六位,或运行 /opt/paw-migration/scripts/paw-data-prepare.sh.\n'
+  printf 'PAWDATA 首次准备:启动服务已自动尝试;如未完成,请按上方中文提示核对序列号末六位,或运行 /opt/paw-migration/scripts/paw-data-prepare.sh.\n'
 fi
 printf '自动克隆:未启动\n'
 if [[ "$status" != READY_FOR_OPERATOR ]]; then printf '状态:阻断\n原因:%s\n' "${details[*]}"; else printf '%s\n' '状态:全部检查通过;等待 paw-final-confirm 中文界面的一次性授权.'; fi

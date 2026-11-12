@@ -24,15 +24,16 @@ jobs:
   chain-50g:
     runs-on: ubuntu-24.04
     timeout-minutes: 350
-    env:
-      WORK: ${{ runner.temp }}/paw50
-      ISO_RUN_ID: ${{ inputs.iso_run_id }}
     steps:
       - name: Check out the exact tested commit
         uses: actions/checkout@v4
 
       - name: Record runner capacity and QEMU version
         run: |
+          # The runner context is not available in job-level env; publish the
+          # paths to later steps through GITHUB_ENV instead.
+          echo "WORK=$RUNNER_TEMP/paw50" >> "$GITHUB_ENV"
+          echo "ISO_RUN_ID=${{ inputs.iso_run_id }}" >> "$GITHUB_ENV"
           mkdir -p artifacts
           {
             date -u +%FT%TZ

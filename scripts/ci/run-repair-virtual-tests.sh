@@ -104,9 +104,29 @@ YAML
   printf 'oldmodule\n' >"$mnt/etc/initramfs-tools/modules"
   printf 'UUID=%s / ext4 errors=remount-ro 0 1\n' "$uuid" >"$mnt/etc/fstab"
   printf 'set default=0\n# original-fixture-grub\nmenuentry "fixture" { linux /boot/vmlinuz-6.1.0 root=UUID=%s ro }\n' "$uuid" >"$mnt/boot/grub/grub.cfg"
-  : >"$mnt/lib/modules/6.1.0/kernel/drivers/ata/ahci.ko"
-  : >"$mnt/lib/modules/6.1.0/kernel/drivers/net/ethernet/realtek/r8169.ko"
-  printf 'kernel/drivers/ata/ahci.ko\n' >"$mnt/lib/modules/6.1.0/modules.dep"
+  # Real ELF objects, not empty placeholders: depmod reads module headers and
+  # an empty file makes the target's depmod fail with "short read" before the
+  # initramfs step is ever reached.
+  cat >"$work/module.c" <<'C'
+int paw_fixture_module_symbol;
+C
+  gcc -c -O2 -o "$mnt/lib/modules/6.1.0/kernel/drivers/ata/ahci.ko" "$work/module.c"
+  gcc -c -O2 -o "$mnt/lib/modules/6.1.0/kernel/drivers/net/ethernet/realtek/r8169.ko" "$work/module.c"
+  printf 'kernel/drivers/ata/ahci.ko\nkernel/drivers/net/ethernet/realtek/r8169.ko\n' >"$mnt/lib/modules/6.1.0/modules.dep"
+  : >"$mnt/lib/modules/6.1.0/modules.order"
+  : >"$mnt/lib/modules/6.1.0/modules.builtin"
+  # Real depmod, not a stub: the production repair rebuilds dependency indexes
+  # and the test asserts that path actually ran.  Copy its dynamic loader and
+  # libraries into the disposable chroot; the host's ld.so.preload shim is not
+  # part of depmod's DT_NEEDED set and would be meaningless inside the target.
+  local depmod_bin lib
+  depmod_bin="$(command -v depmod || true)"
+  [[ -n "$depmod_bin" ]] || { echo "depmod from kmod is required for the fixture" >&2; return 1; }
+  install -D -m 0755 "$depmod_bin" "$mnt/usr/sbin/depmod"
+  while IFS= read -r lib; do
+    [[ -n "$lib" && "$lib" != *libonion* ]] || continue
+    [[ -e "$mnt$lib" ]] || install -D -m 0755 "$lib" "$mnt$lib"
+  done < <(ldd "$depmod_bin" 2>/dev/null | awk '/=> \//{print $3} /^\//{print $1}' | sort -u)
   ssh-keygen -q -t ed25519 -N '' -f "$work/host-before"
   install -m 0600 "$work/host-before" "$mnt/etc/ssh/ssh_host_ed25519_key"
   install -m 0644 "$work/host-before.pub" "$mnt/etc/ssh/ssh_host_ed25519_key.pub"
@@ -206,6 +226,7 @@ import json,sys
 d=json.load(open(sys.argv[1])); assert d['status']=='SIMULATION_PASS'; assert d['simulation'] is True
 assert d['authorized_keys_touched'] is False and d['PAW_application_data_touched'] is False
 assert d['initramfs_modules_verified']=='PASS', d.get('initramfs_modules_verified')
+assert d['depmod_result']=='rebuilt', d.get('depmod_result')
 PY
   backup="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["backup_path"])' "$state/reports/offline-repair.json" 2>/dev/null || true)"
   [[ -n "$backup" && -s "$backup/target-configs.before.tar" && -s "$backup/target-configs.before.tar.sha256" ]] && pass 'Reversible configuration backup exists with SHA256' || fail 'Repair backup missing'

@@ -59,11 +59,43 @@ if [[ ! -s "$mount_root/boot/grub/grub.cfg" ]]; then
   log INFO "Mounted separate boot partition $boot_part at the cloned /boot."
 fi
 [[ -d "$mount_root/etc/initramfs-tools" ]] && modules_dir_existed=1
+# Tear down the chroot's /dev,/proc,/sys binds (plus the private devpts/shm
+# mounts under /dev).  If any of them is unexpectedly busy, detach lazily so
+# the disposable repair mount is always released and never reused; the next
+# boot's fsck owns final consistency.
+lazy_detach=0
+detach_chroot_binds(){
+  local item
+  for item in sys proc dev; do
+    mountpoint -q "$mount_root/$item" || continue
+    if ! umount -R "$mount_root/$item" 2>/dev/null; then
+      # A recursively bound /dev can contain a busy submount (/dev/shm is
+      # commonly held by an unrelated process).  Detach lazily so the repair
+      # mount can still be released; the next boot's fsck owns consistency.
+      lazy_detach=1
+      umount -Rl "$mount_root/$item" 2>/dev/null || umount -l "$mount_root/$item" 2>/dev/null || true
+    fi
+  done
+  for item in dev proc sys; do
+    if mountpoint -q "$mount_root/$item"; then
+      lazy_detach=1
+      umount -l "$mount_root/$item" 2>/dev/null || true
+    fi
+  done
+}
+unmount_repair_root(){
+  mountpoint -q "$mount_root" || return 0
+  if ! umount "$mount_root" 2>/dev/null; then
+    lazy_detach=1
+    umount -l "$mount_root" 2>/dev/null || true
+  fi
+  ! mountpoint -q "$mount_root"
+}
 rollback(){
   rc=$?
   if ((rc != 0)) && [[ ${mounted:-0} == 1 ]]; then
     set +e
-    if [[ ${binds:-0} == 1 ]]; then for item in sys proc dev; do umount -R "$mount_root/$item" 2>/dev/null; done; fi
+    if [[ ${binds:-0} == 1 ]]; then detach_chroot_binds; binds=0; fi
     if [[ -s "$backup/original-paths.txt" ]]; then
       rm -f "$mount_root/etc/netplan/80-paw-migration.yaml" "$mount_root/etc/cloud/cloud.cfg.d/99-paw-disable-network-config.cfg"
       find "$mount_root/etc/ssh" -maxdepth 1 -type f -name 'ssh_host_*' -delete 2>/dev/null
@@ -79,13 +111,25 @@ rollback(){
       fi
       if [[ ${modules_dir_existed:-1} == 0 ]]; then rm -rf "$mount_root/etc/initramfs-tools"; fi
     fi
-    if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot" 2>/dev/null || true; fi
-    umount "$mount_root" 2>/dev/null
-    e2fsck -f -p "$dev" || true
+    if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot" 2>/dev/null || true; boot_mounted=0; fi
+    if unmount_repair_root; then
+      mounted=0
+      if ((lazy_detach == 1)); then
+        # A detached-but-still-referenced mount keeps the superblock busy, so
+        # e2fsck would only report "is in use".  Do not risk an on-line fsck;
+        # the rollback already restored the original configuration and the
+        # next boot performs its normal fsck.
+        log WARN 'Rollback released the repair mount lazily (busy submount); skipped post-rollback e2fsck.'
+      else
+        e2fsck -f -p "$dev" || true
+      fi
+    else
+      log WARN 'Repair root is still busy after rollback; skipped post-rollback e2fsck.'
+    fi
     set -e
   fi
-  if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot" 2>/dev/null || true; fi
-  if [[ ${mounted:-0} == 1 ]]; then umount "$mount_root" || true; fi
+  if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot" 2>/dev/null || true; boot_mounted=0; fi
+  if [[ ${mounted:-0} == 1 ]]; then unmount_repair_root || true; mounted=0; fi
   if ((rc != 0)); then
     if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
       transaction_event NEEDS_MANUAL_ACTION --phase repair --reason "offline repair failed rc=$rc" || true
@@ -206,14 +250,32 @@ for module in ahci r8169 i915; do
 done
 
 binds=1
-for item in dev proc sys; do mount --rbind "/$item" "$mount_root/$item"; mount --make-rslave "$mount_root/$item"; done
+# Bind the three pseudo-filesystems non-recursively.  A recursive bind of /dev
+# inherits host submounts such as /dev/shm and /dev/pts; on some kernels that
+# leaves the cloned root's superblock busy after umount, so a post-rollback
+# fsck sees "device is in use" even though /proc/mounts is clean.  A plain bind
+# still exposes every device node and /dev/disk/by-id symlink the chroot tools
+# need.  Provide private devpts/shm instances instead of inheriting the host's.
+for item in dev proc sys; do mount --bind "/$item" "$mount_root/$item"; done
+install -d "$mount_root/dev/pts" "$mount_root/dev/shm"
+mount -t devpts devpts "$mount_root/dev/pts" 2>/dev/null || true
+mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs "$mount_root/dev/shm" 2>/dev/null || true
 # Rebuild libkmod indexes after adding modules; update-initramfs/dracut uses
 # modules.dep.bin, not the text modules.dep, so an injected module is otherwise
 # reported as missing even though the .ko file exists.  Minimal fixtures and
 # unusual targets may have no depmod; that is a warning, not a boot-repair
 # failure, because update-initramfs can still run from its own dependency data.
+depmod_result='no_depmod'
 if chroot "$mount_root" sh -c 'command -v depmod >/dev/null 2>&1'; then
-  chroot "$mount_root" sh -c 'for k in /lib/modules/*; do [ -d "$k" ] && depmod -a "$(basename "$k")"; done'
+  if chroot "$mount_root" sh -c 'for k in /lib/modules/*; do [ -d "$k" ] && depmod -a "$(basename "$k")"; done'; then
+    depmod_result='rebuilt'
+  else
+    # Never let a broken module tree masquerade as a successful rebuild, but do
+    # not abort here either: the lsinitramfs check below is the authoritative
+    # gate and fails closed when a required module is absent from the initrd.
+    depmod_result='failed'
+    log WARN 'depmod failed; module dependency indexes may be stale. Initramfs module verification remains the hard gate.'
+  fi
 else
   log WARN 'Target has no depmod; module dependency indexes were not rebuilt.'
 fi
@@ -314,18 +376,19 @@ cfg=open(grub,encoding="utf-8",errors="replace").read()
 if uuid.lower() not in cfg.lower(): errors.append("grub.cfg does not reference the cloned root UUID")
 if errors: raise SystemExit("; ".join(errors))
 PY
-for item in sys proc dev; do umount -R "$mount_root/$item"; done
+detach_chroot_binds
 binds=0
 sync
 if [[ ${boot_mounted:-0} == 1 ]]; then umount "$mount_root/boot"; boot_mounted=0; fi
-umount "$mount_root"; mounted=0
+unmount_repair_root || die 'Repair root is still busy after a successful repair; refusing to claim a clean unmount.'
+mounted=0
 trap - EXIT
 if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
   transaction_event REPAIRED
 fi
-python3 - "$PAW_REPORT_DIR/offline-repair.json" "$backup" "$grub_install_result" "${PAW_SIMULATION:-0}" "${initramfs_modules[*]:-}" "$initramfs_verified" "$initramfs_missing" "$i915_available" "$grub_install_device" "$grub_debconf_pinned" <<'PY'
+python3 - "$PAW_REPORT_DIR/offline-repair.json" "$backup" "$grub_install_result" "${PAW_SIMULATION:-0}" "${initramfs_modules[*]:-}" "$initramfs_verified" "$initramfs_missing" "$i915_available" "$grub_install_device" "$grub_debconf_pinned" "$depmod_result" <<'PY'
 import json,os,sys,datetime
-path,backup,grub,simulation,modules,verified,missing,i915,grub_device,grub_pinned=sys.argv[1:]
+path,backup,grub,simulation,modules,verified,missing,i915,grub_device,grub_pinned,depmod=sys.argv[1:]
 status="SIMULATION_PASS" if simulation=="1" else "PASS"
 changes=["netplan DHCP matched to e* (eth0/en*/r8169) with no fixed MAC","cloud-init network disabled","old Tencent/MAC udev overrides disabled","machine-id regenerated","SSH host keys regenerated","clone-local Tailscale state cleared"]
 if modules:
@@ -342,7 +405,7 @@ elif grub_pinned=="cloud_style_no_debconf":
 elif grub_pinned=="no_by_id_symlink":
     changes.append(f"no by-id symlink; GRUB installed to mutable name {grub_device} (flagged)")
 with open(path,"w",encoding="utf-8") as handle:
-    json.dump({"status":status,"changes":changes,"grub_install":grub,"grub_install_device":grub_device,"grub_debconf_pinned":grub_pinned,"grub_install_devices_stable":grub_pinned=="debconf_noninteractive","simulation":simulation=="1","initramfs_modules_requested":modules.split(",") if modules else [],"initramfs_modules_verified":verified,"initramfs_modules_missing":missing.split(",") if missing else [],"hd4600_i915_available":i915=="1","grub_noninteractive":True,"fstab_uuid_checked":True,"backup_path":backup,"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"authorized_keys_touched":False,"PAW_application_data_touched":False},handle,indent=2)
+    json.dump({"status":status,"changes":changes,"grub_install":grub,"grub_install_device":grub_device,"grub_debconf_pinned":grub_pinned,"grub_install_devices_stable":grub_pinned=="debconf_noninteractive","simulation":simulation=="1","depmod_result":depmod,"initramfs_modules_requested":modules.split(",") if modules else [],"initramfs_modules_verified":verified,"initramfs_modules_missing":missing.split(",") if missing else [],"hd4600_i915_available":i915=="1","grub_noninteractive":True,"fstab_uuid_checked":True,"backup_path":backup,"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"authorized_keys_touched":False,"PAW_application_data_touched":False},handle,indent=2)
     os.chmod(path,0o600)
 PY
 

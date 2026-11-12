@@ -35,13 +35,13 @@ paw_tty_open_optional || die '无法打开交互终端;未写入任何结果.'
 paw_tty_clear
 paw_tty_marker PAW-TTY1-MEMTEST-PANEL
 paw_tty_say 'PAW 内存检测人工确认'
-paw_tty_say '本界面只登记操作员在 Memtest86+ 独立启动项中亲眼看到的结果.'
+paw_tty_say '本界面只登记操作员在 Memtest86+ 独立启动项中直接看到的结果.'
 paw_tty_say '它不是机器自动验证,也不是密码学证明;请不要凭猜测填写.'
 paw_tty_say "目标 SSD:$target_dev 型号=${target_model:-未知} 容量=$target_capacity bytes"
 paw_tty_say "目标序列号:$target_serial"
 paw_tty_say "本次 PAW Live 启动 ID:$boot_id"
 paw_tty_say '请选择:'
-paw_tty_say '  1) Memtest86+ 已完成至少 1 轮,错误数为 0'
+paw_tty_say '  1) Memtest86+ 已完成最少 1 轮,错误数为 0'
 paw_tty_say '  2) Memtest86+ 已完成,但出现错误'
 paw_tty_say '  3) 尚未完成,无法确认或不确定'
 paw_tty_marker PAW-TTY1-MEMTEST-PROMPT

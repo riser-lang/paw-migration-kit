@@ -31,7 +31,7 @@ unset source_fields
 # after any hot-plug, reboot or /dev/sdX renumbering.  An ambiguous or missing
 # identity stops here instead of selecting the first same-capacity disk.
 resolved="$(python3 "$PAW_ROOT/scripts/paw-identity.py" resolve --config "$target_cfg" 2>/dev/null)" \
-  || die '目标 SSD 的稳定身份无法唯一定位;拒绝继续.'
+  || die '目标 SSD 的稳定身份无法单独定位;拒绝继续.'
 dst="$(python3 -c 'import json,sys;print(json.load(sys.stdin).get("device_path",""))' <<<"$resolved")"
 configured_dst="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("device_path",""))' "$target_cfg")"
 if [[ -n "$dst" && "$dst" != "$configured_dst" ]]; then

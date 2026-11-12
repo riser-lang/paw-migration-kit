@@ -52,7 +52,7 @@ if [[ ! -s "$cfg" ]]; then
   # shellcheck source=scripts/paw-tty-lib.sh
   source "$PAW_ROOT/scripts/paw-tty-lib.sh"
   export PAW_TTY_SESSION_NAME=network-wizard
-  paw_tty_say '请粘贴自己的 vless:// 连接链接(输入时不回显,不进入 shell history).'
+  paw_tty_say '请粘贴自身的 vless:// 连接链接(输入时不回显,不进入 shell history).'
   paw_tty_prompt 'VLESS 链接(直接粘贴后回车):'
   uri=''
   if ! paw_tty_read_secret uri; then paw_tty_close; die 'VLESS input timed out; nothing was started.'; fi
