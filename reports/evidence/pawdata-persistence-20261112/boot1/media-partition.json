@@ -1,0 +1,13 @@
+{
+  "schema": "paw.media-partition.v1",
+  "status": "PASS",
+  "disk": "/dev/sdc",
+  "data_partition": "/dev/sdc3",
+  "partition_number": 3,
+  "table": "dos",
+  "partitions_before": 2,
+  "partitions_after": 3,
+  "formatted_only_new_partition": true,
+  "remount_verified": true,
+  "completed_at": "2026-11-12T10:37:05.029021+00:00"
+}

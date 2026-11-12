@@ -1,0 +1,9 @@
+
+PAWDATA 首次自动准备
+PASS: fbcon 16x16 font loaded on current boot; sha256=bad27762d43a495b6c1b4d3d88d48f58b98790f06ce193710b8226945c3a1f0a; tty=/dev/tty1
+The device contains 'iso9660' signature and it may remain on the device. It is recommended to wipe the device with wipefs(8) or sfdisk --wipe, in order to avoid possible collisions.
+
+2026-11-12T10:36:52Z [WARN] partprobe could not refresh the hybrid ISO partition table; trying partx.
+2026-11-12T10:37:05Z [INFO] PAWDATA ext4 partition is mounted root-only; table=dos; new_partition=/dev/sdc3; only the new partition was formatted.
+2026-11-12T10:37:07Z [INFO] PAWDATA mount and free-space gate passed.
+2026-11-12T10:37:09Z [INFO] PAWDATA automatic guided initialization completed; only the newly appended partition was formatted.

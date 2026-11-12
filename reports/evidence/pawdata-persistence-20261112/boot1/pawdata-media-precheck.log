@@ -1,0 +1,1 @@
+PAW_MEDIA_PRECHECK device=/dev/sdc ro=0 state=sdc 1 0 usb    PAW-MEDIA-123456 29.8G; live_medium_source=tmpfs

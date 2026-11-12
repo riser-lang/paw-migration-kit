@@ -1,0 +1,29 @@
+Disk /dev/sdc: 29.8 GiB, 32000000000 bytes, 62500000 sectors
+Disk model: QEMU HARDDISK   
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x297bd29b
+
+Old situation:
+
+Device     Boot Start     End Sectors  Size Id Type
+/dev/sdc1  *       64 2004991 2004928  979M  0 Empty
+/dev/sdc2         556    7211    6656  3.3M ef EFI (FAT-12/16/32)
+
+/dev/sdc3: Created a new partition 3 of type 'Linux' and of size 28.8 GiB.
+/dev/sdc4: Done.
+
+New situation:
+Disklabel type: dos
+Disk identifier: 0x297bd29b
+
+Device     Boot   Start      End  Sectors  Size Id Type
+/dev/sdc1  *         64  2004991  2004928  979M  0 Empty
+/dev/sdc2           556     7211     6656  3.3M ef EFI (FAT-12/16/32)
+/dev/sdc3       2004992 62499999 60495008 28.8G 83 Linux
+
+The partition table has been altered.
+Calling ioctl() to re-read partition table.
+Syncing disks.

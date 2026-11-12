@@ -44,9 +44,14 @@ PAWDATA 必须追加到 USB 启动介质尾部，不能把内部 SATA 盘误认�
 虚拟验收使用真实块设备 `/dev/sdc`，并检查 `lsblk RM=1`、序列号、容量后才
 允许 `sfdisk` 追加分区；QEMU 的 USB 设备本轮为可写，符合真实 U 盘行为。
 
-首次启动创建 `/var/lib/paw-migration/.paw-persistence-token`；第二次以
-`paw3.test=usb-persistence` 启动读取同一 token。持久化结果见
-`PAW-V2.8.1-FULL-CHAIN-TEST-REPORT.md` 与 `evidence/final/usb-persistence/`。
+首次启动创建 `/var/lib/paw-migration/.paw-persistence-token`；第二次对**同一张**
+32,000,000,000 字节镜像正常启动（未重建介质、未调用 persistence 专用 kernel 参数），
+Guest 报告 `PAWDATA already initialized; no serial-suffix prompt was needed`，
+systemd 找到 `PAWDATA` 标签，`paw-data-prepare.sh` 报告
+`already mounted and healthy; no partition change was made`，token SHA256
+仍为 `b7a649694fdbe134ade86795bf7059b5084c5973286786b17c65a2d2ba914290`。
+两轮主机侧分区几何一致：仅 `/dev/sdc3`，start=2004992、size=60495008。
+证据：`reports/evidence/pawdata-persistence-20261112/`（含 `persistence-compare.json`）。
 
 ## 4. 中文菜单/字体
 

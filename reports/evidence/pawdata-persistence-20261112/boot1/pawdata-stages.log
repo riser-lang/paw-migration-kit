@@ -1,0 +1,31 @@
+2026-11-12T10:36:43Z stage=preflight media_state
+  read_only=0
+  lsblk=sdc 1 0 usb    PAW-MEDIA-123456 29.8G;
+  mounted_children=
+2026-11-12T10:36:43Z stage=preflight_writable blockdev --getro=0
+2026-11-12T10:36:44Z stage=partition_table_before dumping table before write
+2026-11-12T10:36:47Z stage=mbr_append start=2004992 size=60495008
+2026-11-12T10:36:49Z stage=partition_table_after dumping table after write
+2026-11-12T10:36:51Z stage=partprobe refreshing partition nodes
+2026-11-12T10:36:51Z stage=partprobe command=partprobe /dev/sdc read_only=0
+  stderr: Warning: The driver descriptor says the physical block size is 2048 bytes, but Linux says it is 512 bytes.
+2026-11-12T10:36:52Z stage=partprobe exit=1
+2026-11-12T10:36:53Z stage=partx command=partx --add --nr 3 /dev/sdc read_only=0
+  stderr: partx: /dev/sdc: error adding partition 3
+2026-11-12T10:36:54Z stage=partx exit=1
+2026-11-12T10:36:55Z stage=udevadm_settle command=udevadm settle read_only=0
+2026-11-12T10:36:56Z stage=udevadm_settle exit=0
+2026-11-12T10:36:56Z stage=partition_node_wait waiting for /dev/sdc3
+2026-11-12T10:36:56Z stage=mkfs formatting only new partition /dev/sdc3
+2026-11-12T10:36:56Z stage=mkfs command=mkfs.ext4 -F -L PAWDATA /dev/sdc3 read_only=0
+  stderr: mke2fs 1.47.2 (1-Jan-2025)
+2026-11-12T10:36:57Z stage=mkfs exit=0
+2026-11-12T10:36:57Z stage=mkfs_done new partition formatted ext4
+2026-11-12T10:36:58Z stage=first_mount command=mount -t ext4 -o rw,noatime,errors=remount-ro,noexec,nosuid,nodev /dev/sdc3 /var/lib/paw-migration read_only=0 fstype=ext4 mountpoint_state=unmounted
+2026-11-12T10:36:58Z stage=first_mount exit=0 fstype_now=ext4 mountpoint_now=mounted
+2026-11-12T10:37:00Z stage=remount_umount command=umount /var/lib/paw-migration read_only=0 fstype=ext4 mountpoint_state=mounted
+2026-11-12T10:37:00Z stage=remount_umount exit=0 mountpoint_now=unmounted
+2026-11-12T10:37:01Z stage=remount_mount command=mount -t ext4 -o rw,noatime,errors=remount-ro,noexec,nosuid,nodev /dev/sdc3 /var/lib/paw-migration read_only=0 fstype=ext4 mountpoint_state=unmounted
+2026-11-12T10:37:03Z stage=remount_mount exit=0 fstype_now=ext4 mountpoint_now=mounted
+2026-11-12T10:37:04Z stage=remount_done persistence marker survived umount/remount
+2026-11-12T10:37:05Z stage=complete PAWDATA ext4 mounted; new_partition=/dev/sdc3 table=dos

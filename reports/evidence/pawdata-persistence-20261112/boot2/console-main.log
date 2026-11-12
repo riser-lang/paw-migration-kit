@@ -1,0 +1,5 @@
+[  202.129012] paw-data-prepare.sh[909]: 2026-11-12T10:42:03Z [INFO] PAWDATA is already mounted and healthy; no partition change was made.
+PAWDATA already initialized; no serial-suffix prompt was needed
+[  673.585729] guest-chain.sh[4878]: PAWDATA already initialized; no serial-suffix prompt was needed
+PAW3_STEP=pawdata STATUS=PASS disk=/dev/sdc serial=PAW-MEDIA-123456 token=/var/lib/paw-migration/.paw-persistence-token token_sha256=b7a649694fdbe134ade86795bf7059b5084c5973286786b17c65a2d2ba914290 persistence_token_created_or_reused=true
+[  673.853249] guest-chain.sh[4884]: PAW3_STEP=pawdata STATUS=PASS disk=/dev/sdc serial=PAW-MEDIA-123456 token=/var/lib/paw-migration/.paw-persistence-token token_sha256=b7a649694fdbe134ade86795bf7059b5084c5973286786b17c65a2d2ba914290 persistence_token_created_or_reused=true

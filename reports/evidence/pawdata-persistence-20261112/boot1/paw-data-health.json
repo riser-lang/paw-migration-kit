@@ -1,0 +1,7 @@
+{
+  "schema": "paw.hardware-health.v1",
+  "status": "PASS",
+  "reason": "PAWDATA label, ext4 mount, write check and free-space threshold passed.",
+  "generated_at": "2026-11-12T10:37:06Z",
+  "host": "paw-live"
+}

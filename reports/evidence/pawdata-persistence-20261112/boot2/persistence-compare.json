@@ -1,0 +1,14 @@
+{
+  "schema": "paw.pawdata-persistence-compare.v1",
+  "boot1_token_sha256": "b7a649694fdbe134ade86795bf7059b5084c5973286786b17c65a2d2ba914290",
+  "boot2_token_sha256": "b7a649694fdbe134ade86795bf7059b5084c5973286786b17c65a2d2ba914290",
+  "token_reused": true,
+  "boot1_new_partition": true,
+  "boot2_existing_partition_mounted": true,
+  "boot2_skipped_prompt": true,
+  "boot2_no_partition_change": true,
+  "boot2_health_status": "PASS",
+  "boot1_stage_complete": true,
+  "boot2_stage_complete": null,
+  "partition_table_geometry_identical": true
+}
