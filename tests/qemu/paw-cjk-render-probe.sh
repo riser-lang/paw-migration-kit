@@ -11,15 +11,16 @@ export PAW_LOG_DIR="$PAW_STATE_DIR/logs"
 export PAW_INTERACTIVE_TTY=/dev/tty1
 export PAW_REBOOT_COUNTDOWN_SECONDS=5
 export PAW_REBOOT_CMD=/bin/true
+export PAW_FINALIZE_TEST_MODE=1
 mkdir -p "$PAW_CONFIG_DIR" "$PAW_REPORT_DIR" "$PAW_LOG_DIR"
 cat >"$PAW_REPORT_DIR/stream-verify.json" <<'JSON'
 {"status":"PASS","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","bytes_verified":1024,"independent_sha256_verified":true}
 JSON
 printf '{"status":"PASS"}\n' >"$PAW_REPORT_DIR/offline-repair.json"
 printf '{"status":"PASS","before_bytes":100,"after_bytes":200}\n' >"$PAW_REPORT_DIR/gpt-expand.json"
-printf '{"status":"PASS","clone_sha256":"%s"}\n' "$(printf 'a%.0s' {1..64})" >"$PAW_REPORT_DIR/firstboot-check.json"
+printf '{"schema":"paw.preboot-handoff.v1","status":"PASS"}\n' >"$PAW_REPORT_DIR/preboot-handoff.json"
 cat >"$PAW_STATE_DIR/completion.json" <<'JSON'
-{"schema":"paw.migration-completion.v2","status":"PASS","checks":{"clone":"PASS","sha256":"PASS","offline_repair":"PASS","gpt_ext4_expand":"PASS","firstboot":"PASS"}}
+{"schema":"paw.migration-completion.v2","status":"PASS","checks":{"clone":"PASS","sha256":"PASS","offline_repair":"PASS","gpt_ext4_expand":"PASS","preboot_handoff":"PASS"}}
 JSON
 cat >"$PAW_REPORT_DIR/operator-authorization.json" <<'JSON'
 {"status":"AUTHORIZED","target_serial":"QEMU-123456","target_device":"/dev/loop0"}
