@@ -1,0 +1,44 @@
+PAW Memtest86+ evidence (2026-11-11 UTC)
+
+Binary/config provenance
+------------------------
+configs/memtest86+/memtest86+x64.bin
+  SHA256 487bfe56b84f2016b12f393641f1acb765ef0b648c71ea9a2e3d42b62411f71f
+  embedded version string: Memtest86+ v7.20
+configs/live-build/bootloaders/isolinux/memtest.cfg uses:
+  linux /boot/memtest86+x64.bin
+  append console=ttyS0,115200n8
+(not the invalid `kernel` directive)
+
+A. Real release-ISO ISOLINUX menu selection (QEMU/SeaBIOS, no -kernel)
+--------------------------------------------------------------------------------
+Command:
+  python3 tests/prehardware/memtest-isolinux-menu.py \
+    ~/prehardware-20261111/iso/paw-live-amd64.patched.iso \
+    ~/prehardware-20261111/memtest-menu-3.0
+
+Method: the release ISO is attached as a CD; SeaBIOS boots ISOLINUX; after 3 s the
+harness presses the top-level hotkey `m` ("^Memory test (Memtest86+ ...)") and Enter.
+A pre-key and post-key screendump are retained and differ, proving the selection.
+RESULT=PASS: banner=Memtest86+ v7.20, Status: Testing, Errors: 0.
+
+Files / SHA256
+  serial.log          c36cfeb580d9e807515bb5a634468f53f674d0512bbd195943db39d1c3b569cd
+  menu.ppm            105c6d3ae1aae5b508bce5759adef6f09d1de9a0347e732554889f5ba23b5d91
+  menu-selected.ppm   67e6088140067abc24ad1369472a47a096ab46b8a50596ef3c09a80f88ddc0dc
+  memtest.ppm         4ca1b5a82ecd26ee7e78b8b1e7229205f649c1cc8fd0013425db85d5fe7886a3
+
+B. Completed full pass (previous QEMU run, same pinned binary)
+--------------------------------------------------------------
+Log: ~/prehardware-20261111/memtest-full-3g/serial.log
+  SHA256 8539326b79c0ae4b83e93150e5bc539bf3c57b5e03d2dcfb6cd11e20392cdf69
+Observed strings:
+  Memtest86+ v7.20
+  First "Status: Pass" at Time: 0:22:30, Pass: 1, Errors: 0
+  (an earlier "Time: 0:20:58" line was still Status: Testing)
+Screen capture at Time: 0:24:03 (still Status: Pass, Pass: 1, Errors: 0):
+  ~/prehardware-20261111/memtest-full-3g/full-pass-1.txt
+  SHA256 8a33d2e0436741a29d2dd06561bcecabb75f21c500265e69e39328e3c708e2b2
+
+Boundary: all runs are QEMU/TCG virtual memory. Physical ASUS DIMM testing remains
+NEEDS_TEST; OPERATOR_CONFIRMED in the migration chain is attestation, not machine proof.

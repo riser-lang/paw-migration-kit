@@ -1,0 +1,29 @@
+PAW P0 remediation tests
+Executed: 2026-11-11T15:53:56Z
+PASS P0-1 memtest.cfg uses linux (not kernel) for the bzImage
+PASS P0-1 pinned Memtest86+ binary SHA256 matches v7.20
+PASS P0-1 pinned binary embeds version 7.20
+PASS P0-2 clone asserts authorization/transaction before marker or target write
+PASS P0-2 transaction initialized in AUTHORIZED
+PASS P0-2 six-hour expiry blocks clone start
+PASS P0-2 unexpired clone start allowed
+PASS P0-2 CLONE_STARTED recorded
+PASS P0-2 verify after 6h+ is allowed (expiry not applied post-clone)
+PASS P0-2 post-clone assert reports expiry_enforced=false
+PASS P0-2 interrupted clone retained as CLONE_INCOMPLETE
+PASS P0-2 CLONE_VERIFIED recorded after late verification
+PASS P0-2 duplicate clone start rejected after verification
+PASS P0-2 repair allowed from CLONE_VERIFIED with matching independent hash
+PASS P0-2 expansion allowed from REPAIRED
+PASS P0-2 finalizer gate allowed from READY_TO_BOOT
+PASS P0-2 COMPLETE only after READY_TO_BOOT
+PASS P0-2 target identity change blocks finalizer
+PASS P0-2 old authorization cannot restart a transaction
+PASS P0-3 read-write source mount blocked
+PASS P0-3 missing findmnt blocked
+PASS P0-3 malformed mountinfo blocked
+PASS P0-3 source discovery no longer swallows findmnt errors
+PASS P0-3 read-only mount at an alternate mountpoint passes
+PASS P0-3 wrong/alternate mountpoint read-write mount blocked
+PASS P0-3 unmounted block device passes
+Summary: 26 passed, 0 failed

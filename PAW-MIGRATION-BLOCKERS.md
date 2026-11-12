@@ -1,45 +1,32 @@
 # PAW Migration Blockers
 
-Updated: 2026-11-11 UTC (Stage 3 close / Stage 4 ISO verified / target boot re-verified)
-Current branch: `vm/ds-clean-handover-20261110`
-Current code HEAD: `24c13f7`
+Updated: 2026-11-11 UTC (PAW v2.8 pre-hardware acceptance)
+Current branch: `vm/ds-prehardware-acceptance-20261111`
+Current code HEAD: `a5c423f` (source_os/gpt-expand fixes on top of `b9f5c5b`)
 Base: `d640712`
 PR #2: Draft, not merged
 
 ## Current blocker table
 
-| ID | Status | Blocker | Exit condition |
+| ID | Status | Blocker | Exit condition / evidence |
 |---|---|---|---|
-| FONT-GATE | **CLOSED** | Destructive writes were not tied to a same-boot fbcon 16x16 PASS report | `paw-font-gate.py` validates schema `paw.console-font.v2`, `status=PASS`, `mode=fbcon`, boot ID, primary font, actual/manifest SHA256, `setfont_exit_code=0` and PSF2 geometry; destructive entries call it. CI `42825407549`: 26/26 gate, CJK 25/25. |
-| STAGE2 | **CLOSED (virtual block devices)** | Earlier clone round used `PAW_SIMULATION=1` | Stage 3 ran real `paw-stream-clone.sh`/`paw-stream-verify.sh` on QEMU virtio `/dev/vdb`→`/dev/vdc`, `mode=remote-zstd-level1-thread1`, real loopback SSH, full `paw-offline-repair.sh`, GPT/ext4 expansion and target boots. Physical SSD still OPEN under P1-4. |
-| STAGE3 | **CLOSED** | Full 26-step chain not complete | All steps 1–26 are covered by real PASS logs or the independent boot verification; `auto_reboot` persisted+synced status before reboot. The chain's `target_boot` detector was cut by the outer scheduler (`qemu_rc=-9`); a separate QEMU/SeaBIOS run (`target.img` only, `vda` `bootindex=1`, no direct kernel) re-verified `ubuntu login:`. Evidence: `reports/PAW-STAGE3-RESUME-20261110.md`, `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`. |
-| STAGE4 | **CLOSED (cloud ISO verified)** | Final ISO artifact not yet downloaded/hashed; Chinese delivery docs not yet finalized | Green Run `42941005270` on `24c13f7` completed 2026-11-11T02:03:39Z; artifact `13822300189` downloaded (1,030,665,613 bytes); ISO `paw-live-amd64.iso` 953,155,584 bytes, SHA256 `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`, matching the same-run sidecar. Docs and `PAW-V2.7.1-ISO-SHA256.txt` updated. Physical media still P1-4/DELIVERY. |
-| P0-1 | VIRTUALLY_VERIFIED / physical OPEN | Memtest86+ has a boot entry but no machine-verifiable capture | `OPERATOR_CONFIRMED` UI binds boot ID and target serial; real physical run still open. |
-| P0-2 | VIRTUALLY_VERIFIED / physical OPEN | PAWDATA required manual command | Auto-guided MBR/GPT append and persistence, 12/12 virtual tests. Real TF card still open. |
-| P0-3 | VIRTUALLY_VERIFIED / physical OPEN | Source discovery previously required a Virtio serial number | Composite identity with pinned SSH host key, root UUID, GPT layout and capacity; real Rescue still open. |
-| P0-4 | VIRTUALLY_VERIFIED / physical OPEN | Restored byte count was assumed | Actual decompressed counter, mixed data, interruption/short-read and SHA; 39/39 fault tests. Real SSH still open. |
-| P0-5 | VIRTUALLY_VERIFIED / physical OPEN | Authorization panel was journal-only | tty1 panel with timeout/markers; QEMU glyph-matching case, 25 assertions. Real screen still open. |
-| P1-4 | OPEN | Real hardware checks not performed | Run on target ASUS/SSD/TF card per `docs/PAW-V2.7-HARDWARE-CHECKLIST-ZH.md`. |
-| BUILD | **PASS** | Stage 4 ISO build not yet green | Run `42941005270` on `24c13f7` succeeded; artifact and ISO verified. Historical Run `42804949796`/`bf1a705` remains historical only. |
-| REPRO | OPEN | Cloud builds produce equal ISO size but different SHA256 | Byte-for-byte reproducibility not claimed; always use the same run's sidecar. |
-| CONSOLE | CLOSED (QEMU/static) | Operator panels went to journal only | tty1 binding plus 55 static, 15 PTY and QEMU glyph assertions; real ASUS screen still P1-4. |
-| GROWPART | CLOSED (virtual) | Root partition might not be last | `paw-gpt-expand.sh` refuses before touching GPT; virtual test proves table unchanged afterwards. |
-| GRUB-REPAIR | CLOSED (loop + real target boot) | Historical fixture used a stub | Real host `grub-install` on loop GPT, and real target `grub-install --target=i386-pc`, `update-grub`, `update-initramfs`; Stage 3 booted the result. |
-| PTY-LOCAL | OPEN (environment) | Sandbox has no usable `/dev/ptmx` | CI runs with `PAW_REQUIRE_PTY=1`; local status stays BLOCKED. |
-| CI-CURRENT | **PASS** | Run `42941005270` on `24c13f7` | Completed success in 20m 12s; gate 26/26, CJK 5 cases/96 assertions, PAWDATA 12/12, virtual 39/39, repair 19/19, network 17/17, finalize 36/36, TTY 56/56. |
-| DELIVERY | PENDING_USER | Real-world write/boot/migration | User writes TF card, re-hashes ISO, performs physical checklist. |
+| P0-MEMTEST | **CLOSED (virtual)**; physical OPEN | Memtest86+ menu entry vs. direct kernel boot | Real ISOLINUX release-ISO boot selected the `m` hotkey entry and reached `Memtest86+ v7.20`, `Status: Testing`, `Errors: 0`; separate full pass `Status: Pass`, `Pass: 1`, `Errors: 0`. Real ASUS DIMM run still `NEEDS_TEST`. |
+| P0-AUTH | **CLOSED (virtual)** | Clone authorization could be journal-only / expiry mishandled | `paw-transaction.py`; wrong serial no receipt and 1 MiB target unchanged; correct serial `AUTHORIZED`; expiry only before clone; interrupt/verify/repair/expand gated. |
+| P0-SOURCE-MOUNT | **CLOSED (virtual)** | Source could be mounted read-write or mount errors swallowed | `paw-source-mount-check.py` parses mountinfo; 7 scenarios fail closed; chain mounted source `ro`. |
+| P1-REMEDIATION | **CLOSED (virtual/static)** | O_DIRECT, NTFS, GRUB/by-id, AHCI/r8169, SMART, firstboot, service identity | 24/24 P1 report; `paw-stream-verify.sh` `iflag=direct`; NTFS excluded; `grub-pc` by-id+debconf readback (cloud-style images recorded honestly); AHCI/r8169 hard `die`; SMART PASS/WARN/FAIL; firstboot split; identity isolation manifest. |
+| PREHW-CHAIN | **RE-RUN IN PROGRESS** (not yet PASS) | Previous 12 GiB attempt passed through final authorization but was killed by the outer timeout before clone; fault suite had 2 failures in the non-last-root refusal text | Rebuilt guest with `blkid` fallback and os-release path fix; rerun must reach `PAW3_CHAIN_RESULT=PASS`, cloned target login and 39/39 virtual fault suite |
+| SUPP3-VLESS | **CLOSED (simulated)**; production OPEN | Live-ephemeral vs. persistent Tailscale identity; VLESS URI leakage | 25/25 VLESS suites; Xray v26.3.27 SHA256 `8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed`; URI stdin-only; proxy loopback 10808/10809; `/proc/PID/environ` inheritance. Real Tailnet/VPS/Windows `NEEDS_TEST`. |
+| SUPP4-PORTS | **DESIGN PASS**; production OPEN | Wuhan home broadband has no public IPv4 / no router port-forward | Policy refuses public IPv4 and router mapping; Serve (Tailnet) / Funnel (public edge) / GPT Tunnel outbound; cloud MCPs must not assume Tailscale 的 CGNAT 私有地址段; loopback-only 8800/10808/10809. Real Serve/Funnel/MCP/UDP `NEEDS_TEST`. |
+| PHYSICAL | **OPEN** | Real TF/SSD/ASUS/Rescue not touched | User writes/re-hashes TF, boots ASUS Legacy BIOS, records SMART/scan/temp and Memtest, verifies Tencent Rescue source, then authorizes real clone. |
+| REPRO | OPEN | Cloud ISO builds are not byte-reproducible | Always use the same build run's ISO sidecar; do not reuse a ZIP hash. |
+| PTY-LOCAL | OPEN (environment) | Sandbox has no usable `/dev/ptmx` | CI runs with `PAW_REQUIRE_PTY=1`; local status remains BLOCKED. |
 
-## Stage 3 close details
+## Virtual disk disclaimer
 
-- `stream-verify.json`: `efcae25cf0bcbe51ec9b842c097d641139a48825fd43191067ba6d3f9efcf2a9`,
-  3,758,096,384 bytes, independent verification true.
-- `offline-repair.json`: `status=PASS`, `simulation=false`, real `grub-install`.
-- `gpt-expand.json`: partition 256,623,230,464 bytes, ext4 62,652,155 blocks;
-  `grew=false` because the first attempt already grew the partition.
-- `reboot-status.json`: `status=PASS`, `reboot_invoked=true`,
-  `status_persisted_before_reboot=true`.
-- Target boot log: `evidence/stage3-target-second-boot.log`, SHA256
-  `8fd245911592108c82df0cc9fb97c6266418a3259ee9c904eda2d2b1e70fa565`.
+The chain used QEMU `ich9-ahci` + `ide-hd`; Linux reports `ata`. This is a
+disposable virtual AHCI/ATA substitute, not the physical ASUS SATA path. Source
+and target are files under `~/prehardware-20261111/boot/`; no host block device
+was written.
 
 ## Hard boundaries
 
@@ -49,5 +36,5 @@ PR #2: Draft, not merged
   cryptographic proof.
 - Never upload real credentials, server addresses, production UUIDs or keys.
 - Never compute a delivery ISO hash from an artifact ZIP.
-- Keep Stage 2/3/4 on virtual disks only.
-- Do not merge PR #2, change `main`, or delete existing Artifacts.
+- Do not merge PR #2, change `main`, delete Artifacts or change repository
+  visibility without a new explicit instruction.

@@ -1,0 +1,535 @@
+{
+  "schema": "paw.home-port-audit.v1",
+  "status": "FAIL",
+  "default_no_public_ipv4": true,
+  "default_no_router_port_forward": true,
+  "rows": [
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "127.0.0.1:10808",
+      "host": "127.0.0.1",
+      "port": "10808",
+      "class": "loopback",
+      "policy": {
+        "proto": "tcp",
+        "bind": [
+          "loopback"
+        ],
+        "public": false,
+        "purpose": "Temporary Xray SOCKS5"
+      },
+      "action": "ALLOW",
+      "public_bind": false
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "0.0.0.0:60616",
+      "host": "0.0.0.0",
+      "port": "60616",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "0.0.0.0:36357",
+      "host": "0.0.0.0",
+      "port": "36357",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "127.0.0.54:53",
+      "host": "127.0.0.54",
+      "port": "53",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "127.0.0.53%lo:53",
+      "host": "127.0.0.53%lo",
+      "port": "53",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "LAN_REDACTED%eth0:68",
+      "host": "LAN_REDACTED%eth0",
+      "port": "68",
+      "class": "lan",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "127.0.0.1:323",
+      "host": "127.0.0.1",
+      "port": "323",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "0.0.0.0:5353",
+      "host": "0.0.0.0",
+      "port": "5353",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "0.0.0.0:58710",
+      "host": "0.0.0.0",
+      "port": "58710",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "[::]:48068",
+      "host": "::",
+      "port": "48068",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "*:53133",
+      "host": "*",
+      "port": "53133",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "[::1]:323",
+      "host": "::1",
+      "port": "323",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "[::]:5353",
+      "host": "::",
+      "port": "5353",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "0.0.0.0:22",
+      "host": "0.0.0.0",
+      "port": "22",
+      "class": "public",
+      "policy": {
+        "proto": "tcp",
+        "bind": [
+          "tailnet",
+          "lan"
+        ],
+        "public": false,
+        "purpose": "SSH administration; prefer Tailscale SSH or LAN, never expose to the internet by default"
+      },
+      "action": "VIOLATION_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.1:10808",
+      "host": "127.0.0.1",
+      "port": "10808",
+      "class": "loopback",
+      "policy": {
+        "proto": "tcp",
+        "bind": [
+          "loopback"
+        ],
+        "public": false,
+        "purpose": "Temporary Xray SOCKS5"
+      },
+      "action": "ALLOW",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "LAN_REDACTED:3080",
+      "host": "LAN_REDACTED",
+      "port": "3080",
+      "class": "lan",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.54:53",
+      "host": "127.0.0.54",
+      "port": "53",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "0.0.0.0:5900",
+      "host": "0.0.0.0",
+      "port": "5900",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "0.0.0.0:6080",
+      "host": "0.0.0.0",
+      "port": "6080",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.1:631",
+      "host": "127.0.0.1",
+      "port": "631",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.1:9119",
+      "host": "127.0.0.1",
+      "port": "9119",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.53%lo:53",
+      "host": "127.0.0.53%lo",
+      "port": "53",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.1:5901",
+      "host": "127.0.0.1",
+      "port": "5901",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.1:5903",
+      "host": "127.0.0.1",
+      "port": "5903",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.1:5902",
+      "host": "127.0.0.1",
+      "port": "5902",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "127.0.0.1:5904",
+      "host": "127.0.0.1",
+      "port": "5904",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "[::]:22",
+      "host": "::",
+      "port": "22",
+      "class": "public",
+      "policy": {
+        "proto": "tcp",
+        "bind": [
+          "tailnet",
+          "lan"
+        ],
+        "public": false,
+        "purpose": "SSH administration; prefer Tailscale SSH or LAN, never expose to the internet by default"
+      },
+      "action": "VIOLATION_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "[::1]:631",
+      "host": "::1",
+      "port": "631",
+      "class": "loopback",
+      "policy": null,
+      "action": "UNKNOWN",
+      "public_bind": false
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "*:49983",
+      "host": "*",
+      "port": "49983",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "[::]:5900",
+      "host": "::",
+      "port": "5900",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    }
+  ],
+  "violations": [
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "0.0.0.0:60616",
+      "host": "0.0.0.0",
+      "port": "60616",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "0.0.0.0:36357",
+      "host": "0.0.0.0",
+      "port": "36357",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "0.0.0.0:5353",
+      "host": "0.0.0.0",
+      "port": "5353",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "0.0.0.0:58710",
+      "host": "0.0.0.0",
+      "port": "58710",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "[::]:48068",
+      "host": "::",
+      "port": "48068",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "*:53133",
+      "host": "*",
+      "port": "53133",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "udp",
+      "state": "UNCONN",
+      "local": "[::]:5353",
+      "host": "::",
+      "port": "5353",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "0.0.0.0:22",
+      "host": "0.0.0.0",
+      "port": "22",
+      "class": "public",
+      "policy": {
+        "proto": "tcp",
+        "bind": [
+          "tailnet",
+          "lan"
+        ],
+        "public": false,
+        "purpose": "SSH administration; prefer Tailscale SSH or LAN, never expose to the internet by default"
+      },
+      "action": "VIOLATION_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "0.0.0.0:5900",
+      "host": "0.0.0.0",
+      "port": "5900",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "0.0.0.0:6080",
+      "host": "0.0.0.0",
+      "port": "6080",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "[::]:22",
+      "host": "::",
+      "port": "22",
+      "class": "public",
+      "policy": {
+        "proto": "tcp",
+        "bind": [
+          "tailnet",
+          "lan"
+        ],
+        "public": false,
+        "purpose": "SSH administration; prefer Tailscale SSH or LAN, never expose to the internet by default"
+      },
+      "action": "VIOLATION_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "*:49983",
+      "host": "*",
+      "port": "49983",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    },
+    {
+      "proto": "tcp",
+      "state": "LISTEN",
+      "local": "[::]:5900",
+      "host": "::",
+      "port": "5900",
+      "class": "public",
+      "policy": null,
+      "action": "VIOLATION_UNKNOWN_PUBLIC",
+      "public_bind": true
+    }
+  ],
+  "notes": [
+    "Loopback is not reachable from LAN/Tailnet.",
+    "Tailscale Funnel ingress is public but does not create a home public bind or port-forward requirement.",
+    "This audit never changes firewall or listener state."
+  ],
+  "generated_at": "2026-11-12T03:20:31.207890+00:00"
+}

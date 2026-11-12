@@ -1,0 +1,28 @@
+PASS 01 Live direct Tailscale path (simulated)
+PASS 02 direct failure fails closed
+PASS 03 VPS online + VLESS wizard path (simulated)
+PASS 04 Xray config loopback-only, no private key
+PASS 05 bundled Xray v26.3.27 test mode starts
+PASS 06 HTTP proxy inbound is loopback 10809
+PASS 07 tailscaled proxy proven from /proc/PID/environ
+PASS 08 Tailscale IPv4 obtained (simulated)
+PASS 09 Windows peer reachability recorded (simulated)
+PASS 10 Xray loss fails closed, no false ONLINE
+PASS 11 Rescue direct path keeps Xray/Tailscale off
+PASS 12 VLESS interruption fails fast
+PASS 13 Rescue SSH direct path independent of VLESS
+PASS 14 clone chain independent of network identity
+PASS 15 firstboot semantics separate preboot/first boot
+PASS 16 Xray v26.3.27 pinned for Live ISO
+PASS 17 final Ubuntu identity isolation
+PASS 18 gateway-only allow-list and business disable plan
+PASS 19 old/new duplicate business services detected
+PASS 20 Exit Node remains optional plan
+PASS 21 Exit Node status observation (simulated)
+PASS 22 invalid VLESS rejected without echoing secret
+PASS 23 operator cancel leaves network state unchanged
+PASS 24 proxy removal restores direct mode
+PASS 25 proxy loss fails closed (no false PASS)
+
+RESULT passed=25 failed=0
+rc=0

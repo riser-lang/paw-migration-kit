@@ -1,151 +1,117 @@
 # PAW Migration Acceptance
 
-Updated: 2026-11-11 UTC (Stage 3 close / Stage 4 ISO verified / target boot re-verified)
-Current branch: `vm/ds-clean-handover-20261110`
-Current code HEAD: `24c13f7`
+Updated: 2026-11-11 UTC (PAW v2.8 pre-hardware acceptance)
+Current branch: `vm/ds-prehardware-acceptance-20261111`
+Current code HEAD: `a5c423f` (source_os/gpt-expand fixes on top of `b9f5c5b`)
 Base: `d640712`
 PR #2: Draft, not merged
-Historical green run: `42804949796` on `bf1a705` (not current evidence)
 
-## A0. P0-1 font fail-closed gate
+## A0. P0 remediation
 
-- [x] `scripts/paw-font-gate.py` rejects any report that is not same-boot
-      `paw.console-font.v2` `PASS` with `mode=fbcon`, `fbcon_bound=true`, primary
-      16x16 PSF2, actual/manifest SHA256 match and `setfont_exit_code=0`.
-- [x] 8x16 vgacon fallback is `WARN`, not `PASS`.
-- [x] Missing/corrupt font, manifest mismatch, `setfont` failure, missing/stale
-      report, vgacon-as-fbcon and unbound fbcon all block destructive writes.
-- [x] `paw-final-confirm.sh`, `paw-prepare-data-partition.sh`,
-      `paw-stream-clone.sh`, `paw-offline-repair.sh` and `paw-gpt-expand.sh`
-      gate before destructive writes.
-- [x] Fault injection: **26 assertions, 0 failed** locally.
-- [x] CI Run `42825407549` at `4af304e`: success (gate 26/26, CJK 25/25,
-      PAWDATA 12/12, virtual 39/39, repair 19/19, network 17/17, finalize 36/36,
-      TTY 56/56).
+- [x] Memtest86+ uses the real ISOLINUX menu entry (`linux`, not `kernel`) and a
+      pinned v7.20 binary; release-ISO SeaBIOS boot reached `Status: Testing`
+      with `Errors: 0`, and a separate full run reached `Status: Pass`,
+      `Pass: 1`, `Errors: 0`.
+- [x] `paw-transaction.py` implements
+      `PREPARED/AUTHORIZED/CLONING/CLONE_INCOMPLETE/CLONE_VERIFIED/REPAIRING/
+      REPAIRED/EXPANDING/READY_TO_BOOT/COMPLETE/FAILED/NEEDS_MANUAL_ACTION`.
+- [x] Expiry is enforced only before clone start; interrupted clone can still be
+      verified/repaired/expanded under a valid authorization.
+- [x] Wrong target serial returns no receipt and leaves the first 1 MiB of the
+      target unchanged; correct `123456` proceeds only after source/target
+      re-identification.
+- [x] Source mount gate fails closed on read-write mounts, `findmnt` errors and
+      malformed mountinfo; virtual source mounted read-only.
+- [x] P0 suites: **26 passed, 0 failed**.
+- [ ] Physical Memtest86+ observation on the ASUS DIMM (D).
 
-## A1. Stage 2 virtual boot and Stage 3 full chain
+## A1. P1 remediation
 
-- [x] Real Ubuntu 24.04 source disk image (GPT, BIOS Boot, ext4, GRUB).
-- [x] 240 GiB sparse QEMU virtio target, serial `PAW-DST-123456`.
-- [x] **Real production clone entry**, not simulation:
-      `paw-stream-clone.sh` on `/dev/vdb`→`/dev/vdc` with
-      `mode=remote-zstd-level1-thread1`, real loopback SSH server;
-      `source_bytes=3,758,096,384`, `restored_bytes=3,758,096,384`.
-- [x] `paw-stream-verify.sh` independent SHA256
-      `efcae25cf0bcbe51ec9b842c097d641139a48825fd43191067ba6d3f9efcf2a9`,
-      `independent_sha256_verified=true`.
-- [x] Full production `paw-offline-repair.sh`: `simulation=false`, real
-      `grub-install --target=i386-pc`, initramfs regenerated, backup retained.
-- [x] Production `paw-gpt-expand.sh`: `/dev/vdc1` 256,623,230,464 bytes, ext4
-      62,652,155 blocks; root-is-last guard active.
-- [x] Production `paw-firstboot-check.sh`: `status=PASS`.
-- [x] Production `paw-finalize-reboot.sh`: `reboot-status.json` atomically
-      persisted and synced **before** `systemctl reboot`,
-      `status_persisted_before_reboot=true`, `reboot_invoked=true`.
-- [x] SeaBIOS (no direct kernel) booted the cloned target to
-      `Ubuntu 24.04.5 LTS ubuntu ttyS0` / `ubuntu login:`; target kernel
-      `6.8.0-147-generic`, not the Live kernel. Re-verified 2026-11-11T02:22Z
-      with `target.img` as the only disk (`vda` `bootindex=1`, no
-      `-kernel`/`-initrd`), `qemu_rc=0`; evidence
-      `reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt` SHA256
-      `30bdea6c5715244290f742912e73d932648214c5001803b633306af1f7fbc332` (curated
-      excerpt; host raw log SHA256
-      `083ea333df9d89177767fc8ada81090ca1da382fa1bfde4758af74173ec63a08`).
-- [x] All 26 steps are accounted for by real PASS logs or the independent boot
-      verification. Evidence: `reports/PAW-STAGE3-RESUME-20261110.md`.
+- [x] O_DIRECT independent target readback (`iflag=direct`) and recorded method.
+- [x] NTFS/Windows Microsoft basic data disks excluded from target discovery.
+- [x] Noninteractive GRUB/initramfs; `GRUB_DISABLE_OS_PROBER=true`.
+- [x] initramfs module check for AHCI/r8169/filesystem.
+- [x] fstab/GRUB UUID checks after repair.
+- [x] HD4600 i915 classified, not treated as a physical i915 proof.
+- [x] BIOS media-order guard; auto reboot blocked while PAW media is present.
+- [x] firstboot split (`actual_first_boot_performed=false` pre-boot).
+- [x] SMART PASS/WARN/FAIL semantics; FAIL never becomes PASS.
+- [x] AHCI/r8169 hard block; `grub-pc` by-id + debconf readback; lab honestly
+      records `grub-pc_not_installed` when absent.
+- [x] Service identity isolation (machine-id/SSH host key/Tailscale state).
+- [x] P1 suites: **23 passed, 0 failed**.
 
-Stage 2 is therefore **CLOSED for the virtual block-device lab**; physical SSD
-acceptance remains open (D).
+## A2. Full pre-hardware chain
 
-## A2. Stage 4 final ISO and Chinese delivery
+- [x] Lab source rebuilt from the Ubuntu 24.04.5 cloud rootfs; `source_os` now
+      reads `PRETTY_NAME=Ubuntu 24.04.5 LTS`, `VERSION_ID=24.04` from
+      `/etc/os-release` and falls back to `/usr/lib/os-release`.
+- [x] `source_os` no longer silently claims a version when os-release is
+      missing; it emits WARN and defers to the later composite identity check.
+- [x] `paw-gpt-expand.sh` reads the filesystem type via `blkid` when `lsblk`
+      briefly returns an empty FSTYPE, so a non-last-root refusal reports the
+      real collision reason.
+- [ ] Full chain has **not** reached `CHAIN_PASS` in this segment yet. The
+      previous attempt passed authorization and was killed by the outer timeout
+      before clone; the rerun is in progress.
 
-- [x] Final CI Run `42941005270` on `24c13f7` is green: success, 20m 12s,
-      completed 2026-11-11T02:03:39Z.
-- [x] Downloaded `paw-live-build-test-results` artifact `13822300189`
-      (1,030,665,613 bytes, expires 2026-11-14 02:03:21 UTC), extracted
-      `paw-live-amd64.iso` (953,155,584 bytes) and computed SHA256 from the ISO
-      file: `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`.
-- [x] Compared with the same run's `paw-live-amd64.iso.sha256` /
-      `iso-identity.txt`: both match.
-- [x] Wrote `PAW-V2.7.1-ISO-SHA256.txt` and updated `DELIVERY.md`, `README.md`,
-      `docs/PAW-V2.7.1-USER-GUIDE-ZH.md`, `docs/PAW-V2.7.1-TEST-REPORT.md`,
-      `docs/PAW-V2.7.1-BLOCKERS.md` and the Stage 4 report with the verified hash.
-- [x] Kept physical media acceptance OPEN.
+## A3. Supplement 3 — VLESS/Tailscale dual phase
 
-## B. Virtual boot acceptance
+- [x] Live phase: direct Tailscale first; VLESS temporary exit only after an
+      explicit Chinese wizard choice and direct failure.
+- [x] Xray v26.3.27 pinned SHA256
+      `8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed`.
+- [x] VLESS URI read from stdin only; no history/ordinary log; config 0600 tmpfs.
+- [x] SOCKS5 10808 / HTTP 10809 bound to loopback only.
+- [x] tailscaled proxy inherited via drop-in and `/proc/<MainPID>/environ`, not
+      just the current shell.
+- [x] Ephemeral Live identity separated from persistent Ubuntu identity; offline
+      repair clears target `var/lib/tailscale`.
+- [x] 25/25 simulated VLESS/network tests.
+- [ ] Real Tailnet, VPS/VLESS, Windows peer, Exit Node (D).
 
-- [x] SeaBIOS + QEMU TCG reaches the PAW readiness gate.
-- [x] Readiness is `BLOCKED` when prerequisites are absent; `clone_started=false`.
-- [x] Memtest86+ independent menu and binary are present.
-- [x] This does not prove real ASUS motherboard boot.
+## A4. Supplement 4 — Wuhan home broadband
 
-## C. Virtual migration acceptance
+- [x] No public IPv4 request and no router port-forward in the policy.
+- [x] Management via Tailscale; SSH Tailnet/LAN only.
+- [x] 443 via Serve (Tailnet) / Funnel (public edge, home side outbound).
+- [x] PAW Gateway 8800 loopback/Tailnet; Xray 10808/10809 loopback.
+- [x] Cloud MCPs do not assume Tailscale 的 CGNAT 私有地址段; use Funnel/existing GPT Tunnel.
+- [x] Negative audit on the development host found 30 listeners and 13
+      violations (11 unknown public/wildcard + 2 SSH policy); this is not a
+      production PAW result.
+- [ ] Real Serve/Funnel, cloud MCP, UDP 41641/3478, CGNAT/double NAT and DERP
+      fallback (D).
 
-- [x] PAWDATA auto-init MBR and GPT, only the new partition formatted.
-- [x] PAWDATA survives unmount/remount; ISO/BIOS Boot geometry preserved.
-- [x] Memtest manual confirmation binds boot ID and target serial.
-- [x] Missing/incomplete/error memory result blocks clone.
-- [x] Rescue source identity passes with serial and with composite identity.
-- [x] Wrong UUID/capacity/GPT/BIOS Boot rejected before write.
-- [x] Target serial/capacity mismatch rejected before write.
-- [x] Remote zstd stream records payload and actual restored bytes.
-- [x] Raw fallback explicit; interruption/short read leaves `CLONE-INCOMPLETE`.
-- [x] SHA256 mismatch fails and keeps marker; mixed data round-trip passes.
-- [x] SMART FAIL and I/O timeout fail closed.
-- [x] GPT/ext4 expansion and the root-is-last guard pass on loop images.
-- [x] Netplan compatibility for `eth0`, `enp3s0`, `r8169`.
-- [x] Offline repair and rollback pass on a loop ext4 root.
-- [x] First-boot gate rejects incomplete/wrong-target receipts.
-- [x] Real production chain on QEMU virtio block devices reaches target login.
+## A5. Public repository safety
 
-Current Stage 4 Run `42941005270` (code `24c13f7`), all 0 failed: gate 26/26;
-PAWDATA 12/12; fault injection 39/39; repair/rollback 19/19; network 17/17;
-finalize 36/36; TTY 56/56 (static 55 + PTY, 0 blocked); CJK font 1/1; QEMU CJK
-5 cases / 96 assertions. Historical Run `42804949796` (code `bf1a705`) had
-repair/rollback 15/15 and remains historical evidence only.
-
-## C2. Operator console acceptance
-
-- [x] All six operator scripts bind tty1 through one helper.
-- [x] Panels carry explicit ASCII markers; input has a 300 s timeout.
-- [x] `paw-data-prepare.sh` keeps strict tty1 binding.
-- [x] Chinese authorization panel and data-loss warning proven on fbcon by the
-      QEMU `final` case (25 assertions).
-- [ ] Real ASUS screen still needs visual confirmation (D).
+- [x] No private keys, tokens, credentials, production IPs or user account
+      names in committed delivery documents; lab evidence redacts the host LAN
+      address as `LAN_REDACTED`.
+- [x] No production VPS/Tailscale/Funnel/Xray/Nginx/443/firewall/COS change.
+- [x] No Artifact deletion and no repository visibility change.
+- [x] PR #2 remains draft and unmerged; `main` unchanged.
 
 ## D. Real-world acceptance (still open)
 
-- [ ] Real TF card written and re-hashed; media identity recorded.
+- [ ] Real TF card written, read back and re-hashed; media identity recorded.
 - [ ] Real ASUS B85M-G Plus Legacy BIOS boot and full Chinese menu.
-- [ ] Real SSD SMART and read scan; real memory/Memtest observation.
-- [ ] Real Tencent Cloud Rescue Mode SSH and source identity.
+- [ ] Real SSD SMART/read scan/temperature; real DIMM Memtest observation.
+- [ ] Real Tencent Cloud Rescue Mode SSH and production source identity.
 - [ ] Real full-disk clone and independent SHA256.
-- [ ] Real PAW Ubuntu first boot and offline adaptation.
+- [ ] Real PAW Ubuntu first boot/offline adaptation.
 - [ ] Real `systemctl reboot` on hardware.
 - [ ] Real Tailscale/Xray/Funnel/MCP/PAW acceptance.
+- [ ] Wuhan home broadband UDP/CGNAT/DERP checks.
 
-These require the user's physical hardware and separate authorization. Cloud and
-virtual results must not be marked as physical completion.
-
-## E. Public repository acceptance
-
-- [x] No private keys, tokens, credentials, production IPs or personal paths in
-      committed delivery documents.
-- [x] Public-safety and public-history scans pass on the branch tip.
-- [x] Raw `live-build.log` excluded from the repository (mirror IPv4 literals).
-- [x] Repository visibility unchanged (Public).
-- [x] Existing runs and artifacts not deleted.
+These require the user's physical hardware and separate authorization. Virtual,
+loop, mock and QEMU results must not be marked as physical PASS.
 
 ## Overall
 
-- P0-1 font gate: **PASS** (local 26/26; CI green).
-- Stage 2 virtual block-device clone/boot: **PASS**; physical SSD **OPEN**.
-- Stage 3 26-step migration chain: **PASS** in QEMU/virtual disks; the chain's
-  own `target_boot` detector was cut by the outer scheduler, and the cloned
-  target boot to `ubuntu login:` was re-verified by an independent
-  QEMU/SeaBIOS run (`reports/evidence/stage3-target-standalone-boot-20261111.evidence.txt`).
-- Stage 4 final ISO and Chinese docs: **PASS for cloud delivery**. ISO
-  953,155,584 bytes, SHA256
-  `822ae2c1b41768d0dcb48ab6494aa273dc06ea6be7121baac30a3791cf8c4c09`,
-  matching the same-run sidecar; physical media still OPEN.
-- Physical delivery: **NOT STARTED**; old VPS remains authoritative.
+- P0 remediation: **PASS (virtual)**; physical Memtest/Rescue/SSD **OPEN**.
+- P1 remediation: **PASS (virtual/static)**.
+- Full 12 GiB pre-hardware chain: **RE-RUN IN PROGRESS**; no CHAIN_PASS claimed.
+- Supplement 3: **PASS (simulated)**; real Tailnet/VPS **NEEDS_TEST**.
+- Supplement 4: **DESIGN PASS**; production ports/Serve/Funnel/MCP **NEEDS_TEST**.
+- Physical delivery/migration: **NOT STARTED**; old VPS remains authoritative.

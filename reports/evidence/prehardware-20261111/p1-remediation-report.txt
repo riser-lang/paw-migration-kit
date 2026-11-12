@@ -1,5 +1,5 @@
 PAW P1 remediation tests
-Executed: 2026-11-11T20:30:06Z
+Executed: 2026-11-12T03:21:21Z
 PASS P1 stream-verify uses O_DIRECT target readback
 PASS P1 stream-verify records readback method
 PASS P1 target discovery excludes NTFS/Windows GPT disks
@@ -23,4 +23,5 @@ PASS P1 SMART PASS with non-zero smartctl mask is WARN, not false FAIL/PASS
 PASS P1 service manifest PASS with changed machine-id/SSH and preserved hostname
 PASS P1 attached PAW-LIVE medium blocks auto reboot
 PASS P1 explicit live-media removal arm allows auto reboot
-Summary: 23 passed, 0 failed
+PASS P1 public port audit marks unknown wildcard listeners public_bind=true
+Summary: 24 passed, 0 failed
