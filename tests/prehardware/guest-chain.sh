@@ -750,6 +750,15 @@ PY
     if [[ -n "$b_fields" ]]; then
       IFS=$'\t' read -r b_status b_cmd b_dry <<<"$b_fields"
       step_once auto_reboot PASS "reboot status=$b_status invoked=true command=$b_cmd dry_run=$b_dry"
+      # Finalizer persists PASS before issuing reboot and then waits for this
+      # handoff.  Emit the chain PASS and copy reports first, so a real QEMU
+      # reset cannot cut the result marker off the serial log.
+      if [[ -n ${PAW_REBOOT_HANDOFF_FILE:-} && ! -e $PAW_REBOOT_HANDOFF_FILE ]]; then
+        say 'PAW3_CHAIN_RESULT=PASS'
+        copy_out
+        sync || true
+        : >"$PAW_REBOOT_HANDOFF_FILE"
+      fi
     fi
   fi
 }
@@ -766,7 +775,7 @@ chvt 1 2>/dev/null || true
 flush_tty_input
 prompt swap_bootindex
 sleep 2
-rm -f "$PAW_REPORT_DIR/final-confirm.json" /run/paw3-step-*
+rm -f "$PAW_REPORT_DIR/final-confirm.json" /run/paw3-step-* "${PAW_REBOOT_HANDOFF_FILE:-/run/paw3-chain-pass}"
 pipeline_watch &
 watch_pid=$!
 PAW_INTERACTIVE_TTY=/dev/tty1 PAW_INPUT_TIMEOUT=240 \
@@ -774,6 +783,7 @@ PAW_INTERACTIVE_TTY=/dev/tty1 PAW_INPUT_TIMEOUT=240 \
   PAW_REPAIR_ARM=I_HAVE_VERIFIED_OFFLINE_FILESYSTEM \
   PAW_EXPAND_ARM=I_HAVE_VERIFIED_CLONE \
   PAW_LIVE_MEDIA_REMOVED=I_HAVE_REMOVED_THE_LIVE_USB_AND_TF_MEDIA \
+  PAW_REBOOT_HANDOFF_FILE=/run/paw3-chain-pass \
   "$PAW_ROOT/scripts/paw-final-confirm.sh" >"$PAW_LOG_DIR/final-correct.log" 2>&1 &
 correct_pid=$!
 for _ in $(seq 1 300); do

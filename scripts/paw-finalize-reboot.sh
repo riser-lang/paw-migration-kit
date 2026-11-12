@@ -200,6 +200,20 @@ say "正在执行自动重启：${reboot_cmd}"
 # afterwards leaves no durable evidence and a later boot could reboot again.
 write_reboot_status PASS '自动重启命令即将下发；状态已先行持久化' true '{"status_persisted_before_reboot":true}'
 sync || true
+# The chain consumes this status as its final PASS gate.  It must copy the
+# report set to durable media and emit PAW3_CHAIN_RESULT=PASS *before* the
+# reset; otherwise QEMU can kill the chain between this status write and the
+# final marker.  The chain touches the handoff file only after that copy.
+if [[ -n ${PAW_REBOOT_HANDOFF_FILE:-} ]]; then
+  log INFO "Waiting for chain PASS handoff ${PAW_REBOOT_HANDOFF_FILE} before reboot."
+  handoff_ok=0
+  for _ in $(seq 1 60); do
+    if [[ -e $PAW_REBOOT_HANDOFF_FILE ]]; then handoff_ok=1; break; fi
+    sleep 1
+  done
+  ((handoff_ok == 1)) || fail_finalize BLOCKED '链 PASS 交接' "60 秒内未收到 ${PAW_REBOOT_HANDOFF_FILE}；拒绝在证据未落盘时自动重启"
+  log INFO 'Chain PASS handoff observed; issuing reboot.'
+fi
 sleep 2
 set +e
 "${reboot_argv[@]}"
