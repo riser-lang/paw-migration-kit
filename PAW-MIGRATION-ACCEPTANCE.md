@@ -118,7 +118,8 @@ loop, mock and QEMU results must not be marked as physical PASS.
 
 - P0 remediation: **PASS (virtual)**; physical Memtest/Rescue/SSD **OPEN**.
 - P1 remediation: **PASS (virtual/static)**.
-- Full 12 GiB pre-hardware chain: **RE-RUN IN PROGRESS**; no CHAIN_PASS claimed.
+- Full 12 GiB pre-hardware chain: **PASS (virtual)**; `PAW3_CHAIN_RESULT=PASS`,
+  cloned target `ubuntu login:` and independent SHA256 observed. Physical chain **OPEN**.
 - Supplement 3: **PASS (simulated)**; real Tailnet/VPS **NEEDS_TEST**.
 - Supplement 4: **DESIGN PASS**; production ports/Serve/Funnel/MCP **NEEDS_TEST**.
 - Physical delivery/migration: **NOT STARTED**; old VPS remains authoritative.
