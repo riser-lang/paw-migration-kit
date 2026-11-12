@@ -43,8 +43,20 @@ grep -q 'boot_order_control' "$root/scripts/paw-reboot-media-check.sh" && pass '
 grep -q 'actual_first_boot_performed.*False' "$root/scripts/paw-preboot-handoff-check.sh" && pass 'P1 pre-reboot handoff does not claim a first boot' || fail 'P1 preboot semantics still misleading'
 grep -q 'post_boot' "$root/scripts/paw-firstboot-check.sh" && pass 'P1 real firstboot check is post-boot only' || fail 'P1 firstboot split missing'
 
-# SMART PASS/WARN/FAIL classification with a fake smartctl.
+# SMART PASS/WARN/FAIL classification with a fake smartctl.  The real runner
+# has no /dev/sr0, but the production script intentionally requires a block
+# device.  Pick an existing unmounted block device and expose it through a
+# stable sr0-named symlink so the report basename stays deterministic.
 smartdir="$work/smart"; mkdir -p "$smartdir/bin" "$smartdir/reports"
+smart_block=''
+for candidate in /dev/sr0 /dev/loop0 /dev/loop1 /dev/loop2 /dev/loop3 /dev/loop4 /dev/loop5 /dev/loop6 /dev/loop7; do
+  [[ -b "$candidate" ]] || continue
+  [[ -z "$(lsblk -nrpo MOUNTPOINT "$candidate" 2>/dev/null | sed '/^$/d')" ]] || continue
+  smart_block="$candidate"; break
+done
+[[ -n "$smart_block" ]] || { fail 'P1 SMART fixture needs an unmounted block device'; smart_block=/dev/null; }
+smart_dev="$smartdir/sr0"
+ln -sfn "$smart_block" "$smart_dev"
 cat >"$smartdir/bin/smartctl" <<'SMART_SCRIPT'
 #!/usr/bin/env bash
 case "$*" in
@@ -68,7 +80,7 @@ esac
 SMART_SCRIPT
 chmod 0755 "$smartdir/bin/smartctl"
 if PATH="$smartdir/bin:$PATH" PAW_STATE_DIR="$smartdir/state" PAW_REPORT_DIR="$smartdir/reports" \
-   PAW_SMART_POLL_SECONDS=1 PAW_ROOT="$root" bash "$root/scripts/paw-ssd-smart-check.sh" /dev/sr0 \
+   PAW_SMART_POLL_SECONDS=1 PAW_ROOT="$root" bash "$root/scripts/paw-ssd-smart-check.sh" "$smart_dev" \
    >"$smartdir/run.log" 2>&1; then
   python3 - "$smartdir/reports/smart-sr0.json" <<'PY' && pass 'P1 SMART PASS classified with selftest clean' || fail 'P1 SMART PASS classification wrong'
 import json,sys
@@ -87,7 +99,7 @@ esac
 SMART_SCRIPT
 chmod 0755 "$smartdir/bin/smartctl"
 if PATH="$smartdir/bin:$PATH" PAW_STATE_DIR="$smartdir/state" PAW_REPORT_DIR="$smartdir/reports" PAW_ROOT="$root" \
-   bash "$root/scripts/paw-ssd-smart-check.sh" /dev/sr0 >"$smartdir/fail.log" 2>&1; then
+   bash "$root/scripts/paw-ssd-smart-check.sh" "$smart_dev" >"$smartdir/fail.log" 2>&1; then
   fail 'P1 SMART FAIL health path returned 0'
 else
   python3 - "$smartdir/reports/smart-sr0.json" <<'PY' && pass 'P1 SMART FAIL health classified, never PASS' || fail 'P1 SMART FAIL classification wrong'
@@ -105,7 +117,7 @@ esac
 SMART_SCRIPT
 chmod 0755 "$smartdir/bin/smartctl"
 if PATH="$smartdir/bin:$PATH" PAW_STATE_DIR="$smartdir/state" PAW_REPORT_DIR="$smartdir/reports" PAW_ROOT="$root" \
-   bash "$root/scripts/paw-ssd-smart-check.sh" /dev/sr0 >"$smartdir/nonzero.log" 2>&1; then
+   bash "$root/scripts/paw-ssd-smart-check.sh" "$smart_dev" >"$smartdir/nonzero.log" 2>&1; then
   fail 'P1 SMART PASS-with-nonzero-rc returned 0 instead of WARN'
 else
   python3 - "$smartdir/reports/smart-sr0.json" <<'PY' && pass 'P1 SMART PASS with non-zero smartctl mask is WARN, not false FAIL/PASS' || fail 'P1 SMART non-zero-rc classification wrong'
