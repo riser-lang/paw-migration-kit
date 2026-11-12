@@ -49,12 +49,26 @@ grep -q 'post_boot' "$root/scripts/paw-firstboot-check.sh" && pass 'P1 real firs
 # stable sr0-named symlink so the report basename stays deterministic.
 smartdir="$work/smart"; mkdir -p "$smartdir/bin" "$smartdir/reports"
 smart_block=''
+smart_loop_dev=''
+smart_loop_file=''
+cleanup_smart_loop(){
+  [[ -n "$smart_loop_dev" ]] && sudo -n losetup -d "$smart_loop_dev" >/dev/null 2>&1 || true
+  [[ -n "$smart_loop_file" ]] && rm -f "$smart_loop_file" || true
+}
+trap cleanup_smart_loop EXIT
 for candidate in /dev/sr0 /dev/loop0 /dev/loop1 /dev/loop2 /dev/loop3 /dev/loop4 /dev/loop5 /dev/loop6 /dev/loop7; do
   [[ -b "$candidate" ]] || continue
-  [[ -z "$(lsblk -nrpo MOUNTPOINT "$candidate" 2>/dev/null | sed '/^$/d')" ]] || continue
+  mountpoints="$(lsblk -nrpo MOUNTPOINT "$candidate" 2>/dev/null)" || continue
+  [[ -z "$(sed '/^$/d' <<<"$mountpoints")" ]] || continue
   smart_block="$candidate"; break
 done
-[[ -n "$smart_block" ]] || { fail 'P1 SMART fixture needs an unmounted block device'; smart_block=/dev/null; }
+if [[ -z "$smart_block" ]] && command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+  smart_loop_file="$(mktemp "${TMPDIR:-/tmp}/paw-p1-smart.XXXXXX")"
+  truncate -s 16M "$smart_loop_file"
+  smart_loop_dev="$(sudo -n losetup --find --show "$smart_loop_file" 2>/dev/null)" || smart_loop_dev=''
+  [[ -n "$smart_loop_dev" ]] && smart_block="$smart_loop_dev"
+fi
+[[ -n "$smart_block" ]] || { fail 'P1 SMART fixture needs a real, unmounted block device'; smart_block=/dev/null; }
 smart_dev="$smartdir/sr0"
 ln -sfn "$smart_block" "$smart_dev"
 cat >"$smartdir/bin/smartctl" <<'SMART_SCRIPT'
