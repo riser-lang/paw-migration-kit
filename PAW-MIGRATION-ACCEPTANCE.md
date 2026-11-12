@@ -1,6 +1,6 @@
 # PAW Migration Acceptance
 
-Updated: 2026-11-11 UTC (PAW v2.8 pre-hardware acceptance)
+Updated: 2026-11-12 UTC (PAW v2.8 pre-hardware acceptance)
 Current branch: `vm/ds-prehardware-acceptance-20261111`
 Current code HEAD: `a5c423f` (source_os/gpt-expand fixes on top of `b9f5c5b`)
 Base: `d640712`
@@ -39,7 +39,7 @@ PR #2: Draft, not merged
 - [x] AHCI/r8169 hard block; `grub-pc` by-id + debconf readback; lab honestly
       records `grub-pc_not_installed` when absent.
 - [x] Service identity isolation (machine-id/SSH host key/Tailscale state).
-- [x] P1 suites: **23 passed, 0 failed**.
+- [x] P1 suites: **24 passed, 0 failed**.
 
 ## A2. Full pre-hardware chain
 
@@ -51,9 +51,13 @@ PR #2: Draft, not merged
 - [x] `paw-gpt-expand.sh` reads the filesystem type via `blkid` when `lsblk`
       briefly returns an empty FSTYPE, so a non-last-root refusal reports the
       real collision reason.
-- [ ] Full chain has **not** reached `CHAIN_PASS` in this segment yet. The
-      previous attempt passed authorization and was killed by the outer timeout
-      before clone; the rerun is in progress.
+- [x] Full chain reached **`CHAIN_PASS`** on 2026-11-12: `PAW3_CHAIN_RESULT=PASS`
+      at 12:39:59 CST, independent SHA256, GPT expansion to 239,997,885,952
+      bytes, cloned target booted to `ubuntu login:` (`TARGET_BOOT_SEEN`,
+      `target_boot=True`). The 39/39 fault suite passed in the same run.
+- [x] Stale target clone with the source UUID is handled in the virtual lab by
+      blanking only the serial-verified disposable target before identity; the
+      production path remains fail-closed.
 
 ## A3. Supplement 3 — VLESS/Tailscale dual phase
 

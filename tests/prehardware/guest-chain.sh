@@ -85,7 +85,7 @@ say "boot_id=$(cat /proc/sys/kernel/random/boot_id) kernel=$(uname -r)"
 step live_boot PASS "kernel=$(uname -r) root=/dev/vda2"
 
 # ---------------------------------------------------------------------------
-# v2.8 hardware-basis checks: Haswell CPU model, exact 50 GiB source, exact
+# v2.8 hardware-basis checks: Haswell CPU model, declared source capacity, exact
 # 240 GB target, SATA/AHCI transport, source OS identity and target module
 # availability.  These are QEMU/virtual observations, never physical proof.
 # ---------------------------------------------------------------------------
@@ -120,6 +120,16 @@ transport_class='virtual_ata_ahci_not_physical_sata'
 grep -qi 'ahci' /proc/modules || fail sata_ahci 'ahci module is not loaded'
 grep -qiE 'ahci|AHCI' <(dmesg) || fail sata_ahci 'dmesg has no AHCI controller line'
 step sata PASS "source=$SRC_DEV bytes=$src_bytes tran=$src_tran target=$DST_DEV bytes=$dst_bytes tran=$dst_tran media_bytes=$media_bytes controller=ich9-ahci transport_class=$transport_class"
+copy_out
+
+# The disposable lab target must start blank.  A previous run can leave a clone
+# with the source UUID on it; source discovery correctly refuses an ambiguous
+# UUID, so reset only the serial-verified 240 GB test disk here.  Production
+# entry points never wipe a target implicitly; this is a chain precondition.
+dst_serial="$(lsblk -dn -o SERIAL "$DST_DEV" | xargs)"
+[[ "$dst_serial" == PAW-DST-123456 ]] || fail lab_target_blank "refusing to wipe unexpected target serial '${dst_serial:-none}'"
+wipefs -a "$DST_DEV" >"$PAW_LOG_DIR/target-blank.log" 2>&1 || fail lab_target_blank 'wipefs could not clear the disposable target'
+step lab_target_blank PASS "device=$DST_DEV serial=$dst_serial wipefs=all signatures removed; virtual lab precondition only"
 copy_out
 
 # Pick the largest ext4 partition (the Ubuntu root), not the last ext4
@@ -323,11 +333,22 @@ rm -f "$PAW_REPORT_DIR/data-init.json"
 PAW_INTERACTIVE_TTY=/dev/tty1 PAW_INPUT_TIMEOUT=180 \
   "$PAW_ROOT/scripts/paw-data-prepare.sh" auto >"$PAW_LOG_DIR/pawdata.log" 2>&1 &
 pawdata_pid=$!
+pawdata_prompted=0
 for _ in $(seq 1 300); do
-  grep -q '"PAW-TTY1-PROMPT"' "$PAW_REPORT_DIR/data-init.json" 2>/dev/null && break
+  if grep -q '"PAW-TTY1-PROMPT"' "$PAW_REPORT_DIR/data-init.json" 2>/dev/null; then
+    pawdata_prompted=1
+    break
+  fi
+  # A healthy pre-existing PAWDATA deliberately skips the suffix prompt.  Stop
+  # waiting as soon as the UI exits instead of typing into a dead prompt.
+  kill -0 "$pawdata_pid" 2>/dev/null || break
   sleep 0.2
 done
-prompt pawdata_serial_suffix
+if ((pawdata_prompted)); then
+  prompt pawdata_serial_suffix
+else
+  say 'PAWDATA already initialized; no serial-suffix prompt was needed'
+fi
 wait "$pawdata_pid"; rc=$?
 if ((rc != 0)); then
   tail -n 80 "$PAW_LOG_DIR/pawdata.log" >&2 || true
@@ -542,7 +563,7 @@ cp "$PAW_CONFIG_DIR/source.json" "$interrupt/configs/source.json"
 cp "$PAW_REPORT_DIR/source-discovery.json" "$interrupt/reports/source-discovery.json"
 cp "$PAW_REPORT_DIR/console-font.json" "$interrupt/reports/console-font.json"
 cp "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$interrupt/reports/paw-hardware-health-report.json"
-truncate -s "$src_bytes" "$state/interrupt-target.img"  # sparse; must be >= the 50 GiB source
+truncate -s "$src_bytes" "$state/interrupt-target.img"  # sparse; must be >= the source capacity
 loop="$(losetup -f --show "$state/interrupt-target.img")"
 cleanup_interrupt(){
   losetup -d "$loop" 2>/dev/null || true

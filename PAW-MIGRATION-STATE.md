@@ -1,6 +1,6 @@
 # PAW Migration State
 
-Updated: 2026-11-11 UTC (PAW v2.8 pre-hardware acceptance)
+Updated: 2026-11-12 UTC (PAW v2.8 pre-hardware acceptance)
 Current branch: `vm/ds-prehardware-acceptance-20261111`
 Current code HEAD: `a5c423f` (source_os/gpt-expand fixes on top of `b9f5c5b`)
 Base: `d64071251bb3075d9cb26a967dfcba6cf139250a`
@@ -17,7 +17,7 @@ Main HEAD: `0d6aefd` (unchanged)
 | P1 remediation | **PASS (virtual/static)** | 24/24 P1 report (re-run this segment); O_DIRECT, NTFS exclusion, GRUB/by-id, AHCI/r8169, SMART, firstboot, identity isolation |
 | Supplement 3 VLESS/Tailscale | **PASS (simulated)** | 25/25 VLESS report; Xray v26.3.27 SHA256 pinned; loopback-only proxy; ephemeral vs persistent identity |
 | Supplement 4 Wuhan home broadband | **Design PASS; production NEEDS_TEST** | `configs/home-port-policy.json`, `paw-port-audit.sh`; no public IPv4/router port-forward; Serve/Funnel/GPT Tunnel design |
-| Full pre-hardware chain (12 GiB source → 240 GB target) | **RE-RUN IN PROGRESS**; no CHAIN_PASS yet | QEMU/SeaBIOS ATA/AHCI virtual disks |
+| Full pre-hardware chain (12 GiB source → 240 GB target) | **PASS (virtual, CHAIN_PASS)** | `PAW3_CHAIN_RESULT=PASS`; independent SHA256; cloned target `ubuntu login:`; 39/39 fault suite |
 | Physical ASUS/TF/SSD/Rescue/production | **OPEN / NEEDS_TEST** | not touched in this session |
 
 The 12 GiB source is a real Ubuntu 24.04.5 cloud root filesystem (`6.8.0-147-generic`,
@@ -44,22 +44,45 @@ is capacity-agnostic and the lab now passes the expected source size explicitly.
 
 ## Full-chain result
 
-The 2026-11-12T02:45–03:01Z attempt used the rebuilt 12 GiB Ubuntu source and
-passed `live_boot`, `cpu`, `sata`, `source_os` (24.04), console font, rescue
-SSH, source identity, PAWDATA, target enrollment, Memtest attestation, virtual
-hardware, readiness, mixed-data stream, SSH interruption and wrong-serial
-authorization. It then passed `final_authorization_correct` at 03:00Z and was
-killed by the 12 h outer timeout before the clone/verify/repair/expand stages
-ran. **That attempt is not a CHAIN_PASS.** The in-guest fault suite in the same
-attempt reported 37 passed / 2 failed: the non-last-root refusal was emitted as
-`Root partition is not ext4.` because `lsblk` returned an empty FSTYPE for the
-fresh loop partition. The guard now falls back to `blkid`, retries the probe and
-prints the detected type; the guest is rebuilt and the chain is being rerun.
+**2026-11-12 final rerun: PASS.** The chain started at 11:32 CST and emitted
+`PAW3_CHAIN_RESULT=PASS` at 12:39:59 CST. It passed `lab_target_blank`,
+`live_boot`, `cpu`, `sata`, `source_os` (Ubuntu 24.04.5, kernel
+`6.8.0-147-generic`, i915/r8169 present, source read-only), console font, rescue
+SSH, 39/39 virtual fault tests, negative source identity, positive
+`source_identity` on `exact 12 GiB capacity` (composite
+`6704e246b06ce693f394c1fed0e2c0db1b99f7da697f2ab3454f470933fbbc66`), PAWDATA,
+target enrollment, Memtest attestation, virtual hardware, network WARN (not a
+chain gate), readiness, mixed stream, SSH interruption, wrong-serial rejection,
+bootindex swap and correct authorization.
 
-Evidence for the failed/incomplete attempt:
+The destructive phase then passed: compressed transfer (12,884,901,888 source
+bytes, 584,133,947 SSH payload bytes, 95.5% reduction), independent SHA256
+`140081b5bdb716cac171d6d6a20e1487aa152e636b7ea793bbae3f701227ff6e`,
+offline repair (GRUB by-id, cloud-style no debconf), GPT expansion of
+`/dev/sdc2` to 239,997,885,952 bytes, preboot handoff and auto reboot. The
+cloned target booted Ubuntu 24.04.5 and reached `ubuntu login:` on ttyS0; host
+runner result `TARGET_BOOT_SEEN`, `target_boot=True` at 12:47:07 CST.
+
+Earlier attempts remain documented as failures: the 02:45–03:01Z attempt passed
+authorization but was killed by the 12 h outer timeout before clone; its fault
+suite was 37/2 and led to the `blkid` fallback. A later rerun failed
+`source_identity` because the disposable target still carried an old clone with
+the same ext4 UUID; the chain now blanks only the serial-verified
+`PAW-DST-123456` target before identity discovery. Neither failure is reported as
+a PASS.
+
+The final host reader initially missed the getty prompt because `login: ` has no
+trailing newline; the prompt was real and the chain had already passed. A
+harmless SysRq-H console line let the old line-oriented reader classify it, then
+the reader was fixed to inspect the serial snapshot directly. This harness bug is
+documented in the acceptance report; it does not change the PASS criteria.
+
+Evidence:
 `~/prehardware-20261111/console-main.log`,
 `~/prehardware-20261111/share/state/chain.log`,
-`~/prehardware-20261111/share/prehw-selftests/virtual-fault-injection-report.txt`.
+`~/prehardware-20261111/share/prehw-selftests/virtual-fault-injection-report.txt`,
+`~/prehardware-20261111/screens/target-boot.ppm`,
+`/tmp/prehw-main4.log`.
 
 ## Durable evidence
 
@@ -69,7 +92,8 @@ Evidence for the failed/incomplete attempt:
 | P1 remediation | `reports/evidence/prehardware-20261111/p1-remediation-report.txt` (24/0, re-run 2026-11-12) |
 | Memtest86+ | `reports/evidence/prehardware-20261111/memtest86-20261111.txt`; host artifacts under `~/prehardware-20261111/memtest-menu-3.0/` and `~/prehardware-20261111/memtest-full-3g/` |
 | VLESS/network | `reports/evidence/prehardware-20261111/vless-network-test-report.txt` (25/0) |
-| Full chain logs | `~/prehardware-20261111/console-main.log`, `/tmp/prehw-main10.log`, `~/prehardware-20261111/share/prehw-selftests/` |
+| Full chain logs | `~/prehardware-20261111/console-main.log`, `/tmp/prehw-main4.log`, `/tmp/prehw-prepare4.log`, `~/prehardware-20261111/share/prehw-selftests/`; screenshot `screens/target-boot.ppm` |
+| Chain 2026-11-12 | `reports/evidence/prehardware-20261111/chain-20261112/` (step summary + stream/verify/repair/expand JSON) |
 | Acceptance report | `reports/PAW-PREHARDWARE-ACCEPTANCE-20261111.md` |
 
 ## Hard boundaries still in force

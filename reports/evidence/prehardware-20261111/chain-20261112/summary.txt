@@ -1,0 +1,41 @@
+PAW v2.8 virtual pre-hardware chain evidence
+Run: 2026-11-12 11:32-12:47 CST (QEMU/TCG, disposable disks only)
+Source: Ubuntu 24.04.5, exact 12 GiB capacity
+
+PAW3_STEP=live_boot STATUS=PASS kernel=6.12.113+deb13-amd64 root=/dev/vda2
+PAW3_STEP=cpu STATUS=PASS model=Intel Core Processor (Haswell) vendor=GenuineIntel cores=4 mem_kb=3049524 flags=sse4_2+avx+avx2; qemu_cpu_model_not_physical_cpu=true
+PAW3_STEP=sata STATUS=PASS source=/dev/sdb bytes=12884901888 tran=ata target=/dev/sdc bytes=240000000000 tran=ata media_bytes=32000000000 controller=ich9-ahci transport_class=virtual_ata_ahci_not_physical_sata
+PAW3_STEP=lab_target_blank STATUS=PASS device=/dev/sdc serial=PAW-DST-123456 wipefs=all signatures removed; virtual lab precondition only
+PAW3_STEP=source_os STATUS=PASS pretty=Ubuntu 24.04.5 LTS version=24.04 os_release=/mnt/paw-source/etc/os-release kernel=6.8.0-147-generic i915_module=yes r8169_module=yes read_only_mount=true
+PAW3_STEP=evidence_transport STATUS=PASS 9p hostshare mounted
+PAW3_STEP=console_font STATUS=PASS mode=fbcon schema=paw.console-font.v2 tty=/dev/tty1
+PAW3_STEP=fault_injection STATUS=PASS run-virtual-tests.sh and run-network-virtual-tests.sh completed inside guest; reports in /mnt/paw3-host/prehw-selftests
+PAW3_STEP=rescue_sshd STATUS=PASS real OpenSSH server on 127.0.0.1:2222; source disk is local loopback, not a public network path
+PAW3_STEP=rescue_key STATUS=PASS pinned_host_fingerprint=SHA256:GSiT7cDqTFaQxCnBmyjzs0mv+2Qt2xY+SJIxM0/i3m4 key_is_ram_only=true
+PAW3_STEP=rescue_ssh STATUS=PASS authenticated root SSH over 127.0.0.1:2222; transport_class=loopback_not_public
+PAW3_STEP=source_identity_negative STATUS=PASS bogus UUID stopped with no source registration; fail-closed
+PAW3_STEP=source_identity STATUS=PASS root_uuid=<redacted-virtual-source-uuid> composite=6704e246b06ce693f394c1fed0e2c0db1b99f7da697f2ab3454f470933fbbc66
+PAW3_STEP=pawdata STATUS=PASS disk=/dev/sda serial=PAW-MEDIA-123456
+PAW3_STEP=target_enrollment STATUS=PASS device=/dev/sdc serial=PAW-DST-123456 capacity=240000000000
+PAW3_STEP=memtest STATUS=PASS operator attestation recorded; trust=operator_attestation_not_cryptographic
+PAW3_STEP=hardware STATUS=PASS virtual probe adapter PASS; physical SMART/thermal remain OPEN
+PAW3_STEP=network STATUS=WARN network bootstrap exit=2 (local-link only; chain gates use source status)
+PAW3_STEP=readiness STATUS=PASS paw-live-controller.sh READY_FOR_OPERATOR
+PAW3_STEP=mixed_stream STATUS=PASS source=restored=268435456 bytes; independent SHA256 PASS; payload=random+zeros+text
+PAW3_STEP=ssh_interrupt STATUS=PASS real SSH stream killed mid-flight; exit=1; CLONE-INCOMPLETE retained
+PAW3_STEP=final_authorization_wrong STATUS=PASS exit=1 no authorization; target first 1 MiB unchanged
+PAW3_STEP=final_authorization_correct STATUS=PASS exit=0 authorization=AUTHORIZED target=/dev/sdc serial=PAW-DST-123456 expires=2026-11-12T09:44:42.706238+00:00; source and target re-identified before the write
+PAW3_STEP=compressed_transfer STATUS=PASS status=STREAM_COMPLETE_UNVERIFIED mode=remote-zstd-level1-thread1 source_bytes=12884901888 payload_bytes=584133947 restored_bytes=12884901888 compression_reduction=95.5%
+PAW3_STEP=clone_complete STATUS=PASS restored_bytes=12884901888; target byte range written; independent SHA256 still pending
+PAW3_STEP=sha256_verify STATUS=PASS sha256=140081b5bdb716cac171d6d6a20e1487aa152e636b7ea793bbae3f701227ff6e bytes_verified=12884901888 independent_sha256_verified=true; CLONE-INCOMPLETE cleared
+PAW3_STEP=offline_repair STATUS=PASS offline-repair.json status=PASS; grub_install_device=/dev/disk/by-id/ata-QEMU_HARDDISK_PAW-DST-123456 grub_debconf_pinned=cloud_style_no_debconf; configs backed up before adaptation
+PAW3_STEP=gpt_expand STATUS=PASS partition=/dev/sdc2 before_bytes=12882787840 after_bytes=239997885952 grew=True; GPT backup header moved
+PAW3_STEP=preboot_handoff STATUS=PASS preboot-handoff.json status=PASS phase=pre_reboot; no first-boot claim
+PAW3_STEP=auto_reboot STATUS=PASS reboot status=PASS invoked=true command=systemctl reboot dry_run=False
+PAW3_CHAIN_RESULT=PASS
+
+Host runner: main result=TARGET_BOOT_SEEN chain_pass=True target_boot=True qemu_rc=0
+Target serial console: Ubuntu 24.04.5 LTS ubuntu ttyS0 / ubuntu login:
+Note: getty prompt has no trailing newline; the old line-oriented host reader
+needed a harmless SysRq-H console line to classify the already-visible prompt.
+The reader was then fixed to inspect the serial snapshot directly.

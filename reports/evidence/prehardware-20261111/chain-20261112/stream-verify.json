@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "sha256": "140081b5bdb716cac171d6d6a20e1487aa152e636b7ea793bbae3f701227ff6e",
+  "bytes_verified": 12884901888,
+  "independent_sha256_verified": true,
+  "target_readback_method": "target-O_DIRECT-4MiB",
+  "source_readback_method": "Rescue SSH sha256sum",
+  "verified_at": "2026-11-12T04:17:49.452108+00:00"
+}

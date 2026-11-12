@@ -1,6 +1,6 @@
 # PAW Migration Blockers
 
-Updated: 2026-11-11 UTC (PAW v2.8 pre-hardware acceptance)
+Updated: 2026-11-12 UTC (PAW v2.8 pre-hardware acceptance)
 Current branch: `vm/ds-prehardware-acceptance-20261111`
 Current code HEAD: `a5c423f` (source_os/gpt-expand fixes on top of `b9f5c5b`)
 Base: `d640712`
@@ -14,7 +14,7 @@ PR #2: Draft, not merged
 | P0-AUTH | **CLOSED (virtual)** | Clone authorization could be journal-only / expiry mishandled | `paw-transaction.py`; wrong serial no receipt and 1 MiB target unchanged; correct serial `AUTHORIZED`; expiry only before clone; interrupt/verify/repair/expand gated. |
 | P0-SOURCE-MOUNT | **CLOSED (virtual)** | Source could be mounted read-write or mount errors swallowed | `paw-source-mount-check.py` parses mountinfo; 7 scenarios fail closed; chain mounted source `ro`. |
 | P1-REMEDIATION | **CLOSED (virtual/static)** | O_DIRECT, NTFS, GRUB/by-id, AHCI/r8169, SMART, firstboot, service identity | 24/24 P1 report; `paw-stream-verify.sh` `iflag=direct`; NTFS excluded; `grub-pc` by-id+debconf readback (cloud-style images recorded honestly); AHCI/r8169 hard `die`; SMART PASS/WARN/FAIL; firstboot split; identity isolation manifest. |
-| PREHW-CHAIN | **RE-RUN IN PROGRESS** (not yet PASS) | Previous 12 GiB attempt passed through final authorization but was killed by the outer timeout before clone; fault suite had 2 failures in the non-last-root refusal text | Rebuilt guest with `blkid` fallback and os-release path fix; rerun must reach `PAW3_CHAIN_RESULT=PASS`, cloned target login and 39/39 virtual fault suite |
+| PREHW-CHAIN | **CLOSED (virtual)**; physical OPEN | Previous attempts exposed two real failures: 37/2 fault suite due empty `lsblk FSTYPE`, and stale target clone reusing the source ext4 UUID | Final rerun emitted `PAW3_CHAIN_RESULT=PASS`, 39/39 fault suite, independent SHA256, clone/repair/expand/reboot, cloned target `ubuntu login:` (`TARGET_BOOT_SEEN`). Physical ASUS/TF/SSD/Rescue still OPEN. |
 | SUPP3-VLESS | **CLOSED (simulated)**; production OPEN | Live-ephemeral vs. persistent Tailscale identity; VLESS URI leakage | 25/25 VLESS suites; Xray v26.3.27 SHA256 `8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed`; URI stdin-only; proxy loopback 10808/10809; `/proc/PID/environ` inheritance. Real Tailnet/VPS/Windows `NEEDS_TEST`. |
 | SUPP4-PORTS | **DESIGN PASS**; production OPEN | Wuhan home broadband has no public IPv4 / no router port-forward | Policy refuses public IPv4 and router mapping; Serve (Tailnet) / Funnel (public edge) / GPT Tunnel outbound; cloud MCPs must not assume Tailscale 的 CGNAT 私有地址段; loopback-only 8800/10808/10809. Real Serve/Funnel/MCP/UDP `NEEDS_TEST`. |
 | PHYSICAL | **OPEN** | Real TF/SSD/ASUS/Rescue not touched | User writes/re-hashes TF, boots ASUS Legacy BIOS, records SMART/scan/temp and Memtest, verifies Tencent Rescue source, then authorizes real clone. |

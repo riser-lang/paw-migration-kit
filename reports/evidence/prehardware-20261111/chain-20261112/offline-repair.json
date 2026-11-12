@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "changes": [
+    "netplan DHCP matched to e* (eth0/en*/r8169) with no fixed MAC",
+    "cloud-init network disabled",
+    "old Tencent/MAC udev overrides disabled",
+    "machine-id regenerated",
+    "SSH host keys regenerated",
+    "clone-local Tailscale state cleared",
+    "initramfs module inclusion verified: ahci r8169 i915",
+    "initramfs regenerated",
+    "GRUB config regenerated with DEBIAN_FRONTEND=noninteractive",
+    "fstab/GRUB UUID identity checked",
+    "grub-pc cloud-style installation; debconf pin not applicable; explicit grub-install used /dev/disk/by-id/ata-QEMU_HARDDISK_PAW-DST-123456"
+  ],
+  "grub_install": "i386-pc",
+  "grub_install_device": "/dev/disk/by-id/ata-QEMU_HARDDISK_PAW-DST-123456",
+  "grub_debconf_pinned": "cloud_style_no_debconf",
+  "grub_install_devices_stable": false,
+  "simulation": false,
+  "initramfs_modules_requested": [
+    "ahci r8169 i915"
+  ],
+  "initramfs_modules_verified": "PASS",
+  "initramfs_modules_missing": [],
+  "hd4600_i915_available": true,
+  "grub_noninteractive": true,
+  "fstab_uuid_checked": true,
+  "backup_path": "/opt/paw-migration/tests/stage3/state/backups/offline-repair-20261112T041759Z",
+  "completed_at": "2026-11-12T04:36:14.840033+00:00",
+  "authorized_keys_touched": false,
+  "PAW_application_data_touched": false
+}

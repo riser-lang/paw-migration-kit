@@ -1,5 +1,5 @@
 PAW P0 remediation tests
-Executed: 2026-11-11T15:53:56Z
+Executed: 2026-11-12T03:35:27Z
 PASS P0-1 memtest.cfg uses linux (not kernel) for the bzImage
 PASS P0-1 pinned Memtest86+ binary SHA256 matches v7.20
 PASS P0-1 pinned binary embeds version 7.20

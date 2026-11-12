@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "source_bytes": 12884901888,
+  "ssh_stream_bytes": 584133947,
+  "restored_bytes": 12884901888,
+  "stream_mode": "remote-zstd-level1-thread1",
+  "transport": "SSH stdout payload; excludes SSH/TCP framing overhead",
+  "compression_reason": "remote zstd and bash available; at least 256 MiB reported available",
+  "byte_count_streams_complete": true,
+  "transfer_to_source_ratio": 0.04533476095336179,
+  "compression_reduction_percent": 95.46652390466382,
+  "sha256": "140081b5bdb716cac171d6d6a20e1487aa152e636b7ea793bbae3f701227ff6e",
+  "independent_sha256_verified": true
+}

@@ -3,7 +3,8 @@
 #   * release ISO root filesystem (injected with this branch's scripts)
 #   * a bootable lab guest disk (BIOS Boot + ext4 root, /dev/vda2)
 #   * a 32 GB PF/USB media image carrying the release ISO
-# The 50 GiB source and 240 GB target are created by prepare-images.sh.
+# The source image (legacy filename source50.raw; currently 12 GiB) and the
+# 240 GB target are created by prepare-images.sh.
 # Unprivileged: mke2fs -d + fakeroot, no host loop or mount.
 set -Eeuo pipefail
 iso="${1:?usage: build-lab.sh ISO WORKDIR}"

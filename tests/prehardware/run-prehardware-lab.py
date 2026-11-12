@@ -373,6 +373,13 @@ def run_main(args):
             # real reboot after it had already emitted every report step.
             if (final_phase or target_deadline is not None) and "login:" in line:
                 target_boot_seen = True
+        # getty writes its final "login: " prompt without a trailing newline, so
+        # the line queue can legitimately hold it in SerialTail's partial buffer.
+        # Check the captured stream itself; otherwise a real login prompt is
+        # never classified until unrelated console output supplies a newline.
+        if ((final_phase or target_deadline is not None)
+                and "login:" in tail.snapshot()):
+            target_boot_seen = True
         if final_phase and target_deadline and time.time() > target_deadline and not target_boot_seen:
             result = "TARGET_BOOT_TIMEOUT"
             break

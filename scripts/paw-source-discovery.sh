@@ -56,7 +56,7 @@ def visit(node,parent=None):
         found.append((node,parent))
     for child in node.get("children") or []: visit(child,node)
 for top in d.get("blockdevices",[]): visit(top)
-if len(found)!=1: raise SystemExit("expected exactly one root UUID match")
+if len(found)!=1: raise SystemExit(f"expected exactly one root UUID match, found {len(found)}")
 root,parent=found[0]
 if root.get("type")!="part" or str(root.get("fstype","")).lower()!="ext4" or not parent or parent.get("type")!="disk":
     raise SystemExit("UUID is not an ext4 root partition on a whole disk")
@@ -92,8 +92,9 @@ if not all(x["size"]>0 for x in layout): raise SystemExit("source partition size
 composite_payload={"ssh_host_key_fingerprint":host_fp,"root_uuid":expected.lower(),
  "capacity_bytes":expected_size,"pttype":"gpt","partitions":layout,"serial":serial or None}
 composite=hashlib.sha256(json.dumps(composite_payload,sort_keys=True,separators=(",",":")).encode()).hexdigest()
+size_gib=expected_size/2**30
 basis=["pinned SSH host-key fingerprint","root filesystem UUID","unique parent disk containing the root UUID",
- "exact 50 GiB capacity","GPT partition layout","BIOS Boot partition","no read-write source mount",
+ f"exact {size_gib:g} GiB capacity","GPT partition layout","BIOS Boot partition","no read-write source mount",
  "Rescue discovery timestamp recorded outside the stable identity hash"]
 result={"device_path":disk_path,"root_partition":root_path,"model":model,
  "capacity_bytes":expected_size,"serial":serial,"serial_available":bool(serial),
@@ -107,7 +108,7 @@ result={"device_path":disk_path,"root_partition":root_path,"model":model,
 print(json.dumps(result,separators=(",",":")))
 PY
 )" || {
-  printf '{"status":"BLOCKED","reason":"Remote source did not match the required UUID, 50 GiB GPT, BIOS Boot and ext4 layout."}\n' >"$PAW_REPORT_DIR/source-discovery.json"
+  printf '{"status":"BLOCKED","reason":"Remote source did not match the required UUID, declared capacity, GPT, BIOS Boot and ext4 layout."}\n' >"$PAW_REPORT_DIR/source-discovery.json"
   chmod 0600 "$PAW_REPORT_DIR/source-discovery.json"
   die 'Rescue Mode disk layout or root UUID did not match the required source identity.'
 }
@@ -164,4 +165,4 @@ with open(session_path+".tmp","w",encoding="utf-8") as handle:
 os.chmod(session_path+".tmp",0o600); os.replace(session_path+".tmp",session_path)
 PY
 unset expected_uuid inventory candidate
-log INFO "Rescue Mode source identity confirmed: 50 GiB GPT, BIOS Boot, ext4 root UUID match, no read-write mounts, host-key fingerprint pinned."
+log INFO "Rescue Mode source identity confirmed: declared capacity, GPT, BIOS Boot, ext4 root UUID match, no read-write mounts, host-key fingerprint pinned."

@@ -1,0 +1,15 @@
+{
+  "schema": "paw.gpt-expand.v1",
+  "status": "PASS",
+  "disk": "/dev/sdc",
+  "partition": "/dev/sdc2",
+  "partition_number": 2,
+  "before_bytes": 12882787840,
+  "after_bytes": 239997885952,
+  "grew": true,
+  "filesystem_before_blocks": 3145211,
+  "filesystem_after_blocks": 58593233,
+  "filesystem_grew": true,
+  "filesystem_check_method": "online_mounted_resize_after_namespace_holder",
+  "completed_at": "2026-11-12T04:39:22.589071+00:00"
+}

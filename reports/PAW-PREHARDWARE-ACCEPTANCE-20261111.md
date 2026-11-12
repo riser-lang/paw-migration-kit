@@ -1,12 +1,12 @@
 # PAW v2.8 预硬件验收报告（P0/P1 + 补充三/四）
 
-- 日期：2026-11-11（UTC）
+- 日期：2026-11-12（UTC）
 - 分支：`vm/ds-prehardware-acceptance-20261111`
-- 代码基线：`a5c423f`（`source_os`/`gpt-expand` 修复，基于 `b9f5c5b`；文档提交不改变脚本/ISO）
+- 代码基线：初始 `b9f5c5b`；本报告对应分支 `vm/ds-prehardware-acceptance-20261111` 上的修复提交（见 `git log`）
 - 执行模型：DS V4.1 Flash
 - 环境：QEMU/TCG、Debian Live 6.12.113+deb13-amd64、4 vCPU（宿主 2 核）、3 GiB guest RAM
 - 范围：**仅虚拟块设备与模拟网络端点**
-- 状态：**P0/P1 与补充三/四代码及虚拟测试完成；生产/物理项 NEEDS_TEST/OPEN**
+- 状态：**虚拟全链路 CHAIN_PASS；生产/物理项 NEEDS_TEST/OPEN**
 
 ## 1. 结论摘要
 
@@ -16,7 +16,7 @@
 | P1 修复（O_DIRECT、NTFS、GRUB/by-id、AHCI/r8169、SMART、firstboot 等） | **PASS（虚拟/静态）** | 24/24 P1 套件 |
 | 补充三：VLESS/Tailscale 双阶段 | **PASS（模拟）** | 25/25 VLESS 套件 |
 | 补充四：武汉家宽端口/公网访问架构 | **设计 PASS；生产 NEEDS_TEST** | 策略文件 + 开发机负向审计；未登录生产 |
-| 全链路预硬件迁移（12 GiB source → 240 GB target） | **重跑中；尚无 CHAIN_PASS** | QEMU/SeaBIOS 虚拟磁盘 |
+| 全链路预硬件迁移（12 GiB source → 240 GB target） | **PASS（虚拟，`CHAIN_PASS`）** | `PAW3_CHAIN_RESULT=PASS`；克隆目标到 `ubuntu login:`；独立 SHA256；39/39 |
 | 物理 ASUS/TF/SSD/Rescue/生产 | **OPEN / NEEDS_TEST** | 本会话未触碰 |
 
 本报告不把 QEMU、loop、mock SSH、模拟 Tailscale/Xray 或操作员目视确认写成物理
@@ -114,11 +114,61 @@ P1 套件 **24/24 PASS**：`reports/evidence/prehardware-20261111/p1-remediation
 **39 passed, 0 failed**（`reports/evidence/prehardware-20261111/` 之外的宿主
 副本：`~/prehardware-20261111/share/prehw-selftests/`）。
 
-### 4.3 本次重跑
+### 4.3 重跑中发现的第二个真实失败：源 UUID 在目标盘上重复
 
-已用修复后的脚本重建 lab guest，正在重跑完整链路。只有实际出现
-`PAW3_CHAIN_RESULT=PASS`、克隆目标登录提示和 39/39 故障套件，才会把本节
-改为 PASS；否则保留 CHAIN_FAIL/根因。
+2026-11-12T03:24Z 的重跑在 `source_identity` 处 `CHAIN_FAIL`，真实错误是
+`expected exactly one root UUID match`。根因不是源盘：`source50.raw` 的
+ext4 根 UUID 在源盘上只出现一次；上一次尝试在 240 GB **一次性虚拟目标盘**
+上留下了同一 UUID 的旧克隆，而 lab 把源盘和目标盘挂在同一 guest 内，远端
+`lsblk` 因此看到两个匹配。真实生产链路中源是远端 VPS、目标是本机盘，不会
+出现这种同机歧义；但 lab 必须每次从空白目标开始。
+
+修复：`guest-chain.sh` 在身份识别前只对序列号
+`PAW-DST-123456`、容量 240 GB 的一次性目标执行 `wipefs -a`，并把
+`lab_target_blank` 作为显式前置步骤；生产入口不做隐式擦盘。源识别器的
+错误信息改为 `expected exactly one root UUID match, found N`，保持 fail-closed，
+不通过“忽略第二个匹配”来伪造 PASS。
+
+### 4.4 本次重跑：CHAIN_PASS
+
+2026-11-12 11:32–12:47（CST）重建 lab guest，跑完整链路。实际结果：
+
+- `source_os` PASS：`Ubuntu 24.04.5 LTS`，`VERSION_ID=24.04`，
+  `/mnt/paw-source/etc/os-release`，kernel `6.8.0-147-generic`，i915/r8169 存在，
+  source 只读挂载。
+- 虚拟故障套件 **39 passed, 0 failed**；`source_identity` 使用
+  `exact 12 GiB capacity`，复合身份
+  `6704e246b06ce693f394c1fed0e2c0db1b99f7da697f2ab3454f470933fbbc66`。
+- 授权：错误序列号被拒绝且目标首 1 MiB 未变；正确序列号
+  `PAW-DST-123456` 得到 `AUTHORIZED`，随后才进入写入阶段。
+- 克隆：`remote-zstd-level1-thread1`，source **12,884,901,888** bytes，
+  SSH payload **584,133,947** bytes，压缩减少 **95.5%**，restored
+  **12,884,901,888** bytes。
+- 独立校验：`sha256=140081b5bdb716cac171d6d6a20e1487aa152e636b7ea793bbae3f701227ff6e`，
+  `bytes_verified=12,884,901,888`，`independent_sha256_verified=true`；
+  `CLONE-INCOMPLETE` 清除。
+- 离线修复 PASS；GRUB 安装到
+  `/dev/disk/by-id/ata-QEMU_HARDDISK_PAW-DST-123456`，debconf 状态为
+  `cloud_style_no_debconf`（未伪造 debconf 证明）。
+- GPT 扩展：`/dev/sdc2` 从 **12,882,787,840** bytes 到
+  **239,997,885,952** bytes，`grew=True`，GPT 备份头已移动。
+- `preboot_handoff` PASS（`phase=pre_reboot`，不声称 first boot）；
+  `auto_reboot` PASS（`invoked=true`）。
+- **`PAW3_CHAIN_RESULT=PASS`** 于 12:39:59 实际输出。
+- 克隆目标真实启动 `Ubuntu 24.04.5 LTS`（kernel 6.8.0-147-generic），
+  在 ttyS0 出现 `ubuntu login:`；宿主结果为
+  `main result=TARGET_BOOT_SEEN chain_pass=True target_boot=True qemu_rc=0`
+  （12:47:07），截图 `screens/target-boot.ppm`。
+- 可提交证据：`reports/evidence/prehardware-20261111/chain-20261112/`
+  （步骤摘要、stream-transfer、stream-verify、offline-repair、gpt-expand）。
+
+**测试工具真实缺陷（已修复）**：getty 的 `login: ` 提示末尾没有换行，原来的
+行缓冲读取器只把完整行放入队列，因此真实提示已经出现却未被分类。没有伪造
+登录：目标确实启动了克隆后的 Ubuntu 并显示 getty；本次为让旧读取器收到行边界，
+向串口控制台发送了无害的 SysRq-H 帮助输出。随后已把读取器改为同时检查完整
+串口快照，避免未来再依赖额外控制台输出；该修复不改变 PASS 判定标准。
+
+## 5. 补充三：VLESS/Tailscale 双阶段
 
 ## 5. 补充三：VLESS/Tailscale 双阶段
 
