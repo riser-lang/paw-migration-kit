@@ -16,6 +16,7 @@ export PAW_STATE_DIR="$state"
 export PAW_CONFIG_DIR="$state/configs"
 export PAW_REPORT_DIR="$state/reports"
 export PAW_LOG_DIR="$state/logs"
+export PAW_REBOOT_HANDOFF_FILE=/run/paw3-chain-pass
 mkdir -p "$PAW_CONFIG_DIR" "$PAW_REPORT_DIR" "$PAW_LOG_DIR" /mnt/paw3-host
 log_file="$state/chain.log"
 : >"$log_file"
