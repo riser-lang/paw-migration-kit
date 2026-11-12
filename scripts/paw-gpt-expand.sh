@@ -103,7 +103,6 @@ for attempt in $(seq 1 30); do
   fi
   die "Filesystem check after partition growth failed with rc=$rc; no resize2fs was run."
 done
-if ((rc != 0 && rc != 1)); then die 'Filesystem check after partition growth did not complete; no resize2fs was run.'; fi
 fsck_method='offline'
 if [[ "$fsck_out" == *'is in use'* || "$fsck_out" == *'Device or resource busy'* || "$fsck_out" == *'resource busy'* ]]; then
   # Offline e2fsck takes O_EXCL.  A mount left in another mount namespace by
@@ -127,6 +126,7 @@ if [[ "$fsck_out" == *'is in use'* || "$fsck_out" == *'Device or resource busy'*
   fsck_method='online_mounted_resize_after_namespace_holder'
   rc=0
 else
+  if ((rc != 0 && rc != 1)); then die 'Filesystem check after partition growth did not complete; no resize2fs was run.'; fi
   resize2fs "$part"
 fi
 unset rc
