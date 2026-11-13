@@ -691,11 +691,19 @@ case "$*" in
 esac
 SH
 chmod 0755 /run/paw3-intbin/ssh
-python3 - "$interrupt/configs/target-ssd.json" "$loop" "$loop_serial" <<'PY'
-import json,subprocess,sys,datetime
-p,dev,serial=sys.argv[1:]
-cap=int(subprocess.check_output(["blockdev","--getsize64",dev],text=True).strip())
-d={"approved":True,"device_path":dev,"model":"QEMU loop interrupt target","capacity_bytes":cap,"serial":serial,"registered_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+PAW3_LOOP_DEV="$loop" PAW3_LOOP_SERIAL="$loop_serial" PATH="/run/paw3-intbin:$PATH" \
+  python3 "$PAW_ROOT/scripts/paw-identity.py" identity "$loop" >"$interrupt/target-identity.json" \
+  || fail ssh_interrupt 'could not bind the interruption target identity'
+python3 - "$interrupt/configs/target-ssd.json" "$interrupt/target-identity.json" <<'PY'
+import json,sys,datetime
+p,identity_path=sys.argv[1:]
+ident=json.load(open(identity_path,encoding="utf-8"))
+d={"approved":True,"device_path":ident["device_path"],"model":ident["model"],
+   "capacity_bytes":ident["capacity_bytes"],"serial":ident["serial"],
+   "hardware_identity_sha256":ident["hardware_identity_sha256"],
+   "composite_identity_sha256":ident["composite_identity_sha256"],
+   "identity_basis":ident["identity_basis"],
+   "registered_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
 json.dump(d,open(p,"w",encoding="utf-8"),indent=2)
 PY
 python3 - "$interrupt/reports/operator-authorization.json" "$loop" "$loop_serial" "$interrupt/configs/source.json" <<'PY'
