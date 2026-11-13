@@ -28,7 +28,7 @@ jobs:
       - name: Check out the exact tested commit
         uses: actions/checkout@v4
 
-      - name: Record runner capacity and QEMU version
+      - name: Record runner capacity
         run: |
           # The runner context is not available in job-level env; publish the
           # paths to later steps through GITHUB_ENV instead.
@@ -41,9 +41,8 @@ jobs:
             echo "nproc=$(nproc)"
             free -g
             df -h / /mnt "$RUNNER_TEMP"
-            qemu-system-x86_64 --version || true
-            qemu-img --version || true
-            sgdisk --version || true
+            df -B1 / /mnt "$RUNNER_TEMP"
+            echo "qemu_version: recorded after the install step below"
           } | tee artifacts/host-baseline.txt
 
       - name: Install virtual lab tools
@@ -53,6 +52,14 @@ jobs:
             qemu-system-x86 qemu-utils xorriso squashfs-tools gdisk \
             cloud-guest-utils e2fsprogs util-linux zstd pv openssh-client \
             busybox-static cpio xz-utils fdisk parted rsync
+          {
+            echo "--- installed virtual lab tools ---"
+            date -u +%FT%TZ
+            qemu-system-x86_64 --version
+            qemu-img --version
+            sgdisk --version
+            df -B1 / /mnt "$RUNNER_TEMP"
+          } | tee -a artifacts/host-baseline.txt
 
       - name: Fetch the ISO artifact from the selected build run
         run: |

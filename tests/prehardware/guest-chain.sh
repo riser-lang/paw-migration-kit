@@ -513,7 +513,11 @@ HW
 cat >"$hwbin/badblocks" <<'HW'
 #!/usr/bin/env bash
 echo "badblocks $*" >>/run/paw3-hw-adapter.log
-dev="${!#}"
+dev=''
+for arg in "$@"; do
+  [[ -b "$arg" ]] && dev="$arg"
+done
+[[ -n "$dev" ]] || { echo 'no block device argument' >&2; exit 2; }
 exec 9<"$dev" || exit 1
 bytes=$((64*1024*1024))
 if ! dd if="$dev" of=/dev/null bs=1M count=64 status=none; then exit 1; fi

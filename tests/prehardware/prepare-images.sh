@@ -93,7 +93,9 @@ required_with_reserve_bytes=$required
 available_bytes=$avail
 EOF
 ((avail >= required)) || {
-  echo "BLOCKED: available $avail < required $required; no image was created." >&2
+  shortfall=$((required - avail))
+  echo "shortfall_bytes=$shortfall"
+  echo "BLOCKED: available $avail < required $required; shortfall $shortfall bytes; no image was created." >&2
   exit 2
 }
 ((plan_only == 0)) || exit 0
