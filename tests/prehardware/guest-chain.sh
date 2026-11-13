@@ -663,14 +663,17 @@ cp "$PAW_REPORT_DIR/console-font.json" "$interrupt/reports/console-font.json"
 cp "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$interrupt/reports/paw-hardware-health-report.json"
 truncate -s "$src_bytes" "$state/interrupt-target.img"  # sparse; must be >= the source capacity
 loop="$(losetup -f --show "$state/interrupt-target.img")"
+# /run may be mounted noexec in the live image, so adapters live on the rootfs.
+intbin=/usr/local/lib/paw3-intbin
 cleanup_interrupt(){
   losetup -d "$loop" 2>/dev/null || true
   rm -f "$state/interrupt-target.img"
+  rm -rf "$intbin"
 }
 trap cleanup_interrupt EXIT
 loop_serial="LOOP-INT-$(printf '%s' "$loop" | sha256sum | cut -c1-6)"
-mkdir -p /run/paw3-intbin
-cat >/run/paw3-intbin/lsblk <<'SH'
+mkdir -p "$intbin"
+cat >"$intbin/lsblk" <<'SH'
 #!/usr/bin/env bash
 last="${!#}"
 if [[ "$last" == "${PAW3_LOOP_DEV:-}" ]]; then
@@ -681,22 +684,26 @@ if [[ "$last" == "${PAW3_LOOP_DEV:-}" ]]; then
 fi
 exec /usr/bin/lsblk "$@"
 SH
-chmod 0755 /run/paw3-intbin/lsblk
+chmod 0755 "$intbin/lsblk"
+probe_model="$(PATH="$intbin:$PATH" PAW3_LOOP_DEV="$loop" PAW3_LOOP_SERIAL="$loop_serial" \
+  lsblk -dn -o MODEL "$loop" 2>/dev/null || true)"
+[[ "$probe_model" == 'QEMU loop interrupt target' ]] \
+  || fail ssh_interrupt 'interrupt lsblk adapter is not executable on this root filesystem'
 # Controlled transport interruption: the streaming ssh (the call that carries
 # dd) is closed after three seconds.  Probe ssh calls are untouched.  This is
 # a real local-loopback OpenSSH stream, not a mock pipe.
-cat >/run/paw3-intbin/ssh <<'SH'
+cat >"$intbin/ssh" <<'SH'
 #!/usr/bin/env bash
 case "$*" in
   *"dd if="*)
-    echo "INT_SSH_STREAM_TIMEOUT $(date -u +%FT%TZ)" >>/run/paw3-intbin/ssh.log
+    echo "INT_SSH_STREAM_TIMEOUT $(date -u +%FT%TZ)" >>"$intbin/ssh.log"
     exec timeout --signal=TERM 3 /usr/bin/ssh "$@"
     ;;
   *) exec /usr/bin/ssh "$@" ;;
 esac
 SH
-chmod 0755 /run/paw3-intbin/ssh
-PAW3_LOOP_DEV="$loop" PAW3_LOOP_SERIAL="$loop_serial" PATH="/run/paw3-intbin:$PATH" \
+chmod 0755 "$intbin/ssh"
+PAW3_LOOP_DEV="$loop" PAW3_LOOP_SERIAL="$loop_serial" PATH="$intbin:$PATH" \
   python3 "$PAW_ROOT/scripts/paw-identity.py" identity "$loop" >"$interrupt/target-identity.json" \
   || fail ssh_interrupt 'could not bind the interruption target identity'
 python3 - "$interrupt/configs/target-ssd.json" "$interrupt/target-identity.json" <<'PY'
@@ -726,7 +733,7 @@ json.dump({"status":"AUTHORIZED","migration_id":str(uuid.uuid4()),"authorization
 PY
 PAW_STATE_DIR="$interrupt" PAW_CONFIG_DIR="$interrupt/configs" PAW_REPORT_DIR="$interrupt/reports"   python3 "$PAW_ROOT/scripts/paw-transaction.py" init   --transaction "$interrupt/reports/migration-transaction.json"   --authorization "$interrupt/reports/operator-authorization.json"   --source-config "$interrupt/configs/source.json"   --target-config "$interrupt/configs/target-ssd.json" >/dev/null   || fail ssh_interrupt 'could not initialize the interruption transaction'
 (
-  PATH="/run/paw3-intbin:$PATH" PAW3_LOOP_DEV="$loop" PAW3_LOOP_SERIAL="$loop_serial" \
+  PATH="$intbin:$PATH" PAW3_LOOP_DEV="$loop" PAW3_LOOP_SERIAL="$loop_serial" \
   PAW_STATE_DIR="$interrupt" PAW_CONFIG_DIR="$interrupt/configs" \
   PAW_REPORT_DIR="$interrupt/reports" PAW_LOG_DIR="$interrupt/logs" \
   PAW_DESTRUCTIVE_ARM=I_HAVE_VERIFIED_THE_TARGET_SERIAL \
