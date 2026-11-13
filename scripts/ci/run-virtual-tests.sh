@@ -169,7 +169,19 @@ assert len(d['composite_identity_sha256'])==64 and d['ssh_host_key_fingerprint']
 assert d['identity_strength']=='composite-no-serial+layout+hostkey'
 PY
 expect_fail 'Read-write-mounted Rescue source' env PAW_EXPECTED_ROOT_UUID="$test_uuid" PAW_TEST_RW_MOUNT=1 "$root/scripts/paw-source-discovery.sh"
+sed 's/"start":4096/"start":4096/; s/"children":\[/"children":[{"name":"mockdisk3","path":"\/dev\/mockdisk3","type":"part","start":9000000,"size":1048576,"partn":3,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":null,"ro":false,"mountpoints":[null]},/' "$root/tests/virtual/ci-source-lsblk.json" >"$root/tests/virtual/ci-source-nonlast-lsblk.json"
+expect_fail 'Root partition not last on source disk' env PAW_MOCK_LSBLK_JSON="$root/tests/virtual/ci-source-nonlast-lsblk.json" PAW_EXPECTED_ROOT_UUID="$test_uuid" "$root/scripts/paw-source-discovery.sh"
+sed 's/"start":2048/"start":null/' "$root/tests/virtual/ci-source-lsblk.json" >"$root/tests/virtual/ci-source-missstart-lsblk.json"
+expect_fail 'Source partition missing START offset' env PAW_MOCK_LSBLK_JSON="$root/tests/virtual/ci-source-missstart-lsblk.json" PAW_EXPECTED_ROOT_UUID="$test_uuid" "$root/scripts/paw-source-discovery.sh"
+sed 's/"partn":2/"partn":1/' "$root/tests/virtual/ci-source-lsblk.json" >"$root/tests/virtual/ci-source-duppartn-lsblk.json"
+expect_fail 'Source partition duplicate PARTN' env PAW_MOCK_LSBLK_JSON="$root/tests/virtual/ci-source-duppartn-lsblk.json" PAW_EXPECTED_ROOT_UUID="$test_uuid" "$root/scripts/paw-source-discovery.sh"
 PAW_EXPECTED_ROOT_UUID="$test_uuid" "$root/scripts/paw-source-discovery.sh" >/dev/null 2>&1
+python3 - "$PAW_REPORT_DIR/source-discovery.json" <<'PY' && pass 'source-discovery.json records root_is_last_partition and partition_layout_check PASS' || { echo 'FAIL source-discovery layout report fields' >>"$report"; failed=$((failed+1)); }
+import json,sys
+d=json.load(open(sys.argv[1]))
+assert d["root_is_last_partition"] is True and d["partition_layout_check"]["status"]=="PASS"
+assert d["source"]["root_partition_start"]==4096 and d["source"]["max_partition_start"]==4096
+PY
 write_configs "$source_loop" "$target_loop"
 
 # Memtest86+ has no cryptographic capture path in this kit. Test the explicit

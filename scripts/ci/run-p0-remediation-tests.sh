@@ -325,35 +325,26 @@ else
   fail 'REMED-P0-3 paw-gpt-expand.sh second gate missing'
 fi
 
-sdir="$work/source-discovery"; mkdir -p "$sdir/bin"
-cat >"$sdir/bin/ssh-keygen" <<'SH'
-#!/usr/bin/env bash
-printf '256 SHA256:testpinnedhostkeyfingerprint mock (ED25519)\n'
-SH
-cat >"$sdir/bin/rescue_ssh" <<'SH'
-#!/usr/bin/env bash
-cmd="${1:-}"
-if [[ "$cmd" == lsblk* ]]; then
-  cat "$PAW_MOCK_LSBLK"
-elif [[ "$cmd" == base64* ]]; then
-  cat >/dev/null
-  printf '{"status":"PASS","read_write_mounts":0,"mounts":[]}\n'
-else
-  exit 1
-fi
-SH
-chmod +x "$sdir/bin/ssh-keygen" "$sdir/bin/rescue_ssh"
+sdir="$work/source-discovery"; mkdir -p "$sdir"
+python3 - "$root/scripts/paw-source-discovery.sh" "$sdir" <<'PY'
+import re,sys
+src=open(sys.argv[1],encoding="utf-8").read()
+m=re.search(r"candidate=\"\$\(python3 - .*?<<'PY'\n(.*?)\nPY\n\)\"",src,re.S)
+assert m, "could not extract validation python block from paw-source-discovery.sh"
+open(sys.argv[2]+"/validate_source.py","w",encoding="utf-8").write(m.group(1)+"\n")
+PY
 run_src_disc(){
   local case_dir="$1" json_payload="$2"
-  rm -rf "$case_dir"; mkdir -p "$case_dir/net" "$case_dir/state"
+  rm -rf "$case_dir"; mkdir -p "$case_dir"
   printf '%s\n' "$json_payload" >"$case_dir/lsblk.json"
-  printf '{"host":"127.0.0.1","port":2222}\n' >"$case_dir/net/rescue-endpoint.json"
-  printf '127.0.0.1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMockKeyForLocalTestsOnly\n' >"$case_dir/net/known_hosts"
-  printf 'MOCK-KEY\n' >"$case_dir/net/rescue_ed25519"
-  PATH="$sdir/bin:$PATH" PAW_NETWORK_DIR="$case_dir/net" PAW_STATE_DIR="$case_dir/state" \
-    PAW_EXPECTED_ROOT_UUID='11111111-2222-3333-4444-555555555555' \
-    PAW_EXPECTED_SOURCE_BYTES=53687091200 PAW_MOCK_LSBLK="$case_dir/lsblk.json" \
-    bash "$root/scripts/paw-source-discovery.sh" >/dev/null 2>"$case_dir/stderr.log"
+  python3 "$sdir/validate_source.py" \
+    '11111111-2222-3333-4444-555555555555' \
+    '53687091200' \
+    "$case_dir/lsblk.json" \
+    'SHA256:testpinnedhostkeyfingerprint' \
+    '0000000000000000000000000000000000000000000000000000000000000000' \
+    "$case_dir/source-discovery.json" \
+    >"$case_dir/candidate.json" 2>"$case_dir/stderr.log"
 }
 
 good_last='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda1","path":"/dev/vda1","type":"part","size":1048576,"partn":1,"parttype":"21686148-6449-6e6f-744e-656564454649","start":2048},{"name":"vda2","path":"/dev/vda2","type":"part","size":104857600,"partn":2,"parttype":"c12a7328-f81f-11d2-ba4b-00a0c93ec93b","fstype":"vfat","start":6144},{"name":"vda3","path":"/dev/vda3","type":"part","size":53580000000,"partn":3,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000}]}]}'
@@ -362,33 +353,33 @@ non_last='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":
 missing_start='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda14","path":"/dev/vda14","type":"part","size":4194304,"partn":14,"parttype":"21686148-6449-6e6f-744e-656564454649","start":null},{"name":"vda1","path":"/dev/vda1","type":"part","size":53500000000,"partn":1,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000}]}]}'
 dup_partn='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda1","path":"/dev/vda1","type":"part","size":4194304,"partn":1,"parttype":"21686148-6449-6e6f-744e-656564454649","start":2048},{"name":"vda1b","path":"/dev/vda1b","type":"part","size":53500000000,"partn":1,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000}]}]}'
 
-if run_src_disc "$sdir/good" "$good_last" && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["root_is_last_partition"] is True and d["partition_layout_check"]["status"]=="PASS" and d["source"]["root_partition_start"]==220000 and d["source"]["max_partition_start"]==220000' "$sdir/good/state/reports/source-discovery.json"; then
-  pass 'REMED-P0-3 root-is-last-partition PASS and recorded in source-discovery.json'
+if run_src_disc "$sdir/good" "$good_last" && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["root_is_last_partition"] is True and d["partition_layout_check"]["status"]=="PASS" and d["root_partition_start"]==220000 and d["max_partition_start"]==220000' "$sdir/good/candidate.json"; then
+  pass 'REMED-P0-3 root-is-last-partition PASS and recorded in source candidate'
 else
   fail "REMED-P0-3 good last-partition case failed: $(cat "$sdir/good/stderr.log" 2>/dev/null || true)"
 fi
-if run_src_disc "$sdir/cloud" "$cloud_last" && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["root_is_last_partition"] is True' "$sdir/cloud/state/reports/source-discovery.json"; then
+if run_src_disc "$sdir/cloud" "$cloud_last" && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["root_is_last_partition"] is True' "$sdir/cloud/candidate.json"; then
   pass 'REMED-P0-3 cloud part1-is-last-by-START PASS'
 else
   fail "REMED-P0-3 cloud layout failed: $(cat "$sdir/cloud/stderr.log" 2>/dev/null || true)"
 fi
 if run_src_disc "$sdir/nonlast" "$non_last"; then
   fail 'REMED-P0-3 partition after root unexpectedly passed'
-elif [[ ! -e "$sdir/nonlast/state/configs/source.json" ]] && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="BLOCKED" and d["root_is_last_partition"] is False' "$sdir/nonlast/state/reports/source-discovery.json"; then
-  pass 'REMED-P0-3 partition after root BLOCKED and recorded in source-discovery.json'
+elif python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="BLOCKED" and d["root_is_last_partition"] is False' "$sdir/nonlast/source-discovery.json"; then
+  pass 'REMED-P0-3 partition after root BLOCKED and recorded in diagnostic report'
 else
   fail 'REMED-P0-3 partition after root failed without expected BLOCKED report'
 fi
 if run_src_disc "$sdir/missstart" "$missing_start"; then
   fail 'REMED-P0-3 missing START unexpectedly passed'
-elif [[ ! -e "$sdir/missstart/state/configs/source.json" ]] && grep -q '"BLOCKED"' "$sdir/missstart/state/reports/source-discovery.json"; then
+elif grep -q '"BLOCKED"' "$sdir/missstart/source-discovery.json"; then
   pass 'REMED-P0-3 missing START fail-closed BLOCKED'
 else
   fail 'REMED-P0-3 missing START did not fail closed with BLOCKED report'
 fi
 if run_src_disc "$sdir/duppartn" "$dup_partn"; then
   fail 'REMED-P0-3 duplicate partn unexpectedly passed'
-elif [[ ! -e "$sdir/duppartn/state/configs/source.json" ]] && grep -q '"BLOCKED"' "$sdir/duppartn/state/reports/source-discovery.json"; then
+elif grep -q '"BLOCKED"' "$sdir/duppartn/source-discovery.json"; then
   pass 'REMED-P0-3 duplicate partn fail-closed BLOCKED'
 else
   fail 'REMED-P0-3 duplicate partn did not fail closed with BLOCKED report'
