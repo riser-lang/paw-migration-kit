@@ -1,29 +1,34 @@
 # PAW Migration State
 
-更新：2026-11-12。每次新对话必须重新核对GitHub；本文件是快照，不是实时状态。
+更新：2026-11-13。每次新对话必须重新核对GitHub；本文件是快照，不是实时状态。
 
 ## 当前分支
 - 分支：vm/ds-final-prehardware-remediation-20261112
-- 文档整理前HEAD：ee9e49ed18e2d4d3fa44fd2c494d0e33cfc08c79
-- 最新运行时代码：fe6100e16f4c032310e3eb0b351d37f655d1d1a6
+- 已验收运行时代码：7ec4dbf3d14fb7e23aa213f7f9021d24c569913a
 - 基线：vm/ds-prehardware-acceptance-20261111 @ d7cb1e56028c0a4b5cd621e7dc02d17bd2cb8c32
-- main：0d6aefd093984a65f40d19e1fae584dee623b8e9（本次核实时未修改）
-- 文档整理会产生新提交，以上HEAD随即过期。
+- main：0d6aefd093984a65f40d19e1fae584dee623b8e9（未修改）
+- 文档提交会在运行时提交之后更新，以上 HEAD 仅反映写入时刻。
 
-## 最新Actions
-Run #100：https://github.com/riser-lang/paw-migration-kit/actions/runs/43206559080
-- Run ID 43206559080；代码提交 fe6100e16f4c032310e3eb0b351d37f655d1d1a6；结果 FAILURE。
-- 静态检查、Public Safety/History、Debian签名、Xray/Tailscale准备、ISO构建、字体、SeaBIOS、CJK五场景5/5、PAWDATA虚拟介质、故障注入39/39通过。
-- 失败在 Offline repair and rollback suite on loop ext4。日志出现 netplan 期望文件缺失、后续 offline-repair.json 不存在；报告还提fixture缺 /bin/sh、/usr/bin/env。必须定位第一个真实失败原因。
-- 后续网络、P0/P1、VLESS、Finalize被跳过，Run #100不是完整PASS。
+## 最新 Actions
+- 常规 CI（`build-live-and-test.yml`）：Run **`43398893910`**（https://github.com/riser-lang/paw-migration-kit/actions/runs/43398893910）
+  - 代码提交：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`
+  - 结果：**`success`**（全部 24 步通过：静态检查、CJK 字体 416 字形、SeaBIOS、CJK 25/25、PAWDATA 12/12、Fault-injection 43/43、Offline repair 27/27、Network 28/28、P0 46/46、P1 24/24、SSD identity/controller 41/41、VLESS 25/25、Finalize 36/36、TTY 56/56）
+- 50GiB 完整链路（`prehardware-50g.yml`）：Run **`43402874795`**（https://github.com/riser-lang/paw-migration-kit/actions/runs/43402874795）
+  - 代码提交 & ISO 来源：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a` / Run `43398893910`
+  - 状态：**`in_progress`**（写入本快照时仍在执行中，待完成后验收；在此之前真实克隆继续阻断）
 
-## Run #100 ISO（构建成功但workflow失败，不是最终放行）
-- paw-live-amd64.iso：953,155,584 bytes
-- SHA256：bc37ebaebe469e40b61b0f7c841fee95690b68ccbaf4dfa73d5414fea3a9b0fe
-- Artifact：paw-live-build-test-results，ID 13939752294，1,030,656,870 bytes
-- 到期：2026-11-15T11:29:27Z
-- 报告记录下载后独立复算与sidecar一致。
-- 不知道实体TF卡是否已写入该ISO；不得假设已更新，不得未经授权重写。
+## 最新已校验 Release ISO（来自 Run 43398893910）
+- Artifact：`paw-live-build-test-results`，ID `14025033882`，ZIP 大小 `1030672881` bytes（`7z t` PASS）
+- `paw-live-amd64.iso`：`953155584` bytes
+- 独立复算 SHA256：`eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358`（与 sidecar `paw-live-amd64.iso.sha256`、`iso-identity.txt` 一致）
+- 本地下载路径：`C:\PAW-Release\run-43398893910\paw-live-amd64.iso`
+- 历史 Run #124（`43374947901` / `0ced6e8...`）及 Run #100 均仅作历史基线，不得替代本轮 ISO。
+
+## 已通过 P0 修复（运行时提交 7ec4dbf3d14fb7e23aa213f7f9021d24c569913a）
+- P0-1：`tests/prehardware/guest-chain.sh` 中断测试从 `target-identity.json` 写入双哈希至 `operator-authorization.json` 并留存 tx init 日志；
+- P0-2：`tests/prehardware/verify-chain-evidence.py` 与 `run-prehardware-lab.py` 强制 `auto_reboot PASS` 后目标 Ubuntu login 并由 Host runner 印证；
+- P0-3：`scripts/paw-source-discovery.sh` 将 `root_start == max_start` 检查前移至源盘发现阶段并保留 `paw-gpt-expand.sh` 第二道门禁；
+- P0-4：`scripts/paw-live-controller.sh`、`paw-hardware-preflight.sh`、`paw-memtest-confirm.sh`、`paw-memory-test-report.sh` 与 `paw-final-confirm.sh` 全面支持无序列号 SSD（WWN/by-id/8 位硬件指纹）且严格校验唯一性与容量。
 
 ## 已有虚拟成果与边界
 - Memtest86+ 7.20菜单：QEMU/SeaBIOS通过；真实12GB内存待测。

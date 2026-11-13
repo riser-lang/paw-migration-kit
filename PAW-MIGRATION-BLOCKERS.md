@@ -1,13 +1,13 @@
 # PAW Migration Blockers
 
-更新：2026-11-12。关闭条件必须有代码、日志或实际测试证据。
+更新：2026-11-13。关闭条件必须有代码、日志或实际测试证据。
 
 | ID | 优先级 | 状态 | 问题 | 关闭条件 |
 |---|---|---|---|---|
-| BLOCK-REPAIR-CI | P0 | OPEN | Run #100 repair-virtual测试失败 | 查明首个真实失败原因，修复fixture并完整通过 |
-| BLOCK-50G-FULLCHAIN | P0 | PARTIAL | 50GiB源盘未完成完整克隆链路 | 精确50GiB→240GB，克隆、SHA256、修复、扩容、重启、目标启动通过；资源不足则BLOCKED |
-| BLOCK-SSD-IDENTITY-UX | P0 | OPEN | 预检要求预先登记SSD序列号，用户不知道 | 自动发现磁盘、展示信息、用户选择确认、每个写盘阶段重新绑定/核验身份 |
-| BLOCK-RELEASE-ISO | P0 | OPEN | Run #100构建ISO但workflow失败 | 最新HEAD完整CI绿色，ISO对应同一HEAD，Artifact下载后ISO SHA256 MATCH |
+| BLOCK-REPAIR-CI | P0 | CLOSED | Run #100 repair-virtual测试失败 | Run `43398893910` `Offline repair and rollback suite` 27/27 PASS |
+| BLOCK-50G-FULLCHAIN | P0 | IN_PROGRESS | 50GiB源盘未完成完整克隆链路 | Run `43402874795`（基于 `7ec4dbf3d14fb7e23aa213f7f9021d24c569913a` / Run `43398893910` ISO）正在执行；完整 PASS 前仍阻断真实克隆 |
+| BLOCK-SSD-IDENTITY-UX | P0 | CLOSED | 预检/总控与无序列号SSD稳定身份不一致 | `paw-live-controller.sh`/`paw-hardware-preflight.sh`/`paw-memtest-confirm.sh`/`paw-final-confirm.sh` 已全线对齐 `paw-identity.py`，Run `43398893910` `41/41` PASS |
+| BLOCK-RELEASE-ISO | P0 | CLOSED | 需要基于最终修复SHA的全绿最新ISO | Run `43398893910`（SHA `7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`）全绿，Artifact `14025033882` 独立复算 SHA256 `eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358` MATCH |
 | BLOCK-USB-PHYSICAL | P1 | NEEDS_TEST | 只有QEMU USB证据 | 真实ASUS BIOS从真实TF/读卡器启动并验证PAWDATA |
 | BLOCK-SSD-PHYSICAL | P1 | NEEDS_TEST | 真实SMART/温度/只读扫描未执行 | 真实SSD身份确认后完成只读检查 |
 | BLOCK-MEMTEST-PHYSICAL | P1 | NEEDS_TEST | QEMU不能证明真实DDR3健康 | 真实12GB内存完成至少一轮Memtest且0 errors |

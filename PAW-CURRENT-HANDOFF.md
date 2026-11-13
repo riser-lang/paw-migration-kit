@@ -367,3 +367,60 @@ Host runner 同时报告：
 - 本轮纠错和新 GitHub 构建尚未执行。
 - 50GiB链路仍为 BLOCKED / 未验收。
 - 最终迁移目标保持不变。
+
+
+---
+
+## 记录 0006（2026-11-13，本地 Windows / Gemini 4 Hydrogen — P0-1..P0-4 最终纠错、GitHub 全绿构建、新 ISO 独立校验与 50GiB 链路触发）
+
+### 本轮已完成的 4 项 P0 修复与测试
+
+1. **P0-1：SSH 中断测试授权字段缺失（`tests/prehardware/guest-chain.sh`）**
+   - 从 `$interrupt/target-identity.json` 动态读取 `hardware_identity_sha256` 与 `composite_identity_sha256`，写入 `$interrupt/operator-authorization.json` 的 `target_hardware_identity_sha256` 与 `target_composite_identity_sha256`（不硬编码哈希，未削弱 `scripts/paw-transaction.py` 门禁）。
+   - 保存 `paw-transaction.py init` 的 `tx-init.stdout`、`tx-init.stderr`、`tx-init.rc`，失败时输出实际退出码与 stderr 原因。
+   - 在 `scripts/ci/run-p0-remediation-tests.sh` 增加正负向测试：匹配哈希允许初始化、错误 hardware/composite 哈希拒绝、任一字段缺失拒绝、SSH 中断后 `CLONE_INCOMPLETE` 与 `CLONE-INCOMPLETE` 标记保留。
+
+2. **P0-2：目标 Ubuntu 启动证据验证与双端相互印证（`tests/prehardware/verify-chain-evidence.py`、`tests/prehardware/run-prehardware-lab.py`、`.github/workflows/prehardware-50g.yml`）**
+   - 移除只要日志任意位置出现 `login:` 即通过的误判。
+   - 严格要求先出现 `PAW3_STEP=auto_reboot STATUS=PASS`，其后才允许匹配 `Ubuntu 24.04... ubuntu ttyS0` 与紧随其后的 `ubuntu login:`。
+   - 增加 `--runner-log` 校验 Host runner 输出中的 `main result=TARGET_BOOT_SEEN ... chain_pass=True ... target_boot=True`，实现 Host runner 与 Guest verifier 相互印证。
+   - 在 `scripts/ci/run-p0-remediation-tests.sh` 增加正负向测试（仅启动前 login FAIL、无 auto_reboot FAIL、仅有重启无目标 Ubuntu login FAIL、仅有通用 login FAIL、runner 标记不一致 FAIL、完整证据 PASS）。
+
+3. **P0-3：源盘 Root 最后一个分区前移检查（`scripts/paw-source-discovery.sh`、`scripts/ci/run-virtual-tests.sh`、`scripts/ci/run-p0-remediation-tests.sh`）**
+   - 在 `paw-source-discovery.sh` 解析 Rescue SSH `lsblk --json` 返回的 `partn`（禁止缺失/重复）、`START`（禁止缺失/非正整数/重复）与 `SIZE`，严格核对 `root_start == max_start`。
+   - 若 Root 后存在其他分区或 `START` 缺失/不完整，直接 fail closed 写出 `"status": "BLOCKED"` 诊断报告并拒绝创建 `source.json`；正常情况将 `root_is_last_partition`、`root_partition_start`、`max_partition_start` 与 `partition_layout_check` 写入 `source-discovery.json`。
+   - 保留 `scripts/paw-gpt-expand.sh` 原第二道扩容门禁，不自动移动/删除源盘任何分区。
+   - 在 `run-virtual-tests.sh` 与 `run-p0-remediation-tests.sh` 增加正向（常规与 cloud 分区号排布）及负向（Root 非最后分区、START 缺失、partn 重复）测试。
+
+4. **P0-4：无序列号 SSD 端到端进入总控流程（`scripts/paw-live-controller.sh`、`scripts/paw-hardware-preflight.sh`、`scripts/paw-memtest-confirm.sh`、`scripts/paw-memory-test-report.sh`、`scripts/paw-final-confirm.sh`）**
+   - 移除 `paw-live-controller.sh`、`paw-memtest-confirm.sh`、`paw-memory-test-report.sh` 与 `paw-final-confirm.sh` 对 `target_serial` 非空的硬性要求；复用 `paw-identity.py resolve` 与 `verify --phase prewrite --check-unique`、精确容量校验与硬件身份哈希绑定。
+   - `paw-hardware-preflight.sh` 将 `target_hardware_identity_sha256`、`target_composite_identity_sha256` 与 `target_identity_basis` 持久化到 `paw-hardware-health-report.json`。
+   - 修复 `paw-final-confirm.sh` `target_serial_suffix` 在短/空序列号时安全回退至 `target_hardware_identity_sha256[-8:]`，并确保中文 tty 提示控制在内核 fbcon 512 字形槽位上限内（保持 416 个唯一非 ASCII 字符）。
+   - 在 `scripts/ci/run-ssd-health-tests.sh` 增加 7 组完整正负向场景：有序列号 SSD PASS、无序列号 WWN SSD 全链路 `READY_FOR_OPERATOR`、无序列号 by-id SSD `READY_FOR_OPERATOR`、身份不足 BLOCKED、同身份双盘歧义 BLOCKED、授权/登记后替换盘 BLOCKED、健康报告 WARN/FAIL 阻断。
+
+### 权威 GitHub Actions 验证与全新 ISO 独立校验结果
+
+- **代码分支**：`vm/ds-final-prehardware-remediation-20261112`
+- **已验收 Runtime Commit SHA**：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`（公开安全与历史扫描 `check-public-safety.py` / `check-public-history.py` 全通过）
+- **常规 CI（`build-live-and-test.yml`）**：Run ID **`43398893910`**，`conclusion=success`（全流程 24 步绿色通过，含 CJK font `1/1` (`416` 唯一字形)、PAWDATA `12/12`、Virtual fault-injection `43/43`、Repair `27/27`、Network `28/28`、P0 `46/46`、P1 `24/24`、SSD identity/controller `41/41`、VLESS `25/25`、Finalize `36/36`、TTY `56/56`）
+- **新 Artifact**：`paw-live-build-test-results`，Artifact ID **`14025033882`**，ZIP 精确字节数 **`1030672881`**
+- **本地 ZIP 完整性与 ISO 独立校验**（下载目录 `C:\PAW-Release\run-43398893910`）：
+  - `7z t C:\PAW-Release\run-43398893910\paw-live-build-test-results.zip`：`Everything is Ok`（88 files，`Physical Size = 1030672881`）
+  - ISO 路径：`C:\PAW-Release\run-43398893910\paw-live-amd64.iso`
+  - ISO 精确字节数：**`953155584`** bytes（与 `iso-identity.txt` 完全一致）
+  - ISO 实算 SHA256：**`eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358`**
+  - 与 `paw-live-amd64.iso.sha256`、`iso-identity.txt` 比对：**100% MATCH**
+- **历史 Run #124（`43374947901` / `0ced6e8...`）**：仅作历史对比基线，**已作废，不作为本轮最终 ISO**。
+
+### 50GiB 完整链路触发状态
+
+- 使用新 build Run ID `43398893910` 触发 `.github/workflows/prehardware-50g.yml`：
+  - Run ID：**`43402874795`**（`https://github.com/riser-lang/paw-migration-kit/actions/runs/43402874795`）
+  - 对应 `headSha`：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`（已通过 `Check out the exact tested commit`、`Fetch the ISO artifact from the selected build run` 与源/目标镜像准备步骤）
+  - 记录时状态：**`in_progress`**（正在构建 test-only toram Live ISO 并即将执行 50GiB→240GB QEMU 链路，结果待该 Run 结束后核对）。
+
+### 当前状态与未完成项
+
+- 本轮 P0-1..P0-4 代码整改、新增测试、GitHub 完整构建测试及新 ISO 独立下载校验全部完成。
+- `prehardware-50g.yml` Run `43402874795` 正在执行中；在其完整 PASS 前，50GiB 完整链路仍为 **OPEN / IN_PROGRESS**。
+- 本次未执行真实 TF 卡写盘、未修改生产 VPS / Tailnet / Xray / MCP / `main` 分支。
