@@ -1,0 +1,67 @@
+PAW Migration Kit v2.8 — FINAL DELIVERY ISO IDENTITY
+Recorded: 2026-11-13T05:36:00Z
+Evidence directory: reports/evidence/final-iso-20261113-final/
+
+Runtime code commit
+  branch:      vm/ds-final-prehardware-remediation-20261112
+  commit:      6662723145603914eba6f5b28bd42b7ee23543d4 (6662723)
+  subject:     test(prehw): bind the interrupt loop target identity and model
+  full CI:     https://github.com/riser-lang/paw-migration-kit/actions/runs/43368913055
+  conclusion:  success
+  event:       workflow_dispatch
+  created:     2026-11-13T04:58:20Z
+  finished:    2026-11-13T05:27:11Z
+
+Artifact
+  run id:      43368913055
+  artifact id: 14012587883
+  name:        paw-live-build-test-results
+  ZIP bytes:   1,030,669,199
+  ZIP SHA256:  60214412199999a7f912dc1c3824096f9520e6027784cc5c7eeb0aac2a0122ca
+  retention:   14 days (expires on or about 2026-11-27)
+  download:    full ZIP fetched from the GitHub artifact endpoint over HTTPS;
+               size matched 1,030,669,199 bytes; unzip -t reported no errors.
+
+ISO (the file that was tested, not the ZIP)
+  name:        paw-live-amd64.iso
+  bytes:       953,155,584
+  SHA256:      83bee43d9257d7f22524b91deba51f469e6767443a80241b53bc40554bdf9e3d
+  sidecar:     83bee43d9257d7f22524b91deba51f469e6767443a80241b53bc40554bdf9e3d  boot/custom/paw-live-amd64.iso
+  independent: sha256sum run on the ISO extracted from the downloaded ZIP produced
+               the same 83bee43d...9e3d value.
+  result:      MATCH (sidecar == iso-identity.txt == independent recomputation)
+  test:        the CI boot test and the final 50 GiB chain consumed this run's ISO
+               artifact, not a rebuilt or locally substituted image.
+
+Supporting artifact files (same ZIP)
+  iso-identity.txt          d532ba52ff11ce295f4190d7075decf018d9d4985e43a2fa6023d7c09d8e5281
+  paw-live-amd64.iso.sha256 8567c348adad5355522c7bc9361874d617ea6e879c186cd78a063c8c897229e3
+  software-manifest.txt     6d754b886c5127ddbcee918cf24d46ad8e1918ffb2641fe0f17207d29fbac2da
+  software-packages.txt     1d9643ff84a7eea6bad76607d0ddcd756907c71b48bba5a47ee1713ce338f111
+  build-provenance.txt      bfad187d7171dcd1ccf5b10c7692ecc99a69b6208e909d0815b522440af3c508
+  software-packages.lock    591c32e91d4c0c1fc84204214a8bb223152ba908668ff14787329c504212901d
+                            (not committed: the upstream lock file contains
+                            package version strings that the IPv4-literal safety
+                            heuristic misreads as addresses; the original is kept
+                            with the downloaded artifact)
+
+Build provenance content
+  Debian package source snapshot: 20261101T000000Z
+  Build SOURCE_DATE_EPOCH: 1793491200
+
+Software manifest content (summary; full files retained beside this record)
+  Tailscale package: 1.104.5 (Debian package from Tailscale signed stable repository)
+  Tailscale binary: 1.104.5
+  Xray release: v26.3.27
+  Xray archive SHA2-256: 23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae
+  Tailscale binary SHA256: ae6d013e3a9dac4d6ae7cd682cf89215e512d6f12ae94d39c72a93f13d2fce66
+  Tailscaled binary SHA256: 0dd3bfb1c8316cb6b6bb23d41d716a976313e8aa9387abc722e2a14782c06bbf
+  Xray binary SHA256: 8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed
+
+Supersession
+  Candidates c23984e (run 43352873377, artifact 14006116731) and 75ca552
+  (run 43360762768, artifact 14009706156) are historical only. Both 50 GiB
+  attempts failed in the ssh_interrupt test fixture: first the disposable loop
+  target was not bound to an identity hash, then its synthetic model was empty
+  and the transaction refused to initialize. Commit 6662723 fixes both. The
+  final delivery ISO is this 6662723 artifact.

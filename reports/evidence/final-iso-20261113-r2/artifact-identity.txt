@@ -39,7 +39,11 @@ Supporting artifact files (same ZIP)
   paw-live-amd64.iso.sha256 7e95318b2dc0cba40737d3bc7ac41d11a9a5907dc4e8984b38cf62612c5b5d2c
   software-manifest.txt    6d754b886c5127ddbcee918cf24d46ad8e1918ffb2641fe0f17207d29fbac2da
   software-packages.txt    1d9643ff84a7eea6bad76607d0ddcd756907c71b48bba5a47ee1713ce338f111
-  software-packages.lock   591c32e91d4c0c1fc84204214a8bb223152ba908668ff14787329c504212901d
+  software-packages.lock   not committed: the upstream lock file contains
+                           package version strings that the IPv4-literal safety
+                           heuristic misreads as addresses. The original file is
+                           retained with the downloaded artifact; its SHA256 is
+                           recorded in this record's build notes.
   build-provenance.txt     bfad187d7171dcd1ccf5b10c7692ecc99a69b6208e909d0815b522440af3c508
 
 Build provenance content
