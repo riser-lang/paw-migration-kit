@@ -424,3 +424,101 @@ Host runner 同时报告：
 - 本轮 P0-1..P0-4 代码整改、新增测试、GitHub 完整构建测试及新 ISO 独立下载校验全部完成。
 - `prehardware-50g.yml` Run `43402874795` 正在执行中；在其完整 PASS 前，50GiB 完整链路仍为 **OPEN / IN_PROGRESS**。
 - 本次未执行真实 TF 卡写盘、未修改生产 VPS / Tailnet / Xray / MCP / `main` 分支。
+
+
+---
+
+## 记录 0007：ChatGPT 独立验收与启动盘制作判断（2026-11-13 17:47 Asia/Shanghai）
+
+### 1. 本次核验的 GitHub 实际状态
+
+- 仓库：`riser-lang/paw-migration-kit`
+- 分支：`vm/ds-final-prehardware-remediation-20261112`
+- 当前分支 HEAD：`dd2b297ed985df9d80319ef50ddb59d292da14d6`
+- 已验收运行时代码：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`
+- 比较运行时代码与当前分支 HEAD：仅 ahead 1 个文档提交，涉及 `PAW-CURRENT-HANDOFF.md`、`PAW-MIGRATION-STATE.md)、`PAW-MIGRATION-BLOCKERS.md`；没有发现运行时代码在 CI 后继续变化。
+- PR #2 仍未作为本轮发布基线；本轮验收针对上述开发分支和运行时代码 SHA。
+
+### 2. 常规 GitHub CI 和 ISO：PASS
+
+- Run #129：`43398893910`
+- Workflow：`build-live-and-test.yml`
+- Runtime SHA：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`
+- Job `build-test`：SUCCESS；GitHub job steps 全部完成且成功。
+- 关键测试摘要与原始日志核对：
+  - console font fail-closed：26 assertions / 0 failed；
+  - CJK font coverage：1 passed / 0 failed，416 个唯一非 ASCII 字符；
+  - CJK framebuffer tty1 + keyboard：25 passed / 0 failed，5 cases；
+  - PAWDATA 虚拟介质：12 passed / 0 failed；
+  - virtual disk/fault injection：43 passed / 0 failed；
+  - offline repair/rollback：27 passed / 0 failed；
+  - network/staged connectivity：28 passed / 0 failed；
+  - P0 remediation：46 passed / 0 failed；
+  - P1 remediation：24 passed / 0 failed；
+  - SSD stable identity/controller：41 passed / 0 failed；
+  - VLESS/Tailscale：25 passed / 0 failed；
+  - Finalize/reboot：36 passed / 0 failed；
+  - TTY/PTY：56 passed / 0 failed，0 blocked。
+- P0-1 日志确认：目标硬件和组合身份哈希正确时允许事务初始化；错误或缺失哈希拒绝；SSH 中断后保留 CLONE-INCOMPLETE。
+- P0-2 日志确认：启动前 login、缺失 auto_reboot、重启后无 Ubuntu login、通用 login、Host runner 不匹配均被拒绝；有效 post-reboot Ubuntu login + Host runner corroboration 通过。
+- P0-3 日志确认：root 最后分区通过；root 后还有分区、START 缺失、PARTN 重复均 BLOCKED；扩容阶段第二道门禁保留。
+- P0-4 日志确认：无序列号 WWN SSD 和 by-id SSD 可以进入 READY_FOR_OPERATOR；身份不足、重复身份、替换盘及健康 WARN/FAIL 仍被阻断。
+- GitHub runner ISO 构建日志记录：
+  - `iso_bytes=953155584`
+  - SHA256：`eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358`
+  - xorriso 识别 `El Torito` 与 `MBR isohybrid cyl-align-on GPT APM`。
+  - SeaBIOS/TCG smoke step 成功。
+- Artifact：`paw-live-build-test-results`，ID `14025033882`，ZIP size `1030672881` bytes，GitHub digest `sha256:a7a5851535a001d5800fbf749c5e6ffd4ea6d87545cfbe50f713c39f4850ad84`，expires `2026-11-27T09:36:41Z`。
+- Gemini 本地报告：ZIP `7z t` 通过（88 files，Everything is Ok）；提取 ISO 为 `953155584` bytes；本地独立 SHA256 `eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358`，与 sidecar 和 `iso-identity.txt` 一致。ChatGPT 已从 GitHub runner 日志复核 ISO 字节数和 SHA256；本会话无法直接读取用户本地 Windows 文件，故本地 ZIP 测试和独立哈希属于 Gemini 提供的本地执行证据。
+- 本轮最终 ISO 不使用旧 Run #124；Run #124 仅为历史基线。
+
+### 3. 50GiB 完整链路：仍 IN_PROGRESS，不得放行真实克隆
+
+- Run #17：`43402874795`
+- URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/43402874795
+- Workflow：`prehardware-50g.yml`
+- 运行时代码 SHA：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`
+- 使用 ISO build Run ID：`43398893910`；workflow 已验证 ISO Run 的 headSha 与自身 checkout SHA 相同。
+- 核验时状态：`in_progress`。
+- 已完成成功的步骤：checkout exact commit、runner capacity、工具安装、获取对应 ISO Artifact、Ubuntu cloud image 校验、准备精确50GiB源盘/240GB目标盘、构建 test-only toram Live ISO、构建32GB USB虚拟介质、QEMU权限准备。
+- 当前正在执行：`Run 50 GiB source to 240 GB target chain (QEMU/TCG)`。
+- 后续 `Verify chain evidence`、`Collect evidence`、`Publish artifact` 尚未执行。
+- 因此目前不能声明50GiB完整克隆、传输字节数、独立SHA256、离线修复、扩容、自动重启和目标Ubuntu启动通过。
+- 50GiB Run 完成前，真实生产整盘克隆继续 BLOCKED。
+
+### 4. 额外发现的真实硬件兼容性风险：PAWDATA 对 TF/USB 读卡器的识别
+
+ChatGPT 复核了运行时代码 `scripts/paw-data-prepare.sh`：
+
+- 真实（非 simulation）路径会从 `findmnt /run/live/medium` 识别当前启动介质的父磁盘；
+- 随后硬性要求 `lsblk RM` 等于 `1`；
+- 随后硬性要求该设备返回非空 SERIAL；
+- 任一条件不满足，PAWDATA 自动初始化就会返回阻断状态。
+- 当前 PAWDATA 12/12 测试使用 loop/simulation 介质，并 mock 序列号；没有证明 ASUS 主板上的真实 USB TF 读卡器一定返回 `RM=1` 且提供非空 SERIAL。
+- 若真实读卡器报告 `RM=0` 或无序列号，PAWDATA 初始化将不会自动完成；`paw-live-controller.sh` 会因 PAWDATA 不健康而保持 BLOCKED，正式克隆不会启动。这是安全阻断，不会因此误写目标 SSD。
+- 该风险不阻止现在制作启动盘，但意味着不能承诺首次真实启动时 PAWDATA 必然自动初始化。首次实机启动必须观察 PAWDATA 是否 PASS；若未 PASS，停止，不得绕过门禁或手工改写磁盘分区。
+- 后续如需兼容特定读卡器，应以当前启动介质父设备、USB transport、稳定身份、唯一性、容量、ISO/分区布局和用户确认建立替代识别方案；不得简单删除 RM/身份门禁。
+
+### 5. 文档一致性问题
+
+- `PAW-MIGRATION-BLOCKERS.md` 已把 `BLOCK-SSD-IDENTITY-UX` 标记 CLOSED。
+- 但当前 `PAW-MIGRATION-STATE.md` 仍保留一段旧的“必须解决：用户不知道SSD序列号”文字，与同一文件前面“P0-4已通过”的状态矛盾。
+- 这是文档快照不一致，不是本次 ISO 构建失败；建议下一轮仅修正文档当前状态，历史交接记录仍不可修改。
+
+### 6. 最终验收判断
+
+- **PREHARDWARE_MEDIA_READY_NONDESTRUCTIVE_ONLY：允许制作实体启动盘。**
+- 允许理由：最新修复代码 Run #129 全部24个 workflow steps 成功；ISO 构建、Hybrid MBR/GPT/El Torito 信息、SeaBIOS smoke、CJK、PAWDATA虚拟测试、磁盘安全测试通过；Artifact 已上传；Gemini 本地报告 ZIP 完整性和 ISO 独立 SHA256 MATCH，且 runner 日志 SHA256 一致。
+- 该结论仅授权进入实体启动介质制作和非破坏性硬件验收阶段，不代表真实硬件兼容性已通过，也不代表50GiB完整迁移已通过。
+- 制作 TF 卡时应使用 ISO/DD 镜像写入模式，保留 Hybrid ISO 原始分区布局；Windows 弹出格式化提示必须取消；不得手工调整/格式化 PAWDATA 分区。
+- 首次启动只做 PAW Live、中文控制台、PAWDATA、SSD身份盘点、SMART/只读扫描、Memtest、HD4600、网卡、网络检查；不要输入最终迁移授权。
+- **真实 SSD 整盘克隆：NOT RELEASED / NOT AUTHORIZED**，至少等待 Run #17 50GiB完整链路 PASS，并在实体机确认启动介质、PAWDATA、目标SSD身份、硬件健康和真实Rescue SSH后，再单独向用户请求最终迁移授权。
+- 本次 ChatGPT 仅进行 GitHub 只读核验和本文件末尾追加；未修改运行时代码、未写入真实 TF 卡/SSD、未操作生产 VPS。
+
+### 7. 下一步
+
+1. 用户可使用本次 ISO（953155584 bytes，SHA256 `eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358`）制作32GB TF/USB启动盘。
+2. 采用 Rufus DD 模式或等效 raw image 写入；写入前确认目标设备确为TF卡，避免选中其他磁盘。
+3. 写入完成后不要接受 Windows 格式化提示。
+4. 首次实机启动保持非破坏性，只观察 PAWDATA 与硬件检测结果；如 PAWDATA 未 PASS 或任一关键硬件状态 BLOCKED/WARN，停止，不进入最终授权。
+5. ChatGPT 后续重新核对 Run #17 的最终状态和证据，再决定完整迁移是否放行。
