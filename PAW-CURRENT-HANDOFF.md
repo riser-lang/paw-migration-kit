@@ -232,3 +232,55 @@ Host runner 同时报告：
 ### 6. 下一步
 
 让本地 Gemini 4 Hydrogen 执行 Run #124 Artifact 下载、独立 ISO 哈希复核和本地校验报告。优先复用已构建的 ISO，不重新编译。校验完成后由 ChatGPT 再核对结果，并在用户明确授权后安排 TF 卡写入。
+
+
+---
+
+## 记录 0004：用户澄清两小时任务范围与最终目标（2026-11-13）
+
+- 记录时分支 HEAD：`183099fae59d6ec8ed22dcfea4b05965d0f29a36`
+- 用户明确澄清：两小时用于“必要纠错 + 修复后的 GitHub 测试 + 最终 ISO 构建”，不是仅下载现有 ISO，也不是把工作降级为非破坏性启动盘。
+- 如有代码修改，必须提交到当前 GitHub 开发分支，并由 GitHub Actions 执行正式测试和构建；不得用本地测试替代 GitHub 验收。
+- 用户希望由本地 Gemini 4 Hydrogen 执行本轮开发，减少 DeepSeek 的长任务消耗和 Gemini token 浪费。
+- 最终项目目标没有变化：制作可用于完整 PAW 迁移的启动介质，安全完成旧腾讯云 Ubuntu 50GiB 系统盘向武汉本地 SSD 的迁移，恢复 PAW 服务、Tailscale/VLESS/Exit Node 和原有 GPT/Claude/Gemini MCP 路径；旧 VPS 保留为 paw-gateway。
+- 不得将“候选 ISO 构建成功”改称“完整迁移已验收”，不得删除50GiB完整链路和真实硬件门禁。
+
+### 当前事实基线
+
+- 开发分支：`vm/ds-final-prehardware-remediation-20261112`
+- 分支 HEAD（本记录开始时）：`183099fae59d6ec8ed22dcfea4b05965d0f29a36`，这是交接文档提交。
+- 最新常规 CI 运行时代码：`0ced6e8210cca67d678ccf5d24e2f12f591e91a7`
+- 常规 CI Run #124：`43374947901`，SUCCESS，23/23 workflow steps。
+- Run #124 Artifact：`14014299163`，名称 `paw-live-build-test-results`，约1.03GB。
+- Run #124 ISO：`953155584` bytes；runner 记录 SHA256 `eed910bb6d06314e33547a5b65fa0e9ee896d910b494b7d9eb54dbb4fdecaf5e`。本地独立下载复核尚未完成。
+- 50GiB Run #16：`43372389032`，FAILURE；失败于 `ssh_interrupt` 事务初始化，尚未完成主50GiB克隆及后续修复/扩容/重启/目标启动。
+- 50GiB workflow `prehardware-50g.yml` 有350分钟超时；常规 `build-live-and-test.yml` 为 workflow_dispatch，job 超时120分钟。Run #124 实际约27分钟。
+- 当前没有已知排队或正在运行的相关 Actions。
+- GitHub Artifact connector 对大于512MiB的 ZIP 无法直接下载；本地 Gemini 应使用 GitHub CLI 下载。
+
+### 两小时内允许的最小工作范围
+
+1. 只修改两个已确认的测试问题，不做生产运行时代码重构：
+   - `tests/prehardware/guest-chain.sh`：SSH中断测试创建的 `operator-authorization.json` 缺少与 `target-ssd.json` 对应的 `target_hardware_identity_sha256` 和 `target_composite_identity_sha256`。应从同一份 `target-identity.json` 读取并写入；保留正式 `paw-transaction.py` 身份校验。
+   - `tests/prehardware/verify-chain-evidence.py`：不得仅凭日志任意位置出现 `login:` 判定目标启动成功。必须验证自动重启标记之后的目标 Ubuntu 登录证据；Host runner 也必须独立确认 `TARGET_BOOT_SEEN`、`chain_pass=True` 和 `target_boot=True`。
+2. 增加上述两个问题的快速正向/负向测试。
+3. 提交到当前开发分支。
+4. 通过 GitHub Actions 手动触发一次完整 `build-live-and-test.yml`；不能用本地测试代替。
+5. 若常规 CI 成功，下载该次构建 Artifact，独立核对 ISO 大小、SHA256、sidecar 和代码 HEAD。
+6. 使用该次成功构建的 Run ID 触发 `prehardware-50g.yml`。它可在两小时窗口结束后继续运行；必须等其结果和证据才能决定完整迁移是否放行。
+7. 如50GiB workflow未能在两小时内完成，记录为进行中/未验收，不能降低标准；启动盘可以作为候选介质准备，但正式破坏性克隆仍须等待50GiB和实体硬件门禁通过。
+
+### 两小时资源控制
+
+- 本地 Gemini 只读取 Master、当前 Handoff、相关两个脚本及对应 workflow；不要重新阅读整个仓库或重做全面审计。
+- 只允许一次针对性补丁、一次常规完整 GitHub CI/ISO构建、一次50GiB workflow dispatch。
+- 如果常规 CI 失败，只允许在剩余时间内修复明确且直接相关的失败；禁止无关重构和反复重跑。
+- 不要重新编译与 GitHub 测试无关的本地 ISO。
+- 不得修改 main、合并 PR、操作生产 VPS、写真实 TF 卡/SSD。
+- 两小时是纠错与最终构建的工作预算，不改变完整迁移验收标准。
+
+### 当前结论
+
+- 现有 Run #124 ISO 只是已通过常规CI的候选产物，不是本轮纠错后的最终构建。
+- 本轮目标是用最小修改得到新的 GitHub 完整CI成功Run和对应最终ISO，并启动同一代码版本的50GiB完整链路验收。
+- 最终迁移目标保持不变；如果50GiB或真实硬件门禁未通过，不得执行真实整盘克隆。
