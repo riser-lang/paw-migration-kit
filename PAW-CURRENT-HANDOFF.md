@@ -74,3 +74,94 @@
 - DS 的完整执行任务已准备，尚待在云电脑中执行并返回证据。
 - 当前不允许宣布 PREHARDWARE_RELEASE_READY。
 - 当前不允许将 Run #100 ISO 写入真实 TF 卡作为最终启动盘。
+
+
+---
+
+## 记录 0002：2026-11-13 最新进展复核（ChatGPT 独立核查）
+
+- 记录时间：2026-11-13 14:30（Asia/Shanghai）
+- 仓库：`riser-lang/paw-migration-kit`
+- 工作分支：`vm/ds-final-prehardware-remediation-20261112`
+- 本次复核时分支 HEAD：`0ced6e8210cca67d678ccf5d24e2f12f591e91a7`
+- 最新运行时代码：`0ced6e8210cca67d678ccf5d24e2f12f591e91a7`
+- 本记录为只读评审和交接追加；没有修改运行时代码，没有触发工作流，没有操作真实硬件或生产 VPS。
+
+### 1. 常规构建与测试工作流
+
+- Run #124：https://github.com/riser-lang/paw-migration-kit/actions/runs/43374947901
+- Run ID：`43374947901`
+- 运行时代码：`0ced6e8210cca67d678ccf5d24e2f12f591e91a7`
+- 结果：SUCCESS；`build-test` job 的23个工作流步骤全部成功。
+- 通过的主要专项输出：PAWDATA 12/0、虚拟故障注入39/0、离线修复27/0、网络28/0、P0 26/0、P1 24/0、SSD身份30/0、VLESS 25/0、Finalize 36/0、TTY 56/0、CJK五场景25/0。
+- Artifact：`paw-live-build-test-results`，ID `14014299163`，ZIP大小 `1,030,674,014` bytes；Artifact ZIP digest `sha256:8d075674f288e2d4e936d65fa80dbea6b0894ca7d3c428ea76b68e05e4cff09d`；到期时间 `2026-11-27T06:19:52Z`。
+- Run #124 构建的 ISO：`953,155,584` bytes；构建日志中的 ISO SHA256：`eed910bb6d06314e33547a5b65fa0e9ee896d910b494b7d9eb54dbb4fdecaf5e`。
+- 说明：ISO SHA256 是该次 runner 构建记录；Artifact 下载后的独立提取与复算尚未完成，不能把 ZIP digest 当作 ISO digest，也不能声称已完成独立下载复核。
+- 该工作流不包含独立的50GiB完整迁移链路；常规 CI 全绿不等于50GiB链路通过。
+
+### 2. 50GiB独立工作流实际状态
+
+- 最新50GiB工作流 Run #16：https://github.com/riser-lang/paw-migration-kit/actions/runs/43372389032
+- Run ID：`43372389032`
+- 结果：FAILURE。
+- 该次50GiB工作流的 head SHA：`6662723145603914eba6f5b28bd42b7ee23543d4`，早于本记录时最新运行时代码 `0ced6e8210cca67d678ccf5d24e2f12f591e91a7`。
+- 该次运行使用的 ISO 构建 Run ID：`43368913055`（Run #123），不是最新 Run #124 的 ISO。
+- 前一轮 Run #15（ID `43364557104`）也在相同的 `ssh_interrupt` 阶段失败。
+- GitHub 当前没有排队或正在运行的工作流。
+
+### 3. 50GiB链路已证明和未证明的内容
+
+该次 Run #16 日志证明虚拟环境已准备并识别：
+- 源盘：`53,687,091,200` bytes（精确50GiB）；
+- 目标盘：`240,000,000,000` bytes；
+- 启动介质：`32,000,000,000` bytes；
+- QEMU/TCG、Haswell、ICH9 AHCI、USB Mass Storage启动路径；
+- Ubuntu 24.04.5源系统识别；
+- PAWDATA初始化；
+- 目标盘虚拟身份登记；
+- 256MiB混合数据流和独立SHA256；
+- 网络步骤为WARN（仅本地链路）。
+
+但在 `ssh_interrupt` 阶段，Guest 输出：
+`STEP ssh_interrupt STATUS=FAIL could not initialize the interruption transaction`
+
+Host runner 同时报告：
+`main result=CHAIN_FAIL chain_pass=False target_boot=False qemu_rc=0`
+
+因此主50GiB克隆、完整传输字节数、独立SHA256、离线修复、GPT/ext4扩容、自动重启和目标系统启动均未完成。该次运行不能称为50GiB完整链路通过。
+
+### 4. 已定位的测试夹具契约不匹配
+
+当前 `tests/prehardware/guest-chain.sh` 的 SSH 中断测试：
+- 从 `target-identity.json` 创建 `target-ssd.json`，其中包含 `hardware_identity_sha256` 和 `composite_identity_sha256`；
+- 但随后创建的 `operator-authorization.json` 只有 `target_device`、`target_serial` 等字段，缺少 `target_hardware_identity_sha256` 和 `target_composite_identity_sha256`；
+- 当前 `scripts/paw-transaction.py cmd_init` 在目标登记包含硬件身份哈希时，明确要求授权文件提供并匹配上述两个哈希。
+
+这构成一个可直接从当前代码确认的测试夹具数据契约不匹配。正确修复方向是让测试授权记录携带从同一份 `target-identity.json` 读取的两个身份哈希，并保留正式事务校验；不得放宽 `paw-transaction.py` 的身份门禁。
+
+当前最新提交 `0ced6e8` 将中断测试适配器从可能被 noexec 挂载的 `/run/paw3-intbin` 移到 rootfs 的 `/usr/local/lib/paw3-intbin`，这是合理的环境修复，但没有补齐授权文件缺失的两个哈希，因此不能认为它已经解决 Run #16 的事务初始化失败。
+
+此外，当前 `tests/prehardware/verify-chain-evidence.py` 的 `target_boot_login` 判定仅为日志中出现任意 `login:` 字符串；这不足以证明目标系统在自动重启之后到达登录界面。Run #16 的 Host runner 明确报告 `target_boot=False`，所以该 verifier 的 `target_boot_login=PASS` 不能作为目标系统启动通过证据。应要求自动重启标记之后出现目标 Ubuntu 的准确串口登录标识，并与 Host runner 的 `target_boot=True / TARGET_BOOT_SEEN` 结果相互印证。
+
+### 5. 模型选择判断与下一步
+
+- 当前判断：暂不更换开发模型。Run #124 的23/23常规工作流通过，说明常规修复和专项测试取得了实质进展；50GiB失败目前集中在一个可定位的测试夹具身份字段不匹配，不足以证明当前模型整体无法胜任。
+- 下一步只给DS一次范围明确的修复任务：
+  1. 在SSH中断测试的授权JSON中加入与目标登记完全一致的 `target_hardware_identity_sha256` 和 `target_composite_identity_sha256`；
+  2. 保留 `paw-transaction.py` 正式身份检查，不降低门禁；
+  3. 将事务初始化 stdout/stderr 和退出码写入独立日志，失败时保留诊断；
+  4. 修正50GiB证据验证器，禁止仅凭任意 `login:` 判定目标启动成功；要求自动重启之后的目标Ubuntu登录证据，并核对Host runner目标启动结果；
+  5. 先运行针对性中断事务测试，再在新代码HEAD上运行完整常规CI并构建对应ISO；
+  6. 再运行50GiB工作流，`iso_run_id` 必须指向同一代码HEAD的成功构建Run；
+  7. 必须看到29/29必需步骤全部PASS、Host runner报告目标启动成功，才可认定50GiB链路通过。
+- 如果上述明确修复后仍在同一处失败，或DS无法提供事务初始化的实际错误码和诊断日志，再考虑更换模型/执行代理。
+
+### 6. 安全边界与当前放行状态
+
+- 本轮没有修改生产VPS、没有进入生产Rescue、没有读取生产整盘、没有写入真实SSD或TF卡。
+- 没有修改main、没有合并PR、没有删除Artifact。
+- 当前软件常规CI：PASS（Run #124）。
+- 50GiB完整迁移链路：BLOCKED（Run #16失败，且运行代码早于最新HEAD）。
+- ISO独立下载复核：NEEDS_TEST。
+- 真实硬件、真实Rescue SSH和生产网络：继续保持OPEN / NEEDS_TEST。
+- 当前不能宣布 `PREHARDWARE_RELEASE_READY`，不能据此放行真实整盘克隆。
