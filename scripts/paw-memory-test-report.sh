@@ -50,8 +50,18 @@ try:
     target=json.load(open(target_cfg,encoding="utf-8"))
 except Exception:
     fail("target SSD enrollment is missing")
-if d.get("target_serial")!=target.get("serial") or d.get("target_device")!=target.get("device_path"):
+target_serial=str(target.get("serial") or "")
+att_serial=str(d.get("target_serial") or "")
+target_hw=str(target.get("hardware_identity_sha256") or "")
+att_hw=str(d.get("target_hardware_identity_sha256") or "")
+if att_serial!=target_serial:
     fail("attestation target does not match the currently enrolled SSD")
+if target_hw and att_hw:
+    if att_hw!=target_hw:
+        fail("attestation target hardware identity does not match the currently enrolled SSD")
+else:
+    if not target_serial or d.get("target_device")!=target.get("device_path"):
+        fail("attestation target does not match the currently enrolled SSD")
 if status=="FAIL":
     fail("Memtest86+ operator-confirmed error count is nonzero", "FAIL")
 if status=="WARN":
@@ -64,7 +74,8 @@ data={"schema":"paw.memory-test.v1","status":"OPERATOR_CONFIRMED",
  "method":"manual_operator_observation",
  "trust_level":"operator_attestation_not_cryptographic",
  "completed_passes":d["completed_passes"],"error_count":0,
- "target_serial":d["target_serial"],"target_device":d["target_device"],
+ "target_serial":att_serial,"target_device":d.get("target_device",""),
+ "target_hardware_identity_sha256":att_hw or target_hw,
  "boot_id":boot,"attestation_sha256":hashlib.sha256(raw).hexdigest(),
  "recorded_at":d.get("recorded_at"),
  "limits":"operator observation; not a cryptographic or machine-verified memory test",

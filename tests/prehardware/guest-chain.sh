@@ -718,20 +718,37 @@ d={"approved":True,"device_path":ident["device_path"],"model":ident["model"],
    "registered_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
 json.dump(d,open(p,"w",encoding="utf-8"),indent=2)
 PY
-python3 - "$interrupt/reports/operator-authorization.json" "$loop" "$loop_serial" "$interrupt/configs/source.json" <<'PY'
+python3 - "$interrupt/reports/operator-authorization.json" "$loop" "$loop_serial" "$interrupt/configs/source.json" "$interrupt/target-identity.json" <<'PY'
 import json,sys,datetime,uuid
-p,dev,serial,source_path=sys.argv[1:]
+p,dev,serial,source_path,identity_path=sys.argv[1:]
 source=json.load(open(source_path,encoding="utf-8"))
+ident=json.load(open(identity_path,encoding="utf-8"))
 now=datetime.datetime.now(datetime.timezone.utc)
 json.dump({"status":"AUTHORIZED","migration_id":str(uuid.uuid4()),"authorization_id":str(uuid.uuid4()),
  "target_device":dev,"target_serial":serial,"target_serial_suffix":serial[-6:],
+ "target_hardware_identity_sha256":ident["hardware_identity_sha256"],
+ "target_composite_identity_sha256":ident["composite_identity_sha256"],
  "source_device":source.get("device_path"),"source_root_uuid":source.get("root_uuid"),
  "source_composite_identity_sha256":source.get("composite_identity_sha256"),
  "source_capacity_bytes":source.get("capacity_bytes"),
  "authorized_at":now.isoformat(),
  "expires_at":(now+datetime.timedelta(minutes=30)).isoformat()},open(p,"w",encoding="utf-8"),indent=2)
 PY
-PAW_STATE_DIR="$interrupt" PAW_CONFIG_DIR="$interrupt/configs" PAW_REPORT_DIR="$interrupt/reports"   python3 "$PAW_ROOT/scripts/paw-transaction.py" init   --transaction "$interrupt/reports/migration-transaction.json"   --authorization "$interrupt/reports/operator-authorization.json"   --source-config "$interrupt/configs/source.json"   --target-config "$interrupt/configs/target-ssd.json" >/dev/null   || fail ssh_interrupt 'could not initialize the interruption transaction'
+PAW_STATE_DIR="$interrupt" PAW_CONFIG_DIR="$interrupt/configs" PAW_REPORT_DIR="$interrupt/reports" \
+  python3 "$PAW_ROOT/scripts/paw-transaction.py" init \
+  --transaction "$interrupt/reports/migration-transaction.json" \
+  --authorization "$interrupt/reports/operator-authorization.json" \
+  --source-config "$interrupt/configs/source.json" \
+  --target-config "$interrupt/configs/target-ssd.json" \
+  >"$interrupt/tx-init.stdout" 2>"$interrupt/tx-init.stderr"
+tx_init_rc=$?
+printf '%s\n' "$tx_init_rc" >"$interrupt/tx-init.rc"
+if ((tx_init_rc != 0)); then
+  cat "$interrupt/tx-init.stdout" >&2 || true
+  cat "$interrupt/tx-init.stderr" >&2 || true
+  tx_err="$(tr '\n' ' ' <"$interrupt/tx-init.stderr" | head -c 400)"
+  fail ssh_interrupt "could not initialize the interruption transaction (rc=$tx_init_rc): ${tx_err:-no stderr}"
+fi
 (
   PATH="$intbin:$PATH" PAW3_LOOP_DEV="$loop" PAW3_LOOP_SERIAL="$loop_serial" \
   PAW_STATE_DIR="$interrupt" PAW_CONFIG_DIR="$interrupt/configs" \

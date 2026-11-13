@@ -15,9 +15,10 @@ checks+=("data=$data_status")
 
 "$PAW_ROOT/scripts/paw-live-preflight.sh" >/dev/null 2>&1 || { status=BLOCKED; details+=('Live 环境预检失败'); }
 
+network_dir="${PAW_NETWORK_DIR:-/run/paw-network}"
 source_status=BLOCKED
-if [[ -r "$PAW_CONFIG_DIR/source.json" && -r /run/paw-network/source-discovery-session.json ]]; then
-  if python3 - "$PAW_CONFIG_DIR/source.json" /run/paw-network/source-discovery-session.json <<'PY'
+if [[ -r "$PAW_CONFIG_DIR/source.json" && -r "$network_dir/source-discovery-session.json" ]]; then
+  if python3 - "$PAW_CONFIG_DIR/source.json" "$network_dir/source-discovery-session.json" <<'PY'
 import json,sys
 s=json.load(open(sys.argv[1],encoding="utf-8")); d=json.load(open(sys.argv[2],encoding="utf-8"))
 boot=open("/proc/sys/kernel/random/boot_id").read().strip()
@@ -30,38 +31,81 @@ fi
 checks+=("source=$source_status")
 [[ "$source_status" == PASS ]] || { status=BLOCKED; details+=('本次启动尚未通过固定主机指纹的 Rescue SSH 源盘复核'); }
 
-target_identity_status=BLOCKED; hardware_status=BLOCKED; target_dev=''; target_model=''; target_serial=''; target_capacity=''
-if [[ -r "$PAW_CONFIG_DIR/target-ssd.json" ]]; then
+target_cfg="$PAW_CONFIG_DIR/target-ssd.json"
+target_identity_status=BLOCKED; hardware_status=BLOCKED; target_dev=''; target_model=''; target_serial=''; target_capacity=''; target_hw=''; target_comp=''; target_basis=''
+if [[ -r "$target_cfg" ]]; then
   target_fields=()
-  mapfile -d '' -t target_fields < <(python3 - "$PAW_CONFIG_DIR/target-ssd.json" <<'PY'
+  mapfile -d '' -t target_fields < <(python3 - "$target_cfg" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
-sys.stdout.write("".join(str(d.get(k) or "")+"\0" for k in ("device_path","model","serial","capacity_bytes","approved")))
+keys=("device_path","model","serial","capacity_bytes","approved","hardware_identity_sha256","composite_identity_sha256","identity_basis")
+sys.stdout.write("".join(str(d.get(k) or "")+"\0" for k in keys))
 PY
   )
   target_dev="${target_fields[0]:-}"; target_model="${target_fields[1]:-}"; target_serial="${target_fields[2]:-}"; target_capacity="${target_fields[3]:-}"; target_approved="${target_fields[4]:-}"
+  target_hw="${target_fields[5]:-}"; target_comp="${target_fields[6]:-}"; target_basis="${target_fields[7]:-}"
   unset target_fields
-  if [[ "$target_approved" == True && -b "$target_dev" && -n "$target_serial" && "$target_capacity" =~ ^[0-9]+$ ]]; then
-    actual_serial="$(lsblk -dn -o SERIAL "$target_dev" | xargs)"; actual_capacity="$(blockdev --getsize64 "$target_dev")"
-    if [[ "$actual_serial" == "$target_serial" && "$actual_capacity" == "$target_capacity" ]]; then
-      target_identity_status=PASS
-      if [[ "$source_status" == PASS && -r "$PAW_REPORT_DIR/paw-hardware-health-report.json" ]] && python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$target_serial" <<'PY'
+  if [[ "$target_approved" == True && "$target_capacity" =~ ^[1-9][0-9]*$ ]] && [[ -n "$target_hw" || -n "$target_comp" || -n "$target_serial" ]]; then
+    resolved_dev=""
+    if resolved_json="$(python3 "$PAW_ROOT/scripts/paw-identity.py" resolve --config "$target_cfg" 2>/dev/null)"; then
+      resolved_dev="$(python3 -c 'import json,sys;print(json.load(sys.stdin).get("device_path",""))' <<<"$resolved_json")"
+    elif [[ "$target_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$target_dev" && "$(lsblk -dn -o TYPE "$target_dev" 2>/dev/null | xargs || true)" == loop ]]; then
+      resolved_dev="$target_dev"
+    fi
+    if [[ "$resolved_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$resolved_dev" ]]; then
+      target_dev="$resolved_dev"
+      set +e
+      python3 "$PAW_ROOT/scripts/paw-identity.py" verify --config "$target_cfg" --device "$target_dev" --phase prewrite --check-unique \
+        >"$PAW_REPORT_DIR/paw-controller-target-identity.json" 2>"$PAW_REPORT_DIR/paw-controller-target-identity.err"
+      verify_rc=$?
+      set -e
+      actual_capacity="$(blockdev --getsize64 "$target_dev" 2>/dev/null || echo 0)"
+      mounted_on="$(lsblk -nrpo MOUNTPOINTS "$target_dev" 2>/dev/null | sed '/^$/d' | tr '\n' ' ' | xargs || true)"
+      src_dev_cfg=""
+      [[ -r "$PAW_CONFIG_DIR/source.json" ]] && src_dev_cfg="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1],encoding="utf-8")).get("device_path") or "")' "$PAW_CONFIG_DIR/source.json" 2>/dev/null || true)"
+      if (( verify_rc == 0 )) && [[ "$actual_capacity" == "$target_capacity" && -z "$mounted_on" ]] && [[ -z "$src_dev_cfg" || "$src_dev_cfg" != "$target_dev" ]]; then
+        target_identity_status=PASS
+        if [[ "$source_status" == PASS && -r "$PAW_REPORT_DIR/paw-hardware-health-report.json" ]] && python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$target_serial" "$target_hw" "$target_capacity" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8")); boot=open("/proc/sys/kernel/random/boot_id").read().strip()
-assert d.get("status")=="PASS" and d.get("target_serial")==sys.argv[2] and d.get("boot_id")==boot
+expected_serial,expected_hw,expected_bytes=sys.argv[2:]
+assert d.get("status")=="PASS" and d.get("boot_id")==boot
+if d.get("target_capacity_bytes") is not None:
+    assert int(d["target_capacity_bytes"])==int(expected_bytes)
+if "memory_status" in d:
+    assert d["memory_status"] in ("PASS","OPERATOR_CONFIRMED")
+health_hw=str(d.get("target_hardware_identity_sha256") or "")
+health_serial=str(d.get("target_serial") or "")
+if expected_hw and health_hw:
+    assert health_hw==expected_hw
+    if expected_serial:
+        assert health_serial==expected_serial
+else:
+    assert expected_serial and health_serial==expected_serial
 PY
-      then hardware_status=PASS
-      else hardware_status="$(python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$target_serial" <<'PY'
+        then hardware_status=PASS
+        else hardware_status="$(python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" <<'PY'
 import json,sys
 try:
- d=json.load(open(sys.argv[1],encoding="utf-8")); boot=open("/proc/sys/kernel/random/boot_id").read().strip()
+ d=json.load(open(sys.argv[1],encoding="utf-8"))
  s=d.get("status","BLOCKED")
  print(s if s in ("WARN","FAIL") else "BLOCKED" if s!="PASS" else "STALE_OR_TARGET_MISMATCH")
 except Exception: print("BLOCKED")
 PY
-      )"; fi
-    else details+=('目标 SSD 型号/容量/序列号与登记不一致,或源盘尚未确认'); fi
-  else details+=('目标 SSD 尚未通过只读盘点和登记'); fi
+        )"; fi
+      else
+        ident_reason="$(python3 - "$PAW_REPORT_DIR/paw-controller-target-identity.json" <<'PY' 2>/dev/null || true
+import json,sys
+try: print(json.load(open(sys.argv[1],encoding="utf-8")).get("reason") or "")
+except Exception: pass
+PY
+)"
+        details+=("目标 SSD 稳定身份/容量/安全状态复核未通过${ident_reason:+: $ident_reason}")
+      fi
+    else
+      details+=('目标 SSD 稳定身份无法唯一定位(设备缺失或存在同身份多盘歧义)')
+    fi
+  else details+=('目标 SSD 尚未通过只读盘点和稳定身份登记'); fi
 else details+=('目标 SSD 尚未登记'); fi
 checks+=("target_identity=$target_identity_status")
 checks+=("hardware=$hardware_status")
@@ -75,13 +119,20 @@ network_status="$source_status"
 checks+=("network=$network_status")
 [[ "$network_status" == PASS ]] || status=BLOCKED
 
-python3 - "$PAW_REPORT_DIR/live-readiness.json" "$status" "${checks[*]}" "${details[*]:-需要最终人工复核}" <<'PY'
+python3 - "$PAW_REPORT_DIR/live-readiness.json" "$status" "${checks[*]}" "${details[*]:-需要最终人工复核}" "$target_dev" "$target_model" "$target_capacity" "$target_serial" "$target_hw" "$target_basis" <<'PY'
 import json,os,sys,datetime
-path,status,check_text,detail_text=sys.argv[1:]
+path,status,check_text,detail_text,tdev,tmodel,tcap,tser,thw,tbasis=sys.argv[1:]
 checks={k:v for item in check_text.split() for k,v in [item.split("=",1)]}
+doc={"status":status,"checks":checks,"details":detail_text,"updated_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"clone_started":False}
+if tdev: doc["target_device"]=tdev
+if tmodel: doc["target_model"]=tmodel
+if tcap.isdecimal(): doc["target_capacity_bytes"]=int(tcap)
+if tser: doc["target_serial"]=tser
+if thw: doc["target_hardware_identity_sha256"]=thw
+if tbasis: doc["target_identity_basis"]=tbasis
 tmp=path+".tmp"
 with open(tmp,"w",encoding="utf-8") as handle:
-    json.dump({"status":status,"checks":checks,"details":detail_text,"updated_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"clone_started":False},handle,indent=2)
+    json.dump(doc,handle,indent=2,ensure_ascii=False)
 os.chmod(tmp,0o600); os.replace(tmp,path)
 PY
 

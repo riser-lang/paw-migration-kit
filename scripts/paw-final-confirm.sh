@@ -75,10 +75,22 @@ actual_bytes="$(blockdev --getsize64 "$dst")"
 [[ "$actual_bytes" == "$target_bytes" ]] || die '最终确认前目标 SSD 容量发生变化.'
 [[ "$actual_bytes" -ge "$source_bytes" ]] || die '目标盘小于源盘容量.'
 health="$PAW_REPORT_DIR/paw-hardware-health-report.json"
-memory_state="$(python3 - "$health" "$target_serial" /proc/sys/kernel/random/boot_id <<'PY' || echo INVALID
+memory_state="$(python3 - "$health" "$target_serial" "$target_hw" "$target_bytes" /proc/sys/kernel/random/boot_id <<'PY' || echo INVALID
 import json,sys
-d=json.load(open(sys.argv[1],encoding="utf-8")); boot=open(sys.argv[3]).read().strip()
-assert d.get("status")=="PASS" and d.get("target_serial")==sys.argv[2] and d.get("boot_id")==boot
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+expected_serial,expected_hw,expected_bytes,boot_path=sys.argv[2:]
+boot=open(boot_path).read().strip()
+assert d.get("status")=="PASS" and d.get("boot_id")==boot
+if d.get("target_capacity_bytes") is not None:
+    assert int(d["target_capacity_bytes"])==int(expected_bytes)
+health_hw=str(d.get("target_hardware_identity_sha256") or "")
+health_serial=str(d.get("target_serial") or "")
+if expected_hw and health_hw:
+    assert health_hw==expected_hw
+    if expected_serial:
+        assert health_serial==expected_serial
+else:
+    assert expected_serial and health_serial==expected_serial
 print(d.get("memory_status","UNKNOWN"))
 PY
 )"
@@ -227,7 +239,7 @@ for name in ("stream-verify","offline-repair","gpt-expand","preboot-handoff"):
     path=os.path.join(report_dir,name+".json")
     with open(path,"rb") as handle: evidence[name]=hashlib.sha256(handle.read()).hexdigest()
 document={"schema":"paw.migration-completion.v2","status":"PASS",
- "target_serial_suffix":(authorization["target_serial"][-6:] if authorization.get("target_serial") else authorization["target_hardware_identity_sha256"][-8:]),
+ "target_serial_suffix":(authorization["target_serial"][-6:] if len(authorization.get("target_serial") or "") >= 6 else authorization["target_hardware_identity_sha256"][-8:]),
  "completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),
  "checks":{"clone":"PASS","sha256":"PASS","offline_repair":"PASS",
            "gpt_ext4_expand":"PASS","preboot_handoff":"PASS"},

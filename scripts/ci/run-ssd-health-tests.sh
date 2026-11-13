@@ -352,6 +352,137 @@ assert d["identity_basis"].startswith("serial+")
 assert len(d["hardware_identity_sha256"])==64
 assert d["device_name_used_as_identity"] is False
 PY
+# --- P0-4: paw-live-controller + no-serial SSD end-to-end flow -------------
+# Add mountpoint/blkid mocks and teach findmnt to answer --target queries for
+# paw-data-check.sh while preserving PAW_MOCK_LIVE_MEDIUM for /run/live/medium.
+cat >"$mock/mountpoint" <<'MOCK'
+#!/usr/bin/env bash
+exit 0
+MOCK
+cat >"$mock/blkid" <<'MOCK'
+#!/usr/bin/env bash
+printf 'PAWDATA\n'
+MOCK
+cat >"$mock/findmnt" <<'MOCK'
+#!/usr/bin/env bash
+if [[ "$*" == *"--target"* ]]; then
+  if [[ "$*" == *"SOURCE"* ]]; then printf '/dev/pawdata1\n'; exit 0; fi
+  if [[ "$*" == *"FSTYPE"* ]]; then printf 'ext4\n'; exit 0; fi
+fi
+if [[ ${PAW_MOCK_LIVE_MEDIUM:-0} == 1 ]]; then printf '/dev/loop0[/live]\n'; exit 0; fi
+exit 1
+MOCK
+chmod 0755 "$mock/mountpoint" "$mock/blkid" "$mock/findmnt"
+
+netdir="$work/net"; mkdir -p "$netdir"
+export PAW_NETWORK_DIR="$netdir" PAW_MOUNTPOINT_OVERRIDE="$state"
+boot_now="$(cat /proc/sys/kernel/random/boot_id)"
+cat >"$state/configs/source.json" <<'JSON'
+{"source_mode":"rescue","device_path":"/dev/vda","root_uuid":"11111111-2222-3333-4444-555555555555","model":"SRC","serial":"SRC1","capacity_bytes":53687091200,"composite_identity_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","ssh_host_key_fingerprint":"SHA256:test"}
+JSON
+printf '{"status":"PASS","boot_id":"%s"}\n' "$boot_now" >"$netdir/source-discovery-session.json"
+
+run_controller(){
+  local name="$1" expected_status="$2" expected_id="$3" expected_hw="$4"
+  set +e
+  "$root/scripts/paw-live-controller.sh" >"$state/logs/$name.ctrl.out" 2>"$state/logs/$name.ctrl.err"
+  local rc=$?
+  set -e
+  if python3 - "$state/reports/live-readiness.json" "$expected_status" "$expected_id" "$expected_hw" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+exp_st,exp_id,exp_hw=sys.argv[2:]
+assert d.get("status")==exp_st, d
+assert d["checks"].get("target_identity")==exp_id, d
+assert d["checks"].get("hardware")==exp_hw, d
+PY
+  then pass "$name (rc=$rc)"; else fail "$name got $(cat "$state/reports/live-readiness.json" 2>/dev/null || cat "$state/logs/$name.ctrl.err")"; fi
+}
+
+# 1) Normal serial SSD -> READY_FOR_OPERATOR
+healthy_db
+identity_json /dev/loop0 >"$work/id.json"
+python3 - "$work/id.json" "$state/configs/target-ssd.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8")); d["approved"]=True
+json.dump(d,open(sys.argv[2],"w",encoding="utf-8"),indent=2)
+PY
+printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
+"$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1
+run_controller 'P0-4 serial SSD READY_FOR_OPERATOR' READY_FOR_OPERATOR PASS PASS
+
+# 2) No-serial WWN SSD -> memtest-confirm + hardware-preflight + live-controller PASS
+write_db <<'JSON'
+{"/dev/loop0":{"name":"loop0","model":"Samsung SSD 870","serial":"","wwn":"wwn-0x5002538e00000099","tran":"sata","capacity":240000000000,"rm":0,"parts":[]}}
+JSON
+mk_sysfs loop0; reset_symlinks; rm -f "$state/configs/target-ssd.json" "$state/reports/"*.json "$state/memtest-attestation.json"
+printf '1\n' | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
+printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >"$state/logs/noserial-wwn-memtest.log" 2>&1
+"$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1
+run_controller 'P0-4 no-serial WWN SSD READY_FOR_OPERATOR' READY_FOR_OPERATOR PASS PASS
+if assert_json "$state/reports/live-readiness.json" 'assert d.get("target_serial","")==""; assert d["target_identity_basis"].startswith("wwn+"); assert len(d["target_hardware_identity_sha256"])==64'; then
+  pass 'P0-4 live-readiness records WWN hardware identity for no-serial SSD'
+else fail 'P0-4 live-readiness WWN fields'; fi
+
+# Verify final-confirm prompt uses 8-char hardware fingerprint when serial is empty
+if grep -q 'target_hw_suffix' "$root/scripts/paw-final-confirm.sh" && grep -q '\${target_hw: -8}' "$root/scripts/paw-final-confirm.sh"; then
+  pass 'P0-4 paw-final-confirm supports 8-char hardware fingerprint confirmation when serial is empty'
+else fail 'P0-4 paw-final-confirm missing 8-char hardware fingerprint fallback'; fi
+
+# 3) No-serial by-id SSD -> READY_FOR_OPERATOR
+write_db <<'JSON'
+{"/dev/loop0":{"name":"loop0","model":"WD Blue SN580","serial":"","wwn":"","tran":"nvme","capacity":240000000000,"rm":0,"parts":[]}}
+JSON
+mk_sysfs loop0; reset_symlinks; add_byid nvme-PAW-BYID-NOSERIAL loop0
+rm -f "$state/configs/target-ssd.json" "$state/reports/"*.json "$state/memtest-attestation.json"
+printf '1\n' | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
+printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
+"$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1
+run_controller 'P0-4 no-serial by-id SSD READY_FOR_OPERATOR' READY_FOR_OPERATOR PASS PASS
+
+# 4) Insufficient identity (no serial, no WWN, no by-id, no sysfs) -> BLOCKED
+rm -rf "$work/sysfs/loop0"; reset_symlinks
+rm -f "$state/configs/target-ssd.json" "$state/reports/"*.json "$state/memtest-attestation.json"
+if printf '1\n' | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1; then
+  fail 'P0-4 insufficient identity unexpectedly allowed discovery'
+else
+  pass 'P0-4 insufficient identity refused during target discovery'
+fi
+"$root/scripts/paw-live-controller.sh" >"$state/logs/insuff.ctrl.out" 2>/dev/null || true
+if assert_json "$state/reports/live-readiness.json" 'assert d["status"]=="BLOCKED" and d["checks"]["target_identity"]=="BLOCKED"'; then
+  pass 'P0-4 insufficient identity BLOCKED in live-controller'
+else fail 'P0-4 insufficient identity controller state'; fi
+mk_sysfs loop0
+
+# 5) Two identical-identity disks -> ambiguous BLOCKED
+write_db <<'JSON'
+{"/dev/loop0":{"name":"loop0","model":"Same","serial":"","wwn":"wwn-0x5002538e00000055","tran":"sata","capacity":240000000000,"rm":0,"parts":[]}}
+JSON
+reset_symlinks; rm -f "$state/configs/target-ssd.json" "$state/reports/"*.json "$state/memtest-attestation.json"
+printf '1\n' | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
+printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
+"$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1
+write_db <<'JSON'
+{"/dev/loop0":{"name":"loop0","model":"Same","serial":"","wwn":"wwn-0x5002538e00000055","tran":"sata","capacity":240000000000,"rm":0,"parts":[]},
+ "/dev/loop1":{"name":"loop1","model":"Same","serial":"","wwn":"wwn-0x5002538e00000055","tran":"sata","capacity":240000000000,"rm":0,"parts":[]}}
+JSON
+run_controller 'P0-4 duplicate identity disks BLOCKED' BLOCKED BLOCKED BLOCKED
+
+# 6) Replacement disk with same capacity but different WWN after registration -> BLOCKED
+write_db <<'JSON'
+{"/dev/loop0":{"name":"loop0","model":"Same","serial":"","wwn":"wwn-0x5002538e00000077","tran":"sata","capacity":240000000000,"rm":0,"parts":[]}}
+JSON
+run_controller 'P0-4 replacement disk different WWN BLOCKED' BLOCKED BLOCKED BLOCKED
+
+# 7) Health report WARN / FAIL -> live-controller BLOCKED
+write_db <<'JSON'
+{"/dev/loop0":{"name":"loop0","model":"Same","serial":"","wwn":"wwn-0x5002538e00000055","tran":"sata","capacity":240000000000,"rm":0,"parts":[]}}
+JSON
+PAW_MOCK_CRC=12 "$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1 || true
+run_controller 'P0-4 WARN health report BLOCKED in live-controller' BLOCKED PASS WARN
+PAW_MOCK_SMART_MODE=healthfail "$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1 || true
+run_controller 'P0-4 FAIL health report BLOCKED in live-controller' BLOCKED PASS FAIL
+
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 cat "$report"
 ((failed == 0))

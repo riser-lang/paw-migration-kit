@@ -179,6 +179,221 @@ else
   pass 'P0-3 unmounted case skipped: no reliably unmounted whole disk in host fixture'
 fi
 
+# REMED-P0-1: target identity hashes in operator-authorization.json and transaction init checks
+if grep -q 'target_hardware_identity_sha256' "$root/tests/prehardware/guest-chain.sh" \
+  && grep -q 'target_composite_identity_sha256' "$root/tests/prehardware/guest-chain.sh" \
+  && grep -q 'tx-init.stdout' "$root/tests/prehardware/guest-chain.sh" \
+  && grep -q 'tx-init.stderr' "$root/tests/prehardware/guest-chain.sh" \
+  && grep -q 'tx-init.rc' "$root/tests/prehardware/guest-chain.sh" \
+  && grep -q 'CLONE-INCOMPLETE' "$root/tests/prehardware/guest-chain.sh"; then
+  pass 'REMED-P0-1 guest-chain.sh reads target identity hashes, logs tx init outputs, and verifies CLONE-INCOMPLETE'
+else
+  fail 'REMED-P0-1 guest-chain.sh missing required identity hash or logging logic'
+fi
+
+id_txdir="$work/tx-identity"; mkdir -p "$id_txdir/reports" "$id_txdir/configs"
+cp "$txdir/configs/source.json" "$id_txdir/configs/source.json"
+hw_hash='1111111111111111111111111111111111111111111111111111111111111111'
+comp_hash='2222222222222222222222222222222222222222222222222222222222222222'
+cat >"$id_txdir/configs/target-ssd.json" <<JSON
+{"approved":true,"device_path":"/dev/sdb","model":"SIM-TARGET","serial":"TGT-SERIAL-999999","capacity_bytes":240000000000,"hardware_identity_sha256":"$hw_hash","composite_identity_sha256":"$comp_hash"}
+JSON
+write_id_auth(){
+  local out_file="$1" hw="$2" comp="$3"
+  python3 - "$out_file" "$now" "$expires" "$hw" "$comp" <<'PY'
+import json,sys
+p,now,exp,hw,comp=sys.argv[1:]
+doc={"status":"AUTHORIZED","migration_id":"11111111-1111-1111-1111-111111111111","authorization_id":"22222222-2222-2222-2222-222222222222","target_device":"/dev/sdb","target_serial":"TGT-SERIAL-999999","source_composite_identity_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","authorized_at":now,"expires_at":exp}
+if hw != "OMIT": doc["target_hardware_identity_sha256"]=hw
+if comp != "OMIT": doc["target_composite_identity_sha256"]=comp
+with open(p,"w",encoding="utf-8") as h: json.dump(doc,h)
+PY
+}
+write_id_auth "$id_txdir/auth-ok.json" "$hw_hash" "$comp_hash"
+run_tx init --transaction "$id_txdir/tx-ok.json" --authorization "$id_txdir/auth-ok.json" --source-config "$id_txdir/configs/source.json" --target-config "$id_txdir/configs/target-ssd.json" --now "$now" >/dev/null 2>"$id_txdir/ok.err" \
+  && pass 'REMED-P0-1 matching target hardware+composite identity hashes allow init' || fail "REMED-P0-1 valid hashes rejected: $(cat "$id_txdir/ok.err")"
+
+write_id_auth "$id_txdir/auth-bad-hw.json" '9999999999999999999999999999999999999999999999999999999999999999' "$comp_hash"
+if run_tx init --transaction "$id_txdir/tx-bad-hw.json" --authorization "$id_txdir/auth-bad-hw.json" --source-config "$id_txdir/configs/source.json" --target-config "$id_txdir/configs/target-ssd.json" --now "$now" >/dev/null 2>&1; then
+  fail 'REMED-P0-1 wrong target hardware hash passed'
+else
+  pass 'REMED-P0-1 wrong target hardware hash rejected'
+fi
+
+write_id_auth "$id_txdir/auth-bad-comp.json" "$hw_hash" '9999999999999999999999999999999999999999999999999999999999999999'
+if run_tx init --transaction "$id_txdir/tx-bad-comp.json" --authorization "$id_txdir/auth-bad-comp.json" --source-config "$id_txdir/configs/source.json" --target-config "$id_txdir/configs/target-ssd.json" --now "$now" >/dev/null 2>&1; then
+  fail 'REMED-P0-1 wrong target composite hash passed'
+else
+  pass 'REMED-P0-1 wrong target composite hash rejected'
+fi
+
+write_id_auth "$id_txdir/auth-miss-hw.json" "OMIT" "$comp_hash"
+if run_tx init --transaction "$id_txdir/tx-miss-hw.json" --authorization "$id_txdir/auth-miss-hw.json" --source-config "$id_txdir/configs/source.json" --target-config "$id_txdir/configs/target-ssd.json" --now "$now" >/dev/null 2>&1; then
+  fail 'REMED-P0-1 missing target hardware hash passed'
+else
+  pass 'REMED-P0-1 missing target hardware hash rejected'
+fi
+
+write_id_auth "$id_txdir/auth-miss-comp.json" "$hw_hash" "OMIT"
+if run_tx init --transaction "$id_txdir/tx-miss-comp.json" --authorization "$id_txdir/auth-miss-comp.json" --source-config "$id_txdir/configs/source.json" --target-config "$id_txdir/configs/target-ssd.json" --now "$now" >/dev/null 2>&1; then
+  fail 'REMED-P0-1 missing target composite hash passed'
+else
+  pass 'REMED-P0-1 missing target composite hash rejected'
+fi
+
+run_tx start-clone --transaction "$id_txdir/tx-ok.json" --now "$now" >/dev/null
+printf 'INCOMPLETE\n' >"$id_txdir/reports/CLONE-INCOMPLETE"
+run_tx fail-clone --transaction "$id_txdir/tx-ok.json" --now "$now" --reason 'ssh_interrupt_test' >/dev/null
+if grep -q '"state": "CLONE_INCOMPLETE"' "$id_txdir/tx-ok.json" && [[ -f "$id_txdir/reports/CLONE-INCOMPLETE" ]]; then
+  pass 'REMED-P0-1 SSH interrupt retains CLONE_INCOMPLETE transaction state and marker'
+else
+  fail 'REMED-P0-1 SSH interrupt did not retain CLONE_INCOMPLETE'
+fi
+
+# REMED-P0-2: target boot evidence verification (both verify-chain-evidence.py and run-prehardware-lab.py)
+evdir="$work/evidence"; mkdir -p "$evdir"
+cat >"$evdir/runner-ok.log" <<'EOF'
+[prehardware] main result=TARGET_BOOT_SEEN serial_log=/tmp/console.log chain_pass=True target_boot=True
+EOF
+cat >"$evdir/runner-bad.log" <<'EOF'
+[prehardware] main result=CHAIN_PASS_NO_TARGET_BOOT serial_log=/tmp/console.log chain_pass=True target_boot=False
+EOF
+python3 - "$root/tests/prehardware/verify-chain-evidence.py" "$evdir" <<'PY'
+import importlib.util,sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location("vce",sys.argv[1])
+mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+d=Path(sys.argv[2])
+base_steps=[]
+for step in mod.REQUIRED:
+    if step=="auto_reboot":
+        continue
+    if step=="sata":
+        base_steps.append(f"PAW3_STEP=sata STATUS=PASS bytes={mod.SOURCE_BYTES} tran=ata model=ich9-ahci media_bytes={mod.MEDIA_BYTES}")
+    elif step=="target_enrollment":
+        base_steps.append(f"PAW3_STEP=target_enrollment STATUS=PASS capacity={mod.TARGET_BYTES}")
+    else:
+        base_steps.append(f"PAW3_STEP={step} STATUS=PASS")
+base="\n".join(["Ubuntu 24.04.5 LTS live login:"] + base_steps + ["PAW3_CHAIN_RESULT=PASS"]) + "\n"
+(d/"console-ok.log").write_text(base + "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\n[ 12.345] reboot: Restarting system\nUbuntu 24.04.5 LTS ubuntu ttyS0\n\nubuntu login:\n")
+(d/"console-preonly.log").write_text(base)
+(d/"console-no-reboot.log").write_text(base + "Ubuntu 24.04.5 LTS ubuntu ttyS0\n\nubuntu login:\n")
+(d/"console-reboot-no-login.log").write_text(base + "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\n[ 12.345] reboot: Restarting system\n[ 15.000] systemd[1]: Reached target Multi-User System.\n")
+(d/"console-generic-login.log").write_text(base + "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\nsome-other-system ttyS0\nlogin:\n")
+PY
+
+if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/console-ok.log" --output "$evdir/ok.json" --summary "$evdir/ok.txt" --runner-log "$evdir/runner-ok.log" >/dev/null 2>&1 \
+  && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="PASS" and d["checks"]["target_boot_login"] and d["checks"]["auto_reboot_before_target_login"] and d["checks"]["host_runner_corroborated"]' "$evdir/ok.json"; then
+  pass 'REMED-P0-2 valid post-reboot Ubuntu target login + host corroboration PASS'
+else
+  fail 'REMED-P0-2 valid target boot evidence failed'
+fi
+for neg in console-preonly console-no-reboot console-reboot-no-login console-generic-login; do
+  if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/$neg.log" --output "$evdir/$neg.json" --summary "$evdir/$neg.txt" --runner-log "$evdir/runner-ok.log" >/dev/null 2>&1; then
+    fail "REMED-P0-2 negative case $neg unexpectedly passed"
+  else
+    pass "REMED-P0-2 negative case $neg rejected"
+  fi
+done
+if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/console-ok.log" --output "$evdir/badrun.json" --summary "$evdir/badrun.txt" --runner-log "$evdir/runner-bad.log" >/dev/null 2>&1; then
+  fail 'REMED-P0-2 mismatched host runner log unexpectedly passed'
+else
+  pass 'REMED-P0-2 mismatched host runner log rejected'
+fi
+if python3 - "$root/tests/prehardware/run-prehardware-lab.py" "$evdir" <<'PY'
+import importlib.util,sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location("lab",sys.argv[1])
+mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+d=Path(sys.argv[2])
+assert mod.post_reboot_target_login_seen((d/"console-ok.log").read_text())
+assert not mod.post_reboot_target_login_seen((d/"console-preonly.log").read_text())
+assert not mod.post_reboot_target_login_seen((d/"console-no-reboot.log").read_text())
+assert not mod.post_reboot_target_login_seen((d/"console-reboot-no-login.log").read_text())
+assert not mod.post_reboot_target_login_seen((d/"console-generic-login.log").read_text())
+PY
+then
+  pass 'REMED-P0-2 run-prehardware-lab.py post_reboot_target_login_seen matches verifier rules'
+else
+  fail 'REMED-P0-2 run-prehardware-lab.py post_reboot_target_login_seen mismatch'
+fi
+
+# REMED-P0-3: source root last-partition pre-check in paw-source-discovery.sh (while keeping paw-gpt-expand.sh gate)
+if grep -q 'part_start != last_start' "$root/scripts/paw-gpt-expand.sh"; then
+  pass 'REMED-P0-3 paw-gpt-expand.sh second gate retained'
+else
+  fail 'REMED-P0-3 paw-gpt-expand.sh second gate missing'
+fi
+
+sdir="$work/source-discovery"; mkdir -p "$sdir/bin"
+cat >"$sdir/bin/ssh-keygen" <<'SH'
+#!/usr/bin/env bash
+printf '256 SHA256:testpinnedhostkeyfingerprint mock (ED25519)\n'
+SH
+cat >"$sdir/bin/rescue_ssh" <<'SH'
+#!/usr/bin/env bash
+cmd="${1:-}"
+if [[ "$cmd" == lsblk* ]]; then
+  cat "$PAW_MOCK_LSBLK"
+elif [[ "$cmd" == base64* ]]; then
+  cat >/dev/null
+  printf '{"status":"PASS","read_write_mounts":0,"mounts":[]}\n'
+else
+  exit 1
+fi
+SH
+chmod +x "$sdir/bin/ssh-keygen" "$sdir/bin/rescue_ssh"
+run_src_disc(){
+  local case_dir="$1" json_payload="$2"
+  rm -rf "$case_dir"; mkdir -p "$case_dir/net" "$case_dir/state"
+  printf '%s\n' "$json_payload" >"$case_dir/lsblk.json"
+  printf '{"host":"127.0.0.1","port":2222}\n' >"$case_dir/net/rescue-endpoint.json"
+  printf '127.0.0.1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMockKeyForLocalTestsOnly\n' >"$case_dir/net/known_hosts"
+  printf 'MOCK-KEY\n' >"$case_dir/net/rescue_ed25519"
+  PATH="$sdir/bin:$PATH" PAW_NETWORK_DIR="$case_dir/net" PAW_STATE_DIR="$case_dir/state" \
+    PAW_EXPECTED_ROOT_UUID='11111111-2222-3333-4444-555555555555' \
+    PAW_EXPECTED_SOURCE_BYTES=53687091200 PAW_MOCK_LSBLK="$case_dir/lsblk.json" \
+    bash "$root/scripts/paw-source-discovery.sh" >/dev/null 2>"$case_dir/stderr.log"
+}
+
+good_last='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda1","path":"/dev/vda1","type":"part","size":1048576,"partn":1,"parttype":"21686148-6449-6e6f-744e-656564454649","start":2048},{"name":"vda2","path":"/dev/vda2","type":"part","size":104857600,"partn":2,"parttype":"c12a7328-f81f-11d2-ba4b-00a0c93ec93b","fstype":"vfat","start":6144},{"name":"vda3","path":"/dev/vda3","type":"part","size":53580000000,"partn":3,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000}]}]}'
+cloud_last='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda1","path":"/dev/vda1","type":"part","size":53500000000,"partn":1,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000},{"name":"vda14","path":"/dev/vda14","type":"part","size":4194304,"partn":14,"parttype":"21686148-6449-6e6f-744e-656564454649","start":2048},{"name":"vda15","path":"/dev/vda15","type":"part","size":104857600,"partn":15,"parttype":"c12a7328-f81f-11d2-ba4b-00a0c93ec93b","fstype":"vfat","start":10240}]}]}'
+non_last='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda14","path":"/dev/vda14","type":"part","size":4194304,"partn":14,"parttype":"21686148-6449-6e6f-744e-656564454649","start":2048},{"name":"vda1","path":"/dev/vda1","type":"part","size":40000000000,"partn":1,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000},{"name":"vda2","path":"/dev/vda2","type":"part","size":10000000000,"partn":2,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","start":90000000}]}]}'
+missing_start='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda14","path":"/dev/vda14","type":"part","size":4194304,"partn":14,"parttype":"21686148-6449-6e6f-744e-656564454649","start":null},{"name":"vda1","path":"/dev/vda1","type":"part","size":53500000000,"partn":1,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000}]}]}'
+dup_partn='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda1","path":"/dev/vda1","type":"part","size":4194304,"partn":1,"parttype":"21686148-6449-6e6f-744e-656564454649","start":2048},{"name":"vda1b","path":"/dev/vda1b","type":"part","size":53500000000,"partn":1,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000}]}]}'
+
+if run_src_disc "$sdir/good" "$good_last" && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["root_is_last_partition"] is True and d["partition_layout_check"]=="PASS" and d["source"]["root_partition_start"]==220000 and d["source"]["max_partition_start"]==220000' "$sdir/good/state/reports/source-discovery.json"; then
+  pass 'REMED-P0-3 root-is-last-partition PASS and recorded in source-discovery.json'
+else
+  fail "REMED-P0-3 good last-partition case failed: $(cat "$sdir/good/stderr.log" 2>/dev/null || true)"
+fi
+if run_src_disc "$sdir/cloud" "$cloud_last" && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["root_is_last_partition"] is True' "$sdir/cloud/state/reports/source-discovery.json"; then
+  pass 'REMED-P0-3 cloud part1-is-last-by-START PASS'
+else
+  fail "REMED-P0-3 cloud layout failed: $(cat "$sdir/cloud/stderr.log" 2>/dev/null || true)"
+fi
+if run_src_disc "$sdir/nonlast" "$non_last"; then
+  fail 'REMED-P0-3 partition after root unexpectedly passed'
+elif [[ ! -e "$sdir/nonlast/state/configs/source.json" ]] && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="BLOCKED" and d["root_is_last_partition"] is False' "$sdir/nonlast/state/reports/source-discovery.json"; then
+  pass 'REMED-P0-3 partition after root BLOCKED and recorded in source-discovery.json'
+else
+  fail 'REMED-P0-3 partition after root failed without expected BLOCKED report'
+fi
+if run_src_disc "$sdir/missstart" "$missing_start"; then
+  fail 'REMED-P0-3 missing START unexpectedly passed'
+elif [[ ! -e "$sdir/missstart/state/configs/source.json" ]] && grep -q '"BLOCKED"' "$sdir/missstart/state/reports/source-discovery.json"; then
+  pass 'REMED-P0-3 missing START fail-closed BLOCKED'
+else
+  fail 'REMED-P0-3 missing START did not fail closed with BLOCKED report'
+fi
+if run_src_disc "$sdir/duppartn" "$dup_partn"; then
+  fail 'REMED-P0-3 duplicate partn unexpectedly passed'
+elif [[ ! -e "$sdir/duppartn/state/configs/source.json" ]] && grep -q '"BLOCKED"' "$sdir/duppartn/state/reports/source-discovery.json"; then
+  pass 'REMED-P0-3 duplicate partn fail-closed BLOCKED'
+else
+  fail 'REMED-P0-3 duplicate partn did not fail closed with BLOCKED report'
+fi
+
 printf 'Summary: %s passed, %s failed\n' "$passed" "$failed" >>"$report"
 cat "$report"
 ((failed == 0))

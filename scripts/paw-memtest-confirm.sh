@@ -12,17 +12,25 @@ read_fields=()
 mapfile -d '' -t read_fields < <(python3 - "$target_cfg" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
-sys.stdout.write("".join(str(d.get(k) or "")+"\0" for k in ("device_path","model","serial","capacity_bytes","approved")))
+sys.stdout.write("".join(str(d.get(k) or "")+"\0" for k in ("device_path","model","serial","capacity_bytes","approved","hardware_identity_sha256","identity_basis")))
 PY
 )
 target_dev="${read_fields[0]:-}"; target_model="${read_fields[1]:-}"; target_serial="${read_fields[2]:-}"; target_capacity="${read_fields[3]:-}"; target_approved="${read_fields[4]:-}"
+target_hw="${read_fields[5]:-}"; target_basis="${read_fields[6]:-}"
 unset read_fields
-[[ "$target_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$target_dev" && -n "$target_serial" ]] || die '目标 SSD 登记不完整,无法绑定内存检测结果.'
 [[ "$target_approved" == True ]] || die '目标 SSD 尚未批准登记,不能登记内存检测结果.'
 [[ "$target_capacity" =~ ^[0-9]+$ ]] || die '目标 SSD 容量登记无效.'
-actual_serial="$(lsblk -dn -o SERIAL "$target_dev" | xargs)"
+[[ -n "$target_hw" || -n "$target_serial" ]] || die '目标 SSD 登记缺少稳定身份,无法绑定内存检测结果.'
+if resolved="$(python3 "$PAW_ROOT/scripts/paw-identity.py" resolve --config "$target_cfg" 2>/dev/null)"; then
+  target_dev="$(python3 -c 'import json,sys;print(json.load(sys.stdin).get("device_path",""))' <<<"$resolved")"
+elif ! [[ "$target_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$target_dev" && "$(lsblk -dn -o TYPE "$target_dev" 2>/dev/null | xargs || true)" == loop ]]; then
+  die '目标 SSD 身份已变化或存在多盘歧义;请重新登记目标盘.'
+fi
+[[ "$target_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$target_dev" ]] || die '目标 SSD 设备节点不存在.'
+python3 "$PAW_ROOT/scripts/paw-identity.py" verify --config "$target_cfg" --device "$target_dev" --phase prewrite --check-unique >/dev/null 2>&1 \
+  || die '目标 SSD 身份已变化;请重新登记目标盘.'
 actual_capacity="$(blockdev --getsize64 "$target_dev")"
-[[ "$actual_serial" == "$target_serial" && "$actual_capacity" == "$target_capacity" ]] || die '目标 SSD 身份已变化;请重新登记目标盘.'
+[[ "$actual_capacity" == "$target_capacity" ]] || die '目标 SSD 容量已变化;请重新登记目标盘.'
 boot_id="$(cat /proc/sys/kernel/random/boot_id)"
 
 # The panel must reach the physical console: paw-console.service sends stdout
@@ -38,7 +46,9 @@ paw_tty_say 'PAW 内存检测人工确认'
 paw_tty_say '本界面只登记操作员在 Memtest86+ 独立启动项中直接看到的结果.'
 paw_tty_say '它不是机器自动验证,也不是密码学证明;请不要凭猜测填写.'
 paw_tty_say "目标 SSD:$target_dev 型号=${target_model:-未知} 容量=$target_capacity bytes"
-paw_tty_say "目标序列号:$target_serial"
+paw_tty_say "目标序列号:${target_serial:-不可用(使用稳定硬件指纹)}"
+paw_tty_say "身份依据:${target_basis:-未知}"
+paw_tty_say "硬件指纹:${target_hw:-旧版仅序列号登记}"
 paw_tty_say "本次 PAW Live 启动 ID:$boot_id"
 paw_tty_say '请选择:'
 paw_tty_say '  1) Memtest86+ 已完成最少 1 轮,错误数为 0'
@@ -100,7 +110,8 @@ paw_tty_say '登记摘要:'
 paw_tty_say "  状态:$attestation_status"
 paw_tty_say "  完成轮次:$passes"
 paw_tty_say "  错误数量:$errors"
-paw_tty_say "  目标序列号:$target_serial"
+paw_tty_say "  目标序列号:${target_serial:-不可用(使用稳定硬件指纹)}"
+paw_tty_say "  硬件指纹:${target_hw:-旧版仅序列号登记}"
 paw_tty_say "  启动 ID:$boot_id"
 [[ "$attestation_status" == OPERATOR_CONFIRMED ]] || paw_tty_say '注意:此状态不会允许进入克隆.'
 paw_tty_prompt '确认写入本次人工登记?输入"确认":'
@@ -121,9 +132,9 @@ unset confirmed
 paw_tty_close
 
 install -d -m 0700 "$PAW_STATE_DIR"
-python3 - "$PAW_STATE_DIR/memtest-attestation.json" "$attestation_status" "$passes" "$errors" "$target_dev" "$target_serial" "$boot_id" <<'PY'
+python3 - "$PAW_STATE_DIR/memtest-attestation.json" "$attestation_status" "$passes" "$errors" "$target_dev" "$target_serial" "$target_hw" "$boot_id" <<'PY'
 import datetime,json,os,sys,tempfile
-path,status,passes,errors,target,serial,boot_id=sys.argv[1:]
+path,status,passes,errors,target,serial,hw_hash,boot_id=sys.argv[1:]
 record={
     "schema":"paw.memtest-attestation.v1",
     "status":status,
@@ -134,6 +145,7 @@ record={
     "error_count":int(errors),
     "target_device":target,
     "target_serial":serial,
+    "target_hardware_identity_sha256":hw_hash,
     "boot_id":boot_id,
     "recorded_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "operator_statement":"operator visually observed the Memtest86+ result and typed this record in PAW Live",

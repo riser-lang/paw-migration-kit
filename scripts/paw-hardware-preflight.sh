@@ -198,17 +198,25 @@ if ((${#reasons[@]})); then
   for reason in "${reasons[@]}"; do log WARN "health reason: $reason"; done
 fi
 write_status "$status" "${reasons[*]:-All currently supported checks passed}" "$PAW_REPORT_DIR/paw-hardware-health-report.json"
-python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$dev" "$mem_status" <<'PY'
+python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$dev" "$mem_status" "$PAW_REPORT_DIR/paw-ssd-identity.json" <<'PY'
 import json,os,subprocess,sys,tempfile
-path,dev,mem_status=sys.argv[1:]
+path,dev,mem_status,ident_path=sys.argv[1:]
 def query(args):
     return subprocess.check_output(args,text=True,stderr=subprocess.DEVNULL).strip()
 parent=query(["lsblk","-dn","-o","PKNAME",dev])
 parent="/dev/"+parent if parent else dev
 serial=query(["lsblk","-dn","-o","SERIAL",parent])
 capacity=int(query(["blockdev","--getsize64",parent]))
+ident={}
+try:
+    with open(ident_path,encoding="utf-8") as ih: ident=json.load(ih)
+except Exception:
+    ident={}
 with open(path,encoding="utf-8") as handle: data=json.load(handle)
 data.update({"target_device":parent,"target_serial":serial,"target_capacity_bytes":capacity,
+ "target_hardware_identity_sha256":ident.get("hardware_identity_sha256",""),
+ "target_composite_identity_sha256":ident.get("composite_identity_sha256",""),
+ "target_identity_basis":ident.get("identity_basis",""),
  "memory_status":mem_status,"memory_trust":"operator_attestation_not_cryptographic" if mem_status=="OPERATOR_CONFIRMED" else "unverified",
  "boot_id":open("/proc/sys/kernel/random/boot_id").read().strip()})
 fd,tmp=tempfile.mkstemp(dir=os.path.dirname(path),prefix=".health-")

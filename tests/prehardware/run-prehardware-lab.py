@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import queue
+import re
 import socket
 import subprocess
 import sys
@@ -33,6 +34,22 @@ QEMU_DATA = os.environ.get(
     "QEMU_DATA_DIR",
     "/home/agentuser/tools/qemu-portable-20261110/share-merged",
 )
+
+
+AUTO_REBOOT_RE = re.compile(r"PAW3_STEP=auto_reboot STATUS=PASS(?: [^\r\n]*)?")
+TARGET_BANNER_RE = re.compile(r"Ubuntu\s+24\.04(?:\.\d+)?(?:\s+LTS)?\s+ubuntu\s+ttyS0")
+TARGET_LOGIN_RE = re.compile(r"(?:^|[\r\n])ubuntu login:")
+
+
+def post_reboot_target_login_seen(snap: str) -> bool:
+    reboot_match = AUTO_REBOOT_RE.search(snap)
+    if not reboot_match:
+        return False
+    post = snap[reboot_match.end():]
+    banner_match = TARGET_BANNER_RE.search(post)
+    if not banner_match:
+        return False
+    return bool(TARGET_LOGIN_RE.search(post[banner_match.end():]))
 
 
 def log(msg):
@@ -362,6 +379,7 @@ def run_main(args):
     result = "TIMEOUT"
     target_boot_seen = False
     chain_pass = False
+    auto_reboot_seen = False
     final_phase = False
     prompts_done = set()
     media_removed = False
@@ -424,22 +442,20 @@ def run_main(args):
                 qmp.screenshot(f"{args.work}/screens/{name}-after.ppm")
             if "PAW3_STEP=" in line:
                 log("STEP " + line.split("PAW3_STEP=", 1)[1])
-            if "PAW3_CHAIN_RESULT=PASS" in line:
+            if "PAW3_CHAIN_RESULT=PASS" in line and not chain_pass:
                 chain_pass = True
                 log("guest chain PASS marker seen; waiting for cloned target boot")
-                target_deadline = time.time() + args.target_timeout
-            if "PAW3_STEP=auto_reboot STATUS=PASS" in line and target_deadline is None:
-                target_deadline = time.time() + args.target_timeout
-            # The cloned target is the only system in this lab that reaches a
-            # real getty login prompt; the live guest autologins on ttyS0.
-            # Accept the login line even if the guest script was cut off by the
-            # real reboot after it had already emitted every report step.
-            if (final_phase or target_deadline is not None) and "login:" in line:
-                target_boot_seen = True
-        # getty writes its final "login: " prompt without a trailing newline, so
-        # the line queue can legitimately hold it in SerialTail's partial buffer.
-        # Check the captured stream itself; otherwise a real login prompt is
-        # never classified until unrelated console output supplies a newline.
+                if target_deadline is None:
+                    target_deadline = time.time() + args.target_timeout
+            if "PAW3_STEP=auto_reboot STATUS=PASS" in line:
+                auto_reboot_seen = True
+                if target_deadline is None:
+                    target_deadline = time.time() + args.target_timeout
+        # getty writes its final "ubuntu login: " prompt without a trailing
+        # newline, so the line queue can hold it in SerialTail's partial buffer.
+        # Check the captured stream itself, strictly *after* auto_reboot PASS,
+        # and require the cloned Ubuntu ttyS0 banner + login prompt (never any
+        # earlier live-boot login string).
         snap = tail.snapshot()
         if "PAW_MEDIA_REMOVAL_REQUIRED" in snap and not media_removed:
             log("guest requested observable USB removal (snapshot); unplugging emulated USB stick")
@@ -449,18 +465,26 @@ def run_main(args):
             with open(f"{args.work}/share/usb-device-removed", "w", encoding="utf-8") as handle:
                 handle.write("QMP device_del usb-media; PAW-MEDIA-123456 no longer present\n")
             qmp.screenshot(f"{args.work}/screens/media-after-removal.ppm")
-        if ((final_phase or target_deadline is not None)
-                and "login:" in snap):
+        if "PAW3_CHAIN_RESULT=PASS" in snap.splitlines() and not chain_pass:
+            chain_pass = True
+            log("guest chain PASS marker seen (snapshot); waiting for cloned target boot")
+            if target_deadline is None:
+                target_deadline = time.time() + args.target_timeout
+        if not auto_reboot_seen and AUTO_REBOOT_RE.search(snap):
+            auto_reboot_seen = True
+            if target_deadline is None:
+                target_deadline = time.time() + args.target_timeout
+        if auto_reboot_seen and chain_pass and post_reboot_target_login_seen(snap):
             target_boot_seen = True
-        if final_phase and target_deadline and time.time() > target_deadline and not target_boot_seen:
+        if (final_phase or auto_reboot_seen) and target_deadline and time.time() > target_deadline and not target_boot_seen:
             result = "TARGET_BOOT_TIMEOUT"
             break
-        if target_boot_seen:
+        if target_boot_seen and chain_pass and auto_reboot_seen:
             time.sleep(3)
             qmp.screenshot(f"{args.work}/screens/target-boot.ppm")
             result = "TARGET_BOOT_SEEN"
             break
-        if "PAW3_CHAIN_RESULT=FAIL" in tail.snapshot():
+        if "PAW3_CHAIN_RESULT=FAIL" in snap:
             result = "CHAIN_FAIL"
             break
         time.sleep(0.5)

@@ -153,6 +153,7 @@ jobs:
           [[ -s "$log" ]] || { echo "missing $log" >&2; echo '{"status":"FAIL"}' > artifacts/chain-acceptance.json; exit 1; }
           python3 tests/prehardware/verify-chain-evidence.py \
             --log "$log" \
+            --runner-log artifacts/chain-runner.log \
             --output artifacts/chain-acceptance.json \
             --summary artifacts/chain-acceptance.txt
           grep -E 'PAW3_STEP=|PAW3_CHAIN_RESULT=|login:' "$log" > artifacts/guest-markers.txt || true

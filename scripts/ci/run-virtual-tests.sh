@@ -90,7 +90,7 @@ chmod 0755 "$mock/ssh"
 
 test_uuid="$(python3 -c 'import uuid; print(uuid.uuid4())')"
 cat >"$root/tests/virtual/ci-source-lsblk.json" <<'LSBLK'
-{"blockdevices":[{"name":"mockdisk","path":"/dev/mockdisk","type":"disk","size":53687091200,"model":"CI Virtual Disk","serial":"CI-SOURCE-ONLY","ro":false,"pttype":"gpt","children":[{"name":"mockdisk1","path":"/dev/mockdisk1","type":"part","size":1048576,"partn":1,"parttype":"21686148-6449-6e6f-744e-656564454649","fstype":null,"uuid":null,"ro":false,"mountpoints":[null]},{"name":"mockdisk2","path":"/dev/mockdisk2","type":"part","size":53686042624,"partn":2,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"__TEST_ROOT_UUID__","ro":false,"mountpoints":[null]}]}]}
+{"blockdevices":[{"name":"mockdisk","path":"/dev/mockdisk","type":"disk","size":53687091200,"model":"CI Virtual Disk","serial":"CI-SOURCE-ONLY","ro":false,"pttype":"gpt","children":[{"name":"mockdisk1","path":"/dev/mockdisk1","type":"part","start":2048,"size":1048576,"partn":1,"parttype":"21686148-6449-6e6f-744e-656564454649","fstype":null,"uuid":null,"ro":false,"mountpoints":[null]},{"name":"mockdisk2","path":"/dev/mockdisk2","type":"part","start":4096,"size":53686042624,"partn":2,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"__TEST_ROOT_UUID__","ro":false,"mountpoints":[null]}]}]}
 LSBLK
 sed -i "s/__TEST_ROOT_UUID__/$test_uuid/" "$root/tests/virtual/ci-source-lsblk.json"
 export PAW_MOCK_LSBLK_JSON="$root/tests/virtual/ci-source-lsblk.json"
