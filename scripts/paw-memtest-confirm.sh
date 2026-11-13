@@ -24,9 +24,9 @@ unset read_fields
 if resolved="$(python3 "$PAW_ROOT/scripts/paw-identity.py" resolve --config "$target_cfg" 2>/dev/null)"; then
   target_dev="$(python3 -c 'import json,sys;print(json.load(sys.stdin).get("device_path",""))' <<<"$resolved")"
 elif ! [[ "$target_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$target_dev" && "$(lsblk -dn -o TYPE "$target_dev" 2>/dev/null | xargs || true)" == loop ]]; then
-  die '目标 SSD 身份已变化或存在多盘歧义;请重新登记目标盘.'
+  die '目标 SSD 身份已变化或存在身份歧义;请重新登记目标盘.'
 fi
-[[ "$target_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$target_dev" ]] || die '目标 SSD 设备节点不存在.'
+[[ "$target_dev" =~ ^/dev/[A-Za-z0-9/]+$ && -b "$target_dev" ]] || die '目标 SSD 设备路径不存在.'
 python3 "$PAW_ROOT/scripts/paw-identity.py" verify --config "$target_cfg" --device "$target_dev" --phase prewrite --check-unique >/dev/null 2>&1 \
   || die '目标 SSD 身份已变化;请重新登记目标盘.'
 actual_capacity="$(blockdev --getsize64 "$target_dev")"

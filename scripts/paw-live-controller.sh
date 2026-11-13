@@ -103,7 +103,7 @@ PY
         details+=("目标 SSD 稳定身份/容量/安全状态复核未通过${ident_reason:+: $ident_reason}")
       fi
     else
-      details+=('目标 SSD 稳定身份无法唯一定位(设备缺失或存在同身份多盘歧义)')
+      details+=('目标 SSD 稳定身份无法单独定位(设备缺失或存在同身份歧义)')
     fi
   else details+=('目标 SSD 尚未通过只读盘点和稳定身份登记'); fi
 else details+=('目标 SSD 尚未登记'); fi
