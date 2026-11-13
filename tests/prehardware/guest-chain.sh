@@ -540,9 +540,20 @@ HW
 chmod 0755 "$hwbin"/*
 : >/run/paw3-hw-adapter.log
 command -v badblocks >/run/paw3-hw-badblocks-path.txt || true
+# The live /run tmpfs is not a reliable executable path in every boot. Install
+# the test-only adapters into /usr/local/bin, which precedes the real tools in
+# the default PATH, and remove them immediately after the probes.
+installed_tools=()
+for tool in smartctl sensors dmesg badblocks; do
+  if [[ ! -e "/usr/local/bin/$tool" ]]; then
+    install -m 0755 "$hwbin/$tool" "/usr/local/bin/$tool"
+    installed_tools+=("/usr/local/bin/$tool")
+  fi
+done
 PATH="$hwbin:$PATH" PAW_SMART_POLL_SECONDS=1 PAW_READ_SCAN_LAST_BLOCK=65536 \
   "$PAW_ROOT/scripts/paw-hardware-preflight.sh" "$DST_DEV" >"$PAW_LOG_DIR/hardware.log" 2>&1
 hw_rc=$?
+for tool in "${installed_tools[@]}"; do rm -f "$tool"; done
 if ((hw_rc != 0)); then
   tail -n 80 "$PAW_LOG_DIR/hardware.log" >&2 || true
   fail hardware "paw-hardware-preflight.sh exit=$hw_rc"
