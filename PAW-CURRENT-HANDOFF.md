@@ -522,3 +522,45 @@ ChatGPT 复核了运行时代码 `scripts/paw-data-prepare.sh`：
 3. 写入完成后不要接受 Windows 格式化提示。
 4. 首次实机启动保持非破坏性，只观察 PAWDATA 与硬件检测结果；如 PAWDATA 未 PASS 或任一关键硬件状态 BLOCKED/WARN，停止，不进入最终授权。
 5. ChatGPT 后续重新核对 Run #17 的最终状态和证据，再决定完整迁移是否放行。
+
+
+---
+
+## 记录 0008：在家庭 Windows 电脑制作实体 TF/USB 启动盘的交接（2026-11-13）
+
+- 目的：用户更换到家中 Windows 电脑制作启动盘；该电脑尚未安装 Rufus。
+- 当前仓库分支 HEAD：`1f5639e47d191e9b677967595c9fb4c39df7f89e`（记录时仅包含运行时代码之后的文档追加）。
+- 已验收运行时代码：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`。
+- GitHub build Run：`43398893910`，SUCCESS；head SHA 与已验收运行时代码一致。
+- Artifact：`paw-live-build-test-results`，ID `14025033882`，ZIP `1,030,672,881` bytes；当前未过期。
+- ISO：`paw-live-amd64.iso`，`953,155,584` bytes。
+- ISO SHA256：`eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358`。
+- Artifact ZIP digest：`sha256:a7a5851535a001d5800fbf749c5e6ffd4ea6d87545cfbe50f713c39f4850ad84`（注意这不是 ISO SHA256）。
+- GitHub 50GiB workflow Run `43402874795` 在本记录时仍为 `in_progress`，不能将50GiB完整链路记为PASS；不改变实体启动介质制作许可与真实破坏性克隆仍阻断的边界。
+
+### 家庭 Windows 电脑执行规则
+
+1. 从 GitHub Run `43398893910` 下载 Artifact `14025033882`，只取本轮 ISO 及其 sidecar、iso-identity、provenance 和测试摘要；不要下载历史 Run #124 ISO。
+2. 优先用 GitHub CLI。若未安装，先从 Microsoft winget 安装官方 GitHub CLI，或通过已登录的 GitHub 官方网页下载该 Run 的 Artifact。不得要求用户粘贴 PAT、密码或其他凭据。
+3. 本地核对 Run conclusion=success、headSha=`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`、Artifact ID、ZIP 完整性、ISO 精确字节数及 SHA256。
+4. 家庭电脑未安装 Rufus：从官方站点 `https://rufus.ie/` 下载当前稳定版 Windows x64 portable 可执行文件；不使用第三方下载站、广告下载器或来历不明的镜像。记录下载来源、版本、文件签名（如有）和 SHA256。无需安装，使用 portable 即可。
+5. 插入 TF 卡读卡器前后分别枚举 Windows 磁盘，依据新增设备、USB 总线、型号、容量、序列号/PNP 信息交叉识别；不能仅凭磁盘编号、可移动标志或容量猜测目标。若出现多块可能目标磁盘，先要求用户断开其他外置存储设备。
+6. 写入前向用户明确展示 Windows Disk Number、型号、精确容量、BusType、SerialNumber（若有）和将被完全覆盖的风险；必须由用户对该具体设备再次明确确认后才能点击 Rufus Start。
+7. Rufus 选择本轮 ISO，遇到 ISOHybrid 写入模式选择时使用 DD Image mode，保留 ISO 原始 Hybrid MBR/GPT/El Torito 布局；不要用文件复制或手工格式化代替镜像写入。
+8. 写入后执行 Rufus 可用的写入验证；如能安全只读回读，则对目标物理盘开头 `953155584` bytes 计算 SHA256，与 ISO SHA256 比对。不得对物理盘执行 PowerShell 写入、DiskPart clean、format、initialize 或其他额外破坏性命令。
+9. Windows 弹出“需要格式化磁盘才能使用”提示时必须取消；不要格式化、不要调整分区、不要手工创建 PAWDATA 分区。PAWDATA 由 PAW 首次启动流程按设计处理。
+10. 写盘成功后安全弹出 TF 卡；报告 ISO SHA、TF 卡型号/容量、Disk Number、Rufus 版本、写入验证结果和时间。
+
+### 首次真实启动安全边界
+
+- 仅进行 PAW Live 启动、中文控制台、PAWDATA 初始化、SSD 自动识别、SMART/只读扫描、Memtest、HD4600、Realtek 网卡和网络检查。
+- PAWDATA 真实读卡器识别仍有待验证风险：当前 `paw-data-prepare.sh` 要求 live parent device 报告 `RM=1` 且 SERIAL 非空。若读卡器返回 `RM=0` 或无 SERIAL，PAWDATA 会 BLOCKED；停止，不得绕过。
+- 不输入最终迁移授权，不运行整盘克隆，不对真实 SSD 写入。
+- 50GiB Run `43402874795` 只有在完成完整证据链并 PASS 后才可关闭对应阻断；实体硬件和真实 Rescue SSH 仍需现场验收及用户另行授权。
+
+### 本次任务状态
+
+- 已完成 GitHub 候选 ISO 的版本和 Artifact 信息核对。
+- 家庭电脑 Rufus 尚未下载。
+- 实体 TF 卡尚未写入。
+- 本记录只作为执行交接，不表示写盘已经完成。
