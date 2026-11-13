@@ -24,3 +24,28 @@ Independent workstation check:
 Note: ISO builds are not byte-reproducible. Historical runs produced the same
 953,155,584-byte size with different SHA256 values. Only compare against the
 sidecar from the same run; never use an artifact ZIP hash as the ISO hash.
+
+================================================================================
+PAW Migration Kit v2.8 — final pre-hardware delivery ISO identity
+Generated: 2026-11-13 UTC (final pre-hardware remediation)
+
+Branch:        vm/ds-final-prehardware-remediation-20261112
+Code HEAD:     c23984e40d53aaea15b8aba7004ae46ccd4efec7 (c23984e)
+Actions Run:   43352873377 (build-live-and-test.yml, workflow_dispatch, success)
+Artifact:      14006116731, paw-live-build-test-results, 1,030,670,404 bytes
+Artifact TTL:  14 days from 2026-11-13T02:32:24Z
+
+ISO file:      paw-live-amd64.iso
+ISO bytes:     953,155,584
+ISO SHA256:    0468e426a5d1c68450315894fa0e200f0f15f25077cc334f453b92a913fb2596
+
+Sidecar and build identity in the same run agree:
+  0468e426a5d1c68450315894fa0e200f0f15f25077cc334f453b92a913fb2596  boot/custom/paw-live-amd64.iso
+
+Independent workstation check:
+  downloaded artifact ZIP 14006116731 (1,030,670,404 bytes); unzip -t passed;
+  extracted paw-live-amd64.iso; ran sha256sum over the extracted ISO file:
+  0468e426a5d1c68450315894fa0e200f0f15f25077cc334f453b92a913fb2596
+  result: MATCH with the same run's sidecar and iso-identity.txt.
+  Evidence: reports/evidence/final-iso-20261113/artifact-identity.txt
+

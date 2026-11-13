@@ -1,0 +1,32 @@
+PAW v2.8 final ISO artifact identity
+Verified: 2026-11-13T03:08Z (UTC)
+
+Repository:      riser-lang/paw-migration-kit
+Branch:          vm/ds-final-prehardware-remediation-20261112
+Runtime commit:  c23984e40d53aaea15b8aba7004ae46ccd4efec7
+Build workflow:  .github/workflows/build-live-and-test.yml
+Build run:       43352873377
+Build result:    success (2026-11-13T03:01:53Z)
+Artifact name:   paw-live-build-test-results
+Artifact ID:     14006116731
+Artifact bytes:  1,030,670,404
+Artifact TTL:    14 days, not expired at verification time
+
+ZIP integrity (unzip -t): No errors detected
+ISO path in ZIP: paw-live-amd64.iso
+ISO bytes:       953,155,584
+ISO SHA256:      0468e426a5d1c68450315894fa0e200f0f15f25077cc334f453b92a913fb2596
+Sidecar:         0468e426a5d1c68450315894fa0e200f0f15f25077cc334f453b92a913fb2596  boot/custom/paw-live-amd64.iso
+SHA256 MATCH:    YES
+
+Supporting file SHA256:
+  6d754b886c5127ddbcee918cf24d46ad8e1918ffb2641fe0f17207d29fbac2da  software-manifest.txt
+  bfad187d7171dcd1ccf5b10c7692ecc99a69b6208e909d0815b522440af3c508  build-provenance.txt
+  f72c7ce57ee8da8f668fa6c8c0865e4332f44a339810d8ee076890ee4e4e1b24  iso-identity.txt
+  6b11cd13bcd929b89a9556f35cfaec2aa1b2e6f3a6a2400a369a6cce3912ebc7  paw-live-amd64.iso.sha256
+
+Method: downloaded the artifact ZIP from the Actions API, verified the ZIP
+with unzip -t, extracted paw-live-amd64.iso, and ran sha256sum on the ISO file
+itself. The ZIP hash is not used as, and is not evidence of, the ISO hash.
+ISO builds are not byte-reproducible; compare only with the same run's
+sidecar and iso-identity.txt.
