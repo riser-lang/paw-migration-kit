@@ -33,9 +33,11 @@ prompt(){
 }
 fail(){
   step "$1" FAIL "${2:-}"
-  say "PAW3_CHAIN_RESULT=FAIL STEP=$1"
+  # Copy evidence before announcing the terminal marker: the host watcher stops
+  # QEMU as soon as it sees PAW3_CHAIN_RESULT, so a later copy would be cut off.
   copy_out || true
   sync
+  say "PAW3_CHAIN_RESULT=FAIL STEP=$1"
   exit 1
 }
 

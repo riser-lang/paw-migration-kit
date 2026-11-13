@@ -194,6 +194,9 @@ case "$mem_status" in
   FAIL) status=FAIL; reasons+=("Memtest86+ result is ${mem_status}") ;;
   *) [[ $status == FAIL ]] || status=WARN; reasons+=("Memtest86+ result is ${mem_status}; manual confirmation is required") ;;
 esac
+if ((${#reasons[@]})); then
+  for reason in "${reasons[@]}"; do log WARN "health reason: $reason"; done
+fi
 write_status "$status" "${reasons[*]:-All currently supported checks passed}" "$PAW_REPORT_DIR/paw-hardware-health-report.json"
 python3 - "$PAW_REPORT_DIR/paw-hardware-health-report.json" "$dev" "$mem_status" <<'PY'
 import json,os,subprocess,sys,tempfile
