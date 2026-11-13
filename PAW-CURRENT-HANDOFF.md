@@ -165,3 +165,70 @@ Host runner 同时报告：
 - ISO独立下载复核：NEEDS_TEST。
 - 真实硬件、真实Rescue SSH和生产网络：继续保持OPEN / NEEDS_TEST。
 - 当前不能宣布 `PREHARDWARE_RELEASE_READY`，不能据此放行真实整盘克隆。
+
+
+---
+
+## 记录 0003：两小时截止与本地 Gemini 执行方案
+
+- 记录时间：2026-11-13（用户提出最多再投入两小时，要求完成启动盘准备）
+- 本次分支 HEAD：`81e33ca7c12f88c517967ad321f0211a8fbc93a0`
+- 最新已测试运行时代码：`0ced6e8210cca67d678ccf5d24e2f12f591e91a7`
+- 本次记录只追加项目决策和执行计划，不修改任何历史记录、运行时代码或真实介质。
+
+### 1. 用户决定
+
+用户希望改由本地电脑上的 Gemini 4 Hydrogen 承担本轮本地执行，认为它可能比云电脑 DeepSeek 更强、更快。用户可用时间最多约两小时，目标是尽快完成启动介质准备。
+
+### 2. 执行能力边界
+
+- 当前 ChatGPT 会话没有可直接启动用户本地 Gemini 4 Hydrogen 或远程控制其本地终端的工具。
+- 现有 Agy 工具是服务器侧执行器，默认 Gemini 3.8 Flash High，并非用户指定的 Gemini 4 Hydrogen，也不是用户本地电脑；不得冒充为用户要求的执行环境。
+- GitHub Artifact connector 对 Run #124 的约1.03GB Artifact 返回超过512MiB上限的错误，不能通过当前 connector 直接取回完整 ZIP。
+- 因此建议用户在本地 Gemini 4 Hydrogen 中执行 GitHub CLI 下载和本地 SHA256 复核。
+
+### 3. 两小时内的最短可靠路线
+
+不建议从源码重新构建一份新 ISO。Run #124 已经在运行时代码 `0ced6e8210cca67d678ccf5d24e2f12f591e91a7` 上完成常规 CI 并成功构建 ISO。重新本地编译会产生不同构建环境和新哈希，浪费时间并降低与已测试产物的一致性。
+
+优先下载并验证现有 Run #124 Artifact：
+
+- Run：`43374947901`
+- Artifact ID：`14014299163`
+- Artifact 名称：`paw-live-build-test-results`
+- Artifact ZIP 大小：`1,030,674,014` bytes
+- ISO：`paw-live-amd64.iso`
+- ISO 大小：`953,155,584` bytes
+- 预期 ISO SHA256：`eed910bb6d06314e33547a5b65fa0e9ee896d910b494b7d9eb54dbb4fdecaf5e`
+- 运行时代码 SHA：`0ced6e8210cca67d678ccf5d24e2f12f591e91a7`
+
+本地执行要求：
+1. 检查 GitHub CLI 登录状态。
+2. 查询 Run #124 的 conclusion 和 headSha，确认 SUCCESS 且 headSha 精确匹配上述运行时代码。
+3. 使用 `gh run download 43374947901 --repo riser-lang/paw-migration-kit --name paw-live-build-test-results --dir <专用输出目录>` 下载并解压 Artifact。
+4. 检查 ISO 文件大小。
+5. 使用 Windows PowerShell `Get-FileHash -Algorithm SHA256` 对提取出的 ISO 独立复算。
+6. 与预期 SHA256 及 Artifact 内 sidecar / iso-identity 文件交叉核对。
+7. 保存本地校验报告和 ISO 路径。
+
+### 4. 安全和放行边界
+
+- Run #124 的常规 CI 通过，不代表独立50GiB完整链路通过。
+- 50GiB Run #16 仍为 FAILURE，失败于 SSH 中断负向测试的事务初始化；该链路的主克隆、50GiB独立校验、离线修复、扩容和最终启动没有完成。
+- Run #124 ISO 可作为通过常规软件测试的候选启动介质，用于启动、中文界面、PAWDATA和非破坏性硬件检查；不能据此宣布正式整盘克隆已获完整验收。
+- 用户必须在实体机上先完成 BIOS/USB、TF卡识别、SSD身份、SMART/只读扫描、内存、显卡、网卡和 Rescue 网络检查。
+- 未获得用户对具体 TF 卡的明确写入授权前，不得运行 DiskPart clean、格式化、dd、Rufus 写入或任何覆盖真实介质的命令。
+- 未获得正式迁移授权且现场安全门禁未通过前，不得对真实 SSD 执行整盘克隆。
+
+### 5. 当前建议状态
+
+- 常规软件 CI：PASS（Run #124）。
+- 候选 ISO 已构建：PASS（runner 构建记录）。
+- Artifact 本地下载和 ISO 独立 SHA256：待 Gemini 本地执行。
+- 真实 TF 卡写入：待用户明确授权及核对设备。
+- 50GiB完整链路：BLOCKED / 未验收。
+- 正式生产克隆：NOT AUTHORIZED / NOT RELEASED。
+
+### 6. 下一步
+
+让本地 Gemini 4 Hydrogen 执行 Run #124 Artifact 下载、独立 ISO 哈希复核和本地校验报告。优先复用已构建的 ISO，不重新编译。校验完成后由 ChatGPT 再核对结果，并在用户明确授权后安排 TF 卡写入。
