@@ -241,9 +241,9 @@ else
   pass 'REMED-P0-1 missing target composite hash rejected'
 fi
 
-run_tx start-clone --transaction "$id_txdir/tx-ok.json" --now "$now" >/dev/null
+run_tx event --transaction "$id_txdir/tx-ok.json" --event CLONE_STARTED --now "$now" >/dev/null
 printf 'INCOMPLETE\n' >"$id_txdir/reports/CLONE-INCOMPLETE"
-run_tx fail-clone --transaction "$id_txdir/tx-ok.json" --now "$now" --reason 'ssh_interrupt_test' >/dev/null
+run_tx event --transaction "$id_txdir/tx-ok.json" --event CLONE_INCOMPLETE --now "$now" >/dev/null
 if grep -q '"state": "CLONE_INCOMPLETE"' "$id_txdir/tx-ok.json" && [[ -f "$id_txdir/reports/CLONE-INCOMPLETE" ]]; then
   pass 'REMED-P0-1 SSH interrupt retains CLONE_INCOMPLETE transaction state and marker'
 else
@@ -319,7 +319,7 @@ else
 fi
 
 # REMED-P0-3: source root last-partition pre-check in paw-source-discovery.sh (while keeping paw-gpt-expand.sh gate)
-if grep -q 'part_start != last_start' "$root/scripts/paw-gpt-expand.sh"; then
+if grep -q 'part_start == last_start' "$root/scripts/paw-gpt-expand.sh"; then
   pass 'REMED-P0-3 paw-gpt-expand.sh second gate retained'
 else
   fail 'REMED-P0-3 paw-gpt-expand.sh second gate missing'
@@ -362,7 +362,7 @@ non_last='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":
 missing_start='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda14","path":"/dev/vda14","type":"part","size":4194304,"partn":14,"parttype":"21686148-6449-6e6f-744e-656564454649","start":null},{"name":"vda1","path":"/dev/vda1","type":"part","size":53500000000,"partn":1,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000}]}]}'
 dup_partn='{"blockdevices":[{"name":"vda","path":"/dev/vda","type":"disk","size":53687091200,"model":"SRC","serial":"S1","ro":false,"pttype":"gpt","children":[{"name":"vda1","path":"/dev/vda1","type":"part","size":4194304,"partn":1,"parttype":"21686148-6449-6e6f-744e-656564454649","start":2048},{"name":"vda1b","path":"/dev/vda1b","type":"part","size":53500000000,"partn":1,"parttype":"0fc63daf-8483-4772-8e79-3d69d8477de4","fstype":"ext4","uuid":"11111111-2222-3333-4444-555555555555","start":220000}]}]}'
 
-if run_src_disc "$sdir/good" "$good_last" && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["root_is_last_partition"] is True and d["partition_layout_check"]=="PASS" and d["source"]["root_partition_start"]==220000 and d["source"]["max_partition_start"]==220000' "$sdir/good/state/reports/source-discovery.json"; then
+if run_src_disc "$sdir/good" "$good_last" && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["root_is_last_partition"] is True and d["partition_layout_check"]["status"]=="PASS" and d["source"]["root_partition_start"]==220000 and d["source"]["max_partition_start"]==220000' "$sdir/good/state/reports/source-discovery.json"; then
   pass 'REMED-P0-3 root-is-last-partition PASS and recorded in source-discovery.json'
 else
   fail "REMED-P0-3 good last-partition case failed: $(cat "$sdir/good/stderr.log" 2>/dev/null || true)"

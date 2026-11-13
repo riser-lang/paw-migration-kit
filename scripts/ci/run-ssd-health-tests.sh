@@ -416,7 +416,8 @@ write_db <<'JSON'
 {"/dev/loop0":{"name":"loop0","model":"Samsung SSD 870","serial":"","wwn":"wwn-0x5002538e00000099","tran":"sata","capacity":240000000000,"rm":0,"parts":[]}}
 JSON
 mk_sysfs loop0; reset_symlinks; rm -f "$state/configs/target-ssd.json" "$state/reports/"*.json "$state/memtest-attestation.json"
-printf '1\n' | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
+wwn_hw="$(identity_json /dev/loop0 | python3 -c 'import json,sys;print(json.load(sys.stdin)["hardware_identity_sha256"])')"
+printf '1\n%s\n' "${wwn_hw: -8}" | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
 printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >"$state/logs/noserial-wwn-memtest.log" 2>&1
 "$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1
 run_controller 'P0-4 no-serial WWN SSD READY_FOR_OPERATOR' READY_FOR_OPERATOR PASS PASS
@@ -435,7 +436,8 @@ write_db <<'JSON'
 JSON
 mk_sysfs loop0; reset_symlinks; add_byid nvme-PAW-BYID-NOSERIAL loop0
 rm -f "$state/configs/target-ssd.json" "$state/reports/"*.json "$state/memtest-attestation.json"
-printf '1\n' | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
+byid_hw="$(identity_json /dev/loop0 | python3 -c 'import json,sys;print(json.load(sys.stdin)["hardware_identity_sha256"])')"
+printf '1\n%s\n' "${byid_hw: -8}" | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
 printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
 "$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1
 run_controller 'P0-4 no-serial by-id SSD READY_FOR_OPERATOR' READY_FOR_OPERATOR PASS PASS
@@ -459,7 +461,8 @@ write_db <<'JSON'
 {"/dev/loop0":{"name":"loop0","model":"Same","serial":"","wwn":"wwn-0x5002538e00000055","tran":"sata","capacity":240000000000,"rm":0,"parts":[]}}
 JSON
 reset_symlinks; rm -f "$state/configs/target-ssd.json" "$state/reports/"*.json "$state/memtest-attestation.json"
-printf '1\n' | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
+dup_hw="$(identity_json /dev/loop0 | python3 -c 'import json,sys;print(json.load(sys.stdin)["hardware_identity_sha256"])')"
+printf '1\n%s\n' "${dup_hw: -8}" | "$root/scripts/paw-target-discovery.sh" >/dev/null 2>&1
 printf '1\n1\n0\n确认\n' | "$root/scripts/paw-memtest-confirm.sh" >/dev/null 2>&1
 "$root/scripts/paw-hardware-preflight.sh" /dev/loop0 >/dev/null 2>&1
 write_db <<'JSON'
