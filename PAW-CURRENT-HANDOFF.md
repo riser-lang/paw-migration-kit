@@ -284,3 +284,86 @@ Host runner 同时报告：
 - 现有 Run #124 ISO 只是已通过常规CI的候选产物，不是本轮纠错后的最终构建。
 - 本轮目标是用最小修改得到新的 GitHub 完整CI成功Run和对应最终ISO，并启动同一代码版本的50GiB完整链路验收。
 - 最终迁移目标保持不变；如果50GiB或真实硬件门禁未通过，不得执行真实整盘克隆。
+
+
+---
+
+## 记录 0005：纠正 Gemini 4 Hydrogen 两小时任务 Prompt（2026-11-13）
+
+- 记录时分支 HEAD：`aba61424c581a3399a9221fdcc1c17ca5bd0c00e`
+- 用户指出上一份 Gemini Prompt 错误地固定复用 Run #124 的旧 ISO，没有把本轮必要纠错和修复后 GitHub 构建作为真正交付目标。
+- 本记录只追加，不修改任何此前记录。
+
+### 用户最终澄清的执行目标
+
+两小时用于：
+1. 由用户本地 Gemini 4 Hydrogen 在本地工作区执行必要代码纠错；
+2. 将修复提交并推送至 GitHub 当前开发分支；
+3. 修复后的正式测试必须通过 GitHub Actions 执行；
+4. 最终 ISO 必须由修复后最新代码 HEAD 的 GitHub 成功工作流构建；
+5. 获取新 Artifact 并独立校验 ISO SHA256。
+
+不得将 Run #124 的旧 ISO 固定为本轮最终产物，也不得仅下载旧 Artifact 就宣布完成。
+
+### 本次复核发现的真实问题范围
+
+1. **SSH 中断测试授权字段缺失（测试夹具）**
+   - 文件：`tests/prehardware/guest-chain.sh`，约721–734行。
+   - 目标登记从 `target-identity.json` 写入 `hardware_identity_sha256` 和 `composite_identity_sha256`。
+   - 中断测试随后创建的 `operator-authorization.json` 没有写入 `target_hardware_identity_sha256` 和 `target_composite_identity_sha256`。
+   - `scripts/paw-transaction.py cmd_init` 明确要求两项授权字段与目标登记匹配。
+   - 修复测试夹具，不能修改正式身份门禁。
+
+2. **50GiB目标启动证据误判（测试验证器）**
+   - 文件：`tests/prehardware/verify-chain-evidence.py`。
+   - 当前 `target_boot_login` 只检查日志任意位置包含 `login:`。
+   - 应要求 `auto_reboot PASS` 之后出现目标 Ubuntu 登录证据，并且与 `run-prehardware-lab.py` 的 Host runner 结果 `TARGET_BOOT_SEEN`、`chain_pass=True`、`target_boot=True` 相互印证。
+   - 增加启动前残留 login 的负向测试。
+   - 需按真实日志格式实现，不要臆造字符串。
+
+3. **源盘 root 分区不是最后一个分区，当前只在扩容阶段才发现（真实迁移失败风险）**
+   - 文件：`scripts/paw-source-discovery.sh`。
+   - 当前源盘发现校验 root partition number 合法，但没有提前确认 root partition 是否为磁盘上最后一个分区。
+   - `scripts/paw-gpt-expand.sh` 到扩容阶段才通过 START offset 检查 root partition 必须是最后一个分区。
+   - 这可能导致源盘识别、克隆和校验已经完成后，才在 GPT/ext4 扩容阶段失败。
+   - 必须把相同的“root partition start 必须等于所有分区最大 start”检查前移到源盘发现阶段；无法读取/比较时 fail closed。
+   - 增加 root 最后分区的正向测试和 root 后面还有分区的负向测试。不得自动移动/删除源盘分区。
+
+4. **无序列号 SSD 的稳定身份能力与总控门禁不一致（真实启动阻断风险）**
+   - 文件：`scripts/paw-live-controller.sh`。
+   - `paw-target-discovery.sh`、`paw-identity.py`、`paw-hardware-preflight.sh` 已支持无序列号但有 WWN/by-id 等稳定身份的 SSD。
+   - 但 live controller 当前仍要求 `target_serial` 非空，并直接比较序列号和容量；这会使无序列号设备无法达到 READY_FOR_OPERATOR，与 MASTER 的稳定身份回退要求冲突。
+   - 应复用 `paw-identity.py verify --phase prewrite --check-unique` 和硬件身份哈希、精确容量、健康报告绑定；不得降低身份唯一性或硬件检查门禁。
+   - 增加 live-controller 无序列号 WWN/by-id 正向测试，以及身份不唯一/替换设备负向测试。
+   - 若两小时内无法安全完成此项，必须在交接中明确标为 OPEN，不得假装无序列号路径已端到端通过。
+
+### 本轮构建原则
+
+- 起始分支：`vm/ds-final-prehardware-remediation-20261112`
+- 记录时分支 HEAD：`aba61424c581a3399a9221fdcc1c17ca5bd0c00e`（这是交接文档提交，不是固定的最终运行时代码）。
+- 当前历史常规 CI Run #124 / SHA `0ced6e8...` 只作基线参考，**不是本轮最终 ISO**。
+- 修复后必须产生新的运行时代码 commit SHA。
+- GitHub Actions `build-live-and-test.yml` 必须在该新 SHA 上运行并成功。
+- 最终 ISO 必须由该新 SHA 的成功 Run 构建、上传、下载并独立 SHA256 校验。
+- 不得使用 Run #124、Run #123 或任何旧 Artifact/ISO 作为本轮最终交付。
+- 成功构建后，如时间允许，使用同一新代码 SHA 对应的 build Run ID 触发 `prehardware-50g.yml`；其 workflow 会校验 ISO Run headSha 与自身 checkout SHA 相同。该50GiB任务可以在两小时工作预算结束后继续运行。
+- 50GiB未通过时，完整迁移仍未验收，真实破坏性克隆不能放行。
+
+### 两小时和模型额度控制
+
+- 使用用户本地 Gemini 4 Hydrogen，不要转交回云电脑 DeepSeek。
+- 只读项目 Master、State、Blockers、Current Handoff 和本记录涉及的文件；不要全仓库重审。
+- 先确认本地工作区状态、当前分支、未提交改动和远端 HEAD；不得 reset --hard、clean -fd 或 force push。
+- 只做上述有明确依据的最小修改；不重构、不改生产VPS、不操作真实SSD/TF卡。
+- 本地只跑快速定向测试和语法检查；权威完整测试必须在 GitHub Actions。
+- 最多一次完整 GitHub build/test dispatch；若出现明确且局部的代码错误，可在预算内修复一次并再跑一次。禁止无限重试。
+- Artifact 下载通过本地 GitHub CLI；connector 对大于512MiB的 ZIP 有大小限制。
+- 成功后记录新 Runtime SHA、CI Run ID、Artifact ID、ISO bytes、ISO SHA256、独立下载复算结果。
+- 追加更新本文件，不得修改任何历史记录。
+
+### 当前状态
+
+- 旧 Run #124 ISO 不得作为本轮最终 ISO。
+- 本轮纠错和新 GitHub 构建尚未执行。
+- 50GiB链路仍为 BLOCKED / 未验收。
+- 最终迁移目标保持不变。
