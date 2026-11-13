@@ -1,0 +1,2 @@
+iso_bytes=953155584
+960af7ca8067bae2e0996c7b41731626dd1b8ca2cfb18ebf94bd504a6701c36c  boot/custom/paw-live-amd64.iso

@@ -49,3 +49,36 @@ Independent workstation check:
   result: MATCH with the same run's sidecar and iso-identity.txt.
   Evidence: reports/evidence/final-iso-20261113/artifact-identity.txt
 
+================================================================================
+SUPERSESSION NOTE — 2026-11-13T04:18Z
+The c23984e / run 43352873377 block above is a superseded candidate, not the
+final delivery ISO. Its 50 GiB chain (43356265037) failed in the ssh_interrupt
+test fixture because the disposable loop target lacked a bound identity hash.
+Commit 75ca552 fixed that fixture; a new full CI and ISO were required. The
+final identity is the block below.
+
+================================================================================
+PAW Migration Kit v2.8 — FINAL pre-hardware delivery ISO identity
+Generated: 2026-11-13T04:17:50Z
+
+Branch:        vm/ds-final-prehardware-remediation-20261112
+Code HEAD:     75ca552d0bb394010aa233bf72129e7c438a5c03 (75ca552)
+Actions Run:   43360762768 (build-live-and-test.yml, workflow_dispatch, success)
+Artifact:      14009706156, paw-live-build-test-results, 1,030,674,063 bytes
+Artifact TTL:  14 days from 2026-11-13T03:42:43Z
+
+ISO file:      paw-live-amd64.iso
+ISO bytes:     953,155,584
+ISO SHA256:    960af7ca8067bae2e0996c7b41731626dd1b8ca2cfb18ebf94bd504a6701c36c
+
+Sidecar from the same run:
+  960af7ca8067bae2e0996c7b41731626dd1b8ca2cfb18ebf94bd504a6701c36c  boot/custom/paw-live-amd64.iso
+
+Independent workstation check:
+  downloaded artifact ZIP 14009706156 (1,030,674,063 bytes); unzip -t passed;
+  extracted paw-live-amd64.iso; ran sha256sum over the extracted ISO file:
+  960af7ca8067bae2e0996c7b41731626dd1b8ca2cfb18ebf94bd504a6701c36c
+  result: MATCH with the same run's sidecar and iso-identity.txt.
+  Evidence: reports/evidence/final-iso-20261113-r2/artifact-identity.txt
+
+

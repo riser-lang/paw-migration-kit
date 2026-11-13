@@ -673,7 +673,12 @@ mkdir -p /run/paw3-intbin
 cat >/run/paw3-intbin/lsblk <<'SH'
 #!/usr/bin/env bash
 last="${!#}"
-if [[ " $* " == *" -o SERIAL "* && "$last" == "${PAW3_LOOP_DEV:-}" ]]; then printf '%s\n' "${PAW3_LOOP_SERIAL:-LOOP-INT}"; exit 0; fi
+if [[ "$last" == "${PAW3_LOOP_DEV:-}" ]]; then
+  case " $* " in
+    *" -o SERIAL "*) printf '%s\n' "${PAW3_LOOP_SERIAL:-LOOP-INT}"; exit 0 ;;
+    *" -o MODEL "*) printf '%s\n' 'QEMU loop interrupt target'; exit 0 ;;
+  esac
+fi
 exec /usr/bin/lsblk "$@"
 SH
 chmod 0755 /run/paw3-intbin/lsblk
