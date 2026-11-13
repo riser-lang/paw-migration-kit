@@ -426,7 +426,7 @@ if assert_json "$state/reports/live-readiness.json" 'assert d.get("target_serial
 else fail 'P0-4 live-readiness WWN fields'; fi
 
 # Verify final-confirm prompt uses 8-char hardware fingerprint when serial is empty
-if grep -q 'target_hw_suffix' "$root/scripts/paw-final-confirm.sh" && grep -q '\${target_hw: -8}' "$root/scripts/paw-final-confirm.sh"; then
+if grep -Fq 'confirm_value="${target_hw: -8}"' "$root/scripts/paw-final-confirm.sh" && grep -Eq 'confirm_label=.*8 位' "$root/scripts/paw-final-confirm.sh"; then
   pass 'P0-4 paw-final-confirm supports 8-char hardware fingerprint confirmation when serial is empty'
 else fail 'P0-4 paw-final-confirm missing 8-char hardware fingerprint fallback'; fi
 
