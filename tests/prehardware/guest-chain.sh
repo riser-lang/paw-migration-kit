@@ -521,13 +521,20 @@ echo "PAW3_VIRTUAL_BOUNDED_READ bytes=$bytes device=$dev"
 echo 'Pass completed, 0 bad blocks found. (0/0/0 errors)'
 exit 0
 HW
+cat >"$hwbin/dmesg" <<'HW'
+#!/usr/bin/env bash
+# The virtual lab has no physical SATA link to report on. Keep the kernel log
+# clean and deterministic so a host-side dmesg line cannot decide the gate.
+echo '[    0.000000] Linux version 6.12.0-paw-lab (paw@virtual)'
+echo '[    0.000000] ata2: SATA link up 6.0 Gbps (SStatus 113 SControl 300)'
+HW
 cat >"$hwbin/sensors" <<'HW'
 #!/usr/bin/env bash
 echo "sensors $*" >>/run/paw3-hw-adapter.log
 cat <<'TXT'
 qemu-virtual-isa-0000
 Adapter: ISA adapter
-CPU Temp:     +41.0°C  (high = +85.0°C, crit = +95.0°C)
+CPU Temp:     +41.0 degC  (high = +85.0 degC, crit = +95.0 degC)
 TXT
 HW
 chmod 0755 "$hwbin"/*
