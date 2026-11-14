@@ -6,7 +6,7 @@ ConditionPathExists=!/run/paw-prehardware-done
 [Service]
 Type=oneshot
 ExecStartPre=-/bin/systemctl stop paw-console.service
-Environment=PAW_EXPECTED_SOURCE_BYTES=%SOURCE_BYTES%
+Environment=PAW_EXPECTED_SOURCE_BYTES=%SOURCE_BYTES% PAW_EXPECTED_TARGET_BYTES=%TARGET_BYTES%
 ExecStart=/opt/paw-migration/tests/prehardware/guest-chain.sh
 TimeoutStartSec=0
 StandardOutput=journal+console

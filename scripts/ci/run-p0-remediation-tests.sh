@@ -264,30 +264,64 @@ from pathlib import Path
 spec=importlib.util.spec_from_file_location("vce",sys.argv[1])
 mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
 d=Path(sys.argv[2])
-base_steps=[]
-for step in mod.REQUIRED:
-    if step=="auto_reboot":
-        continue
-    if step=="sata":
-        base_steps.append(f"PAW3_STEP=sata STATUS=PASS bytes={mod.SOURCE_BYTES} tran=ata model=ich9-ahci media_bytes={mod.MEDIA_BYTES}")
-    elif step=="target_enrollment":
-        base_steps.append(f"PAW3_STEP=target_enrollment STATUS=PASS capacity={mod.TARGET_BYTES}")
-    else:
-        base_steps.append(f"PAW3_STEP={step} STATUS=PASS")
-base="\n".join(["Ubuntu 24.04.5 LTS live login:"] + base_steps + ["PAW3_CHAIN_RESULT=PASS"]) + "\n"
-(d/"console-ok.log").write_text(base + "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\n[ 12.345] reboot: Restarting system\nUbuntu 24.04.5 LTS ubuntu ttyS0\n\nubuntu login:\n")
-(d/"console-preonly.log").write_text(base)
-(d/"console-no-reboot.log").write_text(base + "Ubuntu 24.04.5 LTS ubuntu ttyS0\n\nubuntu login:\n")
-(d/"console-reboot-no-login.log").write_text(base + "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\n[ 12.345] reboot: Restarting system\n[ 15.000] systemd[1]: Reached target Multi-User System.\n")
-(d/"console-generic-login.log").write_text(base + "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\nsome-other-system ttyS0\nlogin:\n")
+def make_log(target_bytes: int, include_post: bool = True, post_extra: str = "", gpt_detail: str | None = None):
+    steps=[]
+    for step in mod.REQUIRED:
+        if step=="auto_reboot":
+            continue
+        if step=="sata":
+            steps.append(f"PAW3_STEP=sata STATUS=PASS bytes={mod.SOURCE_BYTES} tran=ata target_bytes={target_bytes} model=ich9-ahci media_bytes={mod.MEDIA_BYTES}")
+        elif step=="target_enrollment":
+            steps.append(f"PAW3_STEP=target_enrollment STATUS=PASS capacity={target_bytes}")
+        elif step=="gpt_expand":
+            gd = gpt_detail or "partition=/dev/vdc2 before_bytes=53500000000 after_bytes=119998000000 grew=True fs_before_blocks=13061523 fs_after_blocks=29296386 fs_grew=True block_size=4096 free_blocks=25000000 free_bytes=102400000000 disk_bytes=120000000000 gpt_verified=True fsck_method=offline"
+            steps.append(f"PAW3_STEP=gpt_expand STATUS=PASS {gd}")
+        else:
+            steps.append(f"PAW3_STEP={step} STATUS=PASS")
+    body="\n".join(["Ubuntu 24.04.5 LTS live login:"] + steps + ["PAW3_CHAIN_RESULT=PASS"]) + "\n"
+    if include_post:
+        body += post_extra
+    return body
+
+ok_post = "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\n[ 12.345] reboot: Restarting system\nUbuntu 24.04.5 LTS ubuntu ttyS0\n\nubuntu login:\n"
+(d/"console-ok.log").write_text(make_log(mod.TARGET_BYTES, True, ok_post))
+(d/"console-120g.log").write_text(make_log(120000000000, True, ok_post))
+(d/"console-120g-nogrow.log").write_text(make_log(120000000000, True, ok_post, "partition=/dev/vdc2 before_bytes=53500000000 after_bytes=53500000000 grew=False fs_before_blocks=13061523 fs_after_blocks=13061523 fs_grew=False block_size=4096 free_blocks=10000000 free_bytes=40960000000 disk_bytes=120000000000 gpt_verified=True fsck_method=offline"))
+(d/"console-preonly.log").write_text(make_log(mod.TARGET_BYTES, False))
+(d/"console-no-reboot.log").write_text(make_log(mod.TARGET_BYTES, True, "Ubuntu 24.04.5 LTS ubuntu ttyS0\n\nubuntu login:\n"))
+(d/"console-reboot-no-login.log").write_text(make_log(mod.TARGET_BYTES, True, "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\n[ 12.345] reboot: Restarting system\n[ 15.000] systemd[1]: Reached target Multi-User System.\n"))
+(d/"console-generic-login.log").write_text(make_log(mod.TARGET_BYTES, True, "PAW3_STEP=auto_reboot STATUS=PASS target=/dev/vdb\nsome-other-system ttyS0\nlogin:\n"))
 PY
 
 if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/console-ok.log" --output "$evdir/ok.json" --summary "$evdir/ok.txt" --runner-log "$evdir/runner-ok.log" >/dev/null 2>&1 \
-  && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="PASS" and d["checks"]["target_boot_login"] and d["checks"]["auto_reboot_before_target_login"] and d["checks"]["host_runner_corroborated"]' "$evdir/ok.json"; then
-  pass 'REMED-P0-2 valid post-reboot Ubuntu target login + host corroboration PASS'
+  && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="PASS" and d["checks"]["target_boot_login"] and d["checks"]["auto_reboot_before_target_login"] and d["checks"]["host_runner_corroborated"] and d["checks"]["target_exact_bytes"] and d["checks"]["gpt_partition_expanded"] and d["checks"]["ext4_filesystem_expanded"]' "$evdir/ok.json"; then
+  pass 'REMED-P0-2 valid post-reboot Ubuntu target login + host corroboration PASS (240GB default)'
 else
   fail 'REMED-P0-2 valid target boot evidence failed'
 fi
+if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/console-120g.log" --target-bytes 120000000000 --output "$evdir/ok120.json" --summary "$evdir/ok120.txt" --runner-log "$evdir/runner-ok.log" >/dev/null 2>&1 \
+  && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="PASS" and d["target_bytes_required"]==120000000000 and d["target_bytes_observed"]==120000000000 and d["expansion_metrics"]["target_free_bytes"]==102400000000' "$evdir/ok120.json"; then
+  pass 'REMED-P0-2 parameterized 120GB target_bytes verification PASS'
+else
+  fail 'REMED-P0-2 parameterized 120GB target_bytes verification failed'
+fi
+if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/console-120g.log" --target-bytes 240000000000 --output "$evdir/mismatch.json" --summary "$evdir/mismatch.txt" --runner-log "$evdir/runner-ok.log" >/dev/null 2>&1; then
+  fail 'REMED-P0-2 mismatched target_bytes (120GB log vs 240GB expected) unexpectedly passed'
+else
+  pass 'REMED-P0-2 mismatched target_bytes rejected'
+fi
+for bad_target in 0 -1 abc 53687091199 120000000001; do
+  if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/console-120g.log" --target-bytes "$bad_target" --output "$evdir/badt.json" --summary "$evdir/badt.txt" >/dev/null 2>&1; then
+    fail "REMED-P0-2 invalid verifier --target-bytes=$bad_target unexpectedly accepted"
+  else
+    pass "REMED-P0-2 invalid verifier --target-bytes=$bad_target rejected"
+  fi
+  if bash "$root/tests/prehardware/prepare-images.sh" "$evdir/prep" --source-50g "$evdir/missing.raw" --target-bytes "$bad_target" >/dev/null 2>&1; then
+    fail "REMED-P0-2 prepare-images.sh invalid --target-bytes=$bad_target unexpectedly accepted"
+  else
+    pass "REMED-P0-2 prepare-images.sh invalid --target-bytes=$bad_target rejected"
+  fi
+done
 for neg in console-preonly console-no-reboot console-reboot-no-login console-generic-login; do
   if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/$neg.log" --output "$evdir/$neg.json" --summary "$evdir/$neg.txt" --runner-log "$evdir/runner-ok.log" >/dev/null 2>&1; then
     fail "REMED-P0-2 negative case $neg unexpectedly passed"
@@ -295,6 +329,12 @@ for neg in console-preonly console-no-reboot console-reboot-no-login console-gen
     pass "REMED-P0-2 negative case $neg rejected"
   fi
 done
+if ! python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/console-120g-nogrow.log" --target-bytes 120000000000 --output "$evdir/nogrow.json" --summary "$evdir/nogrow.txt" --runner-log "$evdir/runner-ok.log" >/dev/null 2>&1 \
+  && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="FAIL" and not d["checks"]["gpt_partition_expanded"] and not d["checks"]["ext4_filesystem_expanded"]' "$evdir/nogrow.json"; then
+  pass 'REMED-P0-2 negative case console-120g-nogrow rejected for unexpanded partition/ext4'
+else
+  fail 'REMED-P0-2 negative case console-120g-nogrow not rejected as expected'
+fi
 if python3 "$root/tests/prehardware/verify-chain-evidence.py" --log "$evdir/console-ok.log" --output "$evdir/badrun.json" --summary "$evdir/badrun.txt" --runner-log "$evdir/runner-bad.log" >/dev/null 2>&1; then
   fail 'REMED-P0-2 mismatched host runner log unexpectedly passed'
 else

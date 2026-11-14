@@ -73,10 +73,10 @@ jobs:
         run: |
           set -euo pipefail
           shellcheck --severity=error scripts/*.sh scripts/ci/*.sh tests/qemu/*.sh
-          for file in scripts/*.sh scripts/ci/*.sh tests/qemu/*.sh; do bash -n "$file"; done
+          for file in scripts/*.sh scripts/ci/*.sh tests/qemu/*.sh tests/prehardware/*.sh; do bash -n "$file"; done
           python3 - <<'PY'
           from pathlib import Path
-          for path in list(Path('scripts').rglob('*.py')) + list(Path('tests/qemu').glob('*.py')):
+          for path in list(Path('scripts').rglob('*.py')) + list(Path('tests/qemu').glob('*.py')) + list(Path('tests/prehardware').glob('*.py')):
               compile(path.read_bytes(), str(path), 'exec')
           print('Python source compile PASS')
           PY
@@ -139,6 +139,30 @@ jobs:
           cat artifacts/software-manifest.txt >> artifacts/software-packages.txt
           cp boot/custom/software-packages.lock artifacts/software-packages.lock
           cp boot/custom/build-provenance.txt artifacts/build-provenance.txt
+          fw_pkg="$(awk '$1=="firmware-realtek"{print $0}' boot/custom/software-packages.lock || true)"
+          test -n "$fw_pkg"
+          fw_ver="$(awk '{print $2}' <<<"$fw_pkg")"
+          fw_chroot_files="$(dpkg-query --admindir="$RUNNER_TEMP/paw-live-build/chroot/var/lib/dpkg" -L firmware-realtek | grep -E 'rtl_nic/.*\.fw' || true)"
+          test -n "$fw_chroot_files"
+          iso_mnt="$RUNNER_TEMP/paw-iso-fw-verify"
+          mkdir -p "$iso_mnt"
+          sudo mount -o loop,ro boot/custom/paw-live-amd64.iso "$iso_mnt"
+          fw_squashfs_files="$(sudo unsquashfs -ll "$iso_mnt/live/filesystem.squashfs" | grep -E '(^|/)(usr/)?lib/firmware/rtl_nic/.*\.fw' || true)"
+          sudo umount "$iso_mnt"
+          rmdir "$iso_mnt"
+          test -n "$fw_squashfs_files"
+          {
+            echo "package_lock=$fw_pkg"
+            echo "version=$fw_ver"
+            echo "status=INSTALLED_AND_VERIFIED_IN_ISO_SQUASHFS"
+            echo "chroot_file_count=$(wc -l <<<"$fw_chroot_files")"
+            echo "squashfs_file_count=$(wc -l <<<"$fw_squashfs_files")"
+            echo "--- chroot_rtl_nic_files ---"
+            printf '%s\n' "$fw_chroot_files"
+            echo "--- iso_squashfs_rtl_nic_files ---"
+            printf '%s\n' "$fw_squashfs_files"
+          } > artifacts/firmware-realtek-report.txt
+          cat artifacts/firmware-realtek-report.txt
           df -h "$RUNNER_TEMP"
 
       - name: Validate generated CJK console font
@@ -263,6 +287,7 @@ jobs:
             artifacts/software-manifest.txt
             artifacts/software-packages.txt
             artifacts/software-packages.lock
+            artifacts/firmware-realtek-report.txt
             artifacts/build-provenance.txt
             artifacts/live-build.log
             artifacts/qemu-smoke-report.txt

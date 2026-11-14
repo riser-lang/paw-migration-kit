@@ -94,6 +94,10 @@ cd "$work"
 lb config
 lb build
 dpkg-query --admindir="$work/chroot/var/lib/dpkg" -W -f='${binary:Package}\t${Version}\t${Architecture}\n' | LC_ALL=C sort >"$work/software-packages.lock"
+grep -q '^firmware-realtek[[:space:]]' "$work/software-packages.lock" || {
+  echo 'firmware-realtek missing from chroot software-packages.lock.' >&2
+  exit 2
+}
 mkdir -p "$src/boot/custom"
 cp "$work/live-image-amd64.hybrid.iso" "$src/boot/custom/paw-live-amd64.iso"
 sha256sum "$src/boot/custom/paw-live-amd64.iso" >"$src/boot/custom/paw-live-amd64.iso.sha256"

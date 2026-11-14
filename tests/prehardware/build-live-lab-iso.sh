@@ -8,7 +8,10 @@ input_iso="${1:-}"; output_iso="${2:-}"; work="${3:-}"
 [[ -r "$input_iso" && -n "$output_iso" && -n "$work" ]] || die 'Usage: build-live-lab-iso.sh RELEASE.iso OUT.iso WORKDIR'
 for c in unsquashfs mksquashfs xorriso; do need "$c"; done
 source_bytes="${PAW_EXPECTED_SOURCE_BYTES:-53687091200}"
-[[ "$source_bytes" =~ ^[0-9]+$ ]] || die 'Invalid expected source bytes.'
+target_bytes="${PAW_EXPECTED_TARGET_BYTES:-240000000000}"
+[[ "$source_bytes" =~ ^[1-9][0-9]*$ ]] || die 'Invalid expected source bytes.'
+[[ "$target_bytes" =~ ^[1-9][0-9]*$ ]] || die "Invalid expected target bytes '$target_bytes'."
+(( target_bytes >= source_bytes && target_bytes % 512 == 0 )) || die "Expected target bytes $target_bytes must be >= $source_bytes and 512-byte aligned."
 root="$PAW_ROOT"
 rm -rf "$work/rootfs" "$work/iso-boot"
 mkdir -p "$work/iso-boot"
@@ -21,7 +24,8 @@ cp -a "$root/configs" "$work/rootfs/opt/paw-migration/configs"
 cp -a "$root/tests/prehardware/." "$work/rootfs/opt/paw-migration/tests/prehardware/"
 chmod 0755 "$work/rootfs/opt/paw-migration/tests/prehardware/"*.sh
 install -m 0644 "$root/boot/20-wired.network" "$work/rootfs/opt/paw-migration/boot/20-wired.network"
-sed "s/%SOURCE_BYTES%/$source_bytes/" "$root/tests/prehardware/paw-prehardware-chain.service" \
+sed -e "s/%SOURCE_BYTES%/$source_bytes/" -e "s/%TARGET_BYTES%/$target_bytes/" \
+  "$root/tests/prehardware/paw-prehardware-chain.service" \
   >"$work/rootfs/etc/systemd/system/paw-prehardware-chain.service"
 ln -sfn /etc/systemd/system/paw-prehardware-chain.service \
   "$work/rootfs/etc/systemd/system/multi-user.target.wants/paw-prehardware-chain.service"

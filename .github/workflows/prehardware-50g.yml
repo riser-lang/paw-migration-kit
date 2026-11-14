@@ -1,6 +1,6 @@
 name: PAW 50GiB virtual pre-hardware chain
 
-# Runs the exact 50 GiB source -> 240 GB target chain on a GitHub-hosted
+# Runs the exact 50 GiB source -> parameterized target chain on a GitHub-hosted
 # ubuntu-24.04 runner.  The ISO under test is the artifact produced by a
 # successful build-live-and-test run, so this workflow never rebuilds the
 # release payload and never touches a physical SSD, VPS or TF card.
@@ -10,6 +10,11 @@ on:
       iso_run_id:
         description: GitHub Actions run id that produced paw-live-build-test-results
         required: true
+        type: string
+      target_bytes:
+        description: Exact target disk size in bytes (default 240000000000; 120000000000 for Dell 120GB)
+        required: false
+        default: '240000000000'
         type: string
 
 permissions:
@@ -32,12 +37,27 @@ jobs:
         run: |
           # The runner context is not available in job-level env; publish the
           # paths to later steps through GITHUB_ENV instead.
+          target_bytes="${{ inputs.target_bytes }}"
+          if [[ -z "$target_bytes" ]]; then
+            target_bytes="240000000000"
+          fi
+          [[ "$target_bytes" =~ ^[1-9][0-9]*$ ]] || {
+            echo "Invalid target_bytes '$target_bytes': must be a positive integer" >&2
+            exit 2
+          }
+          (( target_bytes >= 53687091200 && target_bytes % 512 == 0 )) || {
+            echo "Invalid target_bytes '$target_bytes': must be >= 53687091200 and 512-byte aligned" >&2
+            exit 2
+          }
           echo "WORK=$RUNNER_TEMP/paw50" >> "$GITHUB_ENV"
           echo "ISO_RUN_ID=${{ inputs.iso_run_id }}" >> "$GITHUB_ENV"
+          echo "PAW_EXPECTED_TARGET_BYTES=$target_bytes" >> "$GITHUB_ENV"
           mkdir -p artifacts
           {
             date -u +%FT%TZ
             uname -a
+            echo "PAW_EXPECTED_SOURCE_BYTES=53687091200"
+            echo "PAW_EXPECTED_TARGET_BYTES=$target_bytes"
             echo "nproc=$(nproc)"
             free -g
             df -h / /mnt "$RUNNER_TEMP"
@@ -98,19 +118,22 @@ jobs:
           cp SHA256SUMS.selected "$GITHUB_WORKSPACE/artifacts/"
           qemu-img info ubuntu-24.04-server-cloudimg-amd64.img | tee "$GITHUB_WORKSPACE/artifacts/cloud-image-info.txt"
 
-      - name: Prepare exact 50 GiB source and 240 GB target
+      - name: Prepare exact 50 GiB source and parameterized target
         run: |
           set -o pipefail
           mkdir -p "$WORK"
           sudo -E env PATH="$PATH" tests/prehardware/prepare-images.sh "$WORK" \
             --cloud-image "$RUNNER_TEMP/cloud/ubuntu-24.04-server-cloudimg-amd64.img" \
             --iso "$GITHUB_WORKSPACE/artifacts/paw-live-amd64.iso" \
+            --target-bytes "$PAW_EXPECTED_TARGET_BYTES" \
             --force 2>&1 | tee artifacts/image-preparation.log
 
       - name: Build test-only toram Live ISO from the release payload
         run: |
           set -o pipefail
-          sudo -E env PATH="$PATH" PAW_EXPECTED_SOURCE_BYTES=53687091200 \
+          sudo -E env PATH="$PATH" \
+            PAW_EXPECTED_SOURCE_BYTES=53687091200 \
+            PAW_EXPECTED_TARGET_BYTES="$PAW_EXPECTED_TARGET_BYTES" \
             tests/prehardware/build-live-lab-iso.sh \
             "$GITHUB_WORKSPACE/artifacts/paw-live-amd64.iso" \
             "$WORK/lab-50g.iso" "$WORK/livebuild" 2>&1 | tee artifacts/lab-iso-build.log
@@ -119,6 +142,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E env PATH="$PATH" PAW_MEDIA_ONLY=1 \
+            PAW_EXPECTED_TARGET_BYTES="$PAW_EXPECTED_TARGET_BYTES" \
             tests/prehardware/build-lab.sh "$WORK/lab-50g.iso" "$WORK" \
             2>&1 | tee artifacts/media-build.log
 
@@ -126,12 +150,12 @@ jobs:
         run: |
           # Image preparation and media building run under sudo.  qemu-img and
           # truncate leave the target image owned by root with mode 0644, and
-          # QEMU must open the 240 GB target read-write.  Keep the files inside
-          # the disposable WORK tree; chown only that tree.
+          # QEMU must open the target disk image read-write.  Keep the files
+          # inside the disposable WORK tree; chown only that tree.
           sudo chown -R "$(id -u):$(id -g)" "$WORK"
-          ls -l "$WORK/boot/source50.raw" "$WORK/boot/target240.img" "$WORK/boot/media32.img"
+          ls -l "$WORK/boot/source50.raw" "$WORK/boot/target.img" "$WORK/boot/media32.img"
 
-      - name: Run 50 GiB source to 240 GB target chain (QEMU/TCG)
+      - name: Run 50 GiB source to parameterized target chain (QEMU/TCG)
         run: |
           set -o pipefail
           export QEMU_BIN=/usr/bin/qemu-system-x86_64
@@ -154,6 +178,7 @@ jobs:
           python3 tests/prehardware/verify-chain-evidence.py \
             --log "$log" \
             --runner-log artifacts/chain-runner.log \
+            --target-bytes "$PAW_EXPECTED_TARGET_BYTES" \
             --output artifacts/chain-acceptance.json \
             --summary artifacts/chain-acceptance.txt
           grep -E 'PAW3_STEP=|PAW3_CHAIN_RESULT=|login:' "$log" > artifacts/guest-markers.txt || true

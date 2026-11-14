@@ -142,17 +142,29 @@ else
 fi
 unset rc
 after_bytes="$(blockdev --getsize64 "$part")"
-fs_after_blocks="$(dumpe2fs -h "$part" 2>/dev/null | awk '/^Block count:/{print $3; exit}')"
+disk_bytes="$(blockdev --getsize64 "$disk")"
+dump_after="$(dumpe2fs -h "$part" 2>/dev/null || true)"
+fs_after_blocks="$(awk '/^Block count:/{print $3; exit}' <<<"$dump_after")"
+fs_after_free_blocks="$(awk '/^Free blocks:/{print $3; exit}' <<<"$dump_after")"
+fs_block_size="$(awk '/^Block size:/{print $3; exit}' <<<"$dump_after")"
+fs_after_free_bytes=0
+if [[ "${fs_after_free_blocks:-}" =~ ^[0-9]+$ && "${fs_block_size:-}" =~ ^[0-9]+$ ]]; then
+  fs_after_free_bytes=$(( fs_after_free_blocks * fs_block_size ))
+fi
+gpt_verified=false
+if sgdisk -v "$disk" >/dev/null 2>&1; then
+  gpt_verified=true
+fi
 if [[ ${PAW_SIMULATION:-0} != 1 ]]; then
   transaction_event READY_TO_BOOT
 fi
 trap - EXIT
-python3 - "$PAW_REPORT_DIR/gpt-expand.json" "$disk" "$part" "$n" "$before_bytes" "$after_bytes" "${fs_before_blocks:-0}" "${fs_after_blocks:-0}" "$fsck_method" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$PAW_REPORT_DIR/gpt-expand.json"
+python3 - "$PAW_REPORT_DIR/gpt-expand.json" "$disk" "$part" "$n" "$before_bytes" "$after_bytes" "${fs_before_blocks:-0}" "${fs_after_blocks:-0}" "$fsck_method" "$disk_bytes" "${fs_block_size:-0}" "${fs_after_free_blocks:-0}" "$fs_after_free_bytes" "$gpt_verified" <<'PY' | python3 "$PAW_ROOT/scripts/paw-atomic-write.py" "$PAW_REPORT_DIR/gpt-expand.json"
 import datetime,json,sys
-path,disk,part,number,before,after,fs_before,fs_after,fsck_method=sys.argv[1:]
+path,disk,part,number,before,after,fs_before,fs_after,fsck_method,disk_bytes,fs_block_size,fs_free_blocks,fs_free_bytes,gpt_verified=sys.argv[1:]
 document={"schema":"paw.gpt-expand.v1","status":"PASS","disk":disk,"partition":part,
- "partition_number":int(number),"before_bytes":int(before),"after_bytes":int(after),
- "grew":int(after)>int(before),"filesystem_before_blocks":int(fs_before),"filesystem_after_blocks":int(fs_after),"filesystem_grew":int(fs_after)>int(fs_before),"filesystem_check_method":fsck_method,"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+ "partition_number":int(number),"disk_bytes":int(disk_bytes),"before_bytes":int(before),"after_bytes":int(after),
+ "grew":int(after)>int(before),"filesystem_before_blocks":int(fs_before),"filesystem_after_blocks":int(fs_after),"filesystem_grew":int(fs_after)>int(fs_before),"filesystem_block_size":int(fs_block_size),"filesystem_after_free_blocks":int(fs_free_blocks),"filesystem_after_free_bytes":int(fs_free_bytes),"gpt_verified":gpt_verified=="true","filesystem_check_method":fsck_method,"completed_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
 sys.stdout.write(json.dumps(document,indent=2)+"\n")
 PY
 log INFO 'GPT backup header repaired and ext4 root partition/filesystem expanded.'

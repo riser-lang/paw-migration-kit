@@ -117,8 +117,8 @@ fi
 
 # ---------------------------------------------------------------------------
 # v2.8 hardware-basis checks: Haswell CPU model, declared source capacity, exact
-# 240 GB target, SATA/AHCI transport, source OS identity and target module
-# availability.  These are QEMU/virtual observations, never physical proof.
+# parameterized target capacity, SATA/AHCI transport, source OS identity and
+# target module availability.  These are QEMU/virtual observations, never physical proof.
 # ---------------------------------------------------------------------------
 cpu_model="$(awk -F: '/model name/{gsub(/^ +| +$/,"",$2); print $2; exit}' /proc/cpuinfo)"
 cpu_vendor="$(awk -F: '/vendor_id/{gsub(/^ +| +$/,"",$2); print $2; exit}' /proc/cpuinfo)"
@@ -136,8 +136,12 @@ src_bytes="$(blockdev --getsize64 "$SRC_DEV")"
 dst_bytes="$(blockdev --getsize64 "$DST_DEV")"
 media_bytes="$(blockdev --getsize64 "$MEDIA_DEV")"
 expected_src_bytes="${PAW_EXPECTED_SOURCE_BYTES:-53687091200}"
+expected_dst_bytes="${PAW_EXPECTED_TARGET_BYTES:-240000000000}"
+[[ "$expected_src_bytes" =~ ^[1-9][0-9]*$ ]] || fail sata_capacity "invalid expected source bytes '$expected_src_bytes'"
+[[ "$expected_dst_bytes" =~ ^[1-9][0-9]*$ ]] || fail sata_capacity "invalid expected target bytes '$expected_dst_bytes'"
+(( expected_dst_bytes >= expected_src_bytes && expected_dst_bytes % 512 == 0 )) || fail sata_capacity "invalid expected target bytes '$expected_dst_bytes' (must be >= $expected_src_bytes and 512-byte aligned)"
 [[ "$src_bytes" == "$expected_src_bytes" ]] || fail sata_capacity "source capacity $src_bytes != $expected_src_bytes"
-[[ "$dst_bytes" == 240000000000 ]] || fail sata_capacity "target capacity $dst_bytes != 240000000000"
+[[ "$dst_bytes" == "$expected_dst_bytes" ]] || fail sata_capacity "target capacity $dst_bytes != $expected_dst_bytes"
 src_tran="$(lsblk -dn -o TRAN "$SRC_DEV" | xargs)"
 dst_tran="$(lsblk -dn -o TRAN "$DST_DEV" | xargs)"
 # QEMU's ich9-ahci with ide-hd is a libata/AHCI substitute and reports "ata",
@@ -161,13 +165,13 @@ media_tran="$(lsblk -dn -o TRAN "$MEDIA_DEV" | xargs)"
 media_rm="$(lsblk -dn -o RM "$MEDIA_DEV" | xargs)"
 [[ -n "$lspci_sata" ]] || fail sata_ahci 'lspci has no SATA controller entry'
 [[ "$lspci_ahci_driver" == ahci ]] || fail sata_ahci "SATA controller driver is '${lspci_ahci_driver:-none}', not ahci"
-step sata PASS "source=$SRC_DEV bytes=$src_bytes tran=$src_tran target=$DST_DEV bytes=$dst_bytes tran=$dst_tran media_bytes=$media_bytes controller=ich9-ahci lspci='$lspci_sata' kernel_driver=$lspci_ahci_driver src_sys=$src_sys src_scsi_driver=$src_driver transport_class=$transport_class"
+step sata PASS "source=$SRC_DEV bytes=$src_bytes tran=$src_tran target=$DST_DEV target_bytes=$dst_bytes tran=$dst_tran media_bytes=$media_bytes controller=ich9-ahci lspci='$lspci_sata' kernel_driver=$lspci_ahci_driver src_sys=$src_sys src_scsi_driver=$src_driver transport_class=$transport_class"
 step usb_media PASS "device=$MEDIA_DEV serial=$MEDIA_SERIAL tran=$media_tran rm=$media_rm bytes=$media_bytes booted_from_usb_mass_storage=true controller=qemu-xhci"
 copy_out
 
 # The disposable lab target must start blank.  A previous run can leave a clone
 # with the source UUID on it; source discovery correctly refuses an ambiguous
-# UUID, so reset only the serial-verified 240 GB test disk here.  Production
+# UUID, so reset only the serial-verified target test disk here.  Production
 # entry points never wipe a target implicitly; this is a chain precondition.
 dst_serial="$(lsblk -dn -o SERIAL "$DST_DEV" | xargs)"
 [[ "$dst_serial" == PAW-DST-123456 ]] || fail lab_target_blank "refusing to wipe unexpected target serial '${dst_serial:-none}'"
@@ -901,12 +905,26 @@ import json,sys
 try: d=json.load(open(sys.argv[1],encoding="utf-8"))
 except Exception: raise SystemExit(0)
 if d.get("status")=="PASS":
-    print("\t".join([str(d.get("partition","")),str(d.get("before_bytes","")),str(d.get("after_bytes","")),str(d.get("grew",""))]))
+    print("\t".join([
+        str(d.get("partition","")),
+        str(d.get("before_bytes","")),
+        str(d.get("after_bytes","")),
+        str(d.get("grew","")),
+        str(d.get("filesystem_before_blocks","")),
+        str(d.get("filesystem_after_blocks","")),
+        str(d.get("filesystem_grew","")),
+        str(d.get("filesystem_block_size","")),
+        str(d.get("filesystem_after_free_blocks","")),
+        str(d.get("filesystem_after_free_bytes","")),
+        str(d.get("disk_bytes","")),
+        str(d.get("gpt_verified","")),
+        str(d.get("filesystem_check_method","")),
+    ]))
 PY
 )"
     if [[ -n "$g_fields" ]]; then
-      IFS=$'\t' read -r g_part g_before g_after g_grew <<<"$g_fields"
-      step_once gpt_expand PASS "partition=$g_part before_bytes=$g_before after_bytes=$g_after grew=$g_grew; GPT backup header moved"
+      IFS=$'\t' read -r g_part g_before g_after g_grew g_fs_before g_fs_after g_fs_grew g_bs g_free_blocks g_free_bytes g_disk_bytes g_gpt_verified g_fsck <<<"$g_fields"
+      step_once gpt_expand PASS "partition=$g_part before_bytes=$g_before after_bytes=$g_after grew=$g_grew fs_before_blocks=$g_fs_before fs_after_blocks=$g_fs_after fs_grew=$g_fs_grew block_size=$g_bs free_blocks=$g_free_blocks free_bytes=$g_free_bytes disk_bytes=$g_disk_bytes gpt_verified=$g_gpt_verified fsck_method=$g_fsck; GPT backup header moved"
     fi
   fi
   if [[ -s "$PAW_REPORT_DIR/preboot-handoff.json" ]]; then

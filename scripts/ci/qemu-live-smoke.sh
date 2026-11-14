@@ -24,6 +24,10 @@ grep -Eiq '^include[[:space:]]+memtest\.cfg$' "$mountpoint/isolinux/isolinux.cfg
 grep -Eiq '^label[[:space:]]+memtest86$' "$mountpoint/isolinux/memtest.cfg"
 test -s "$mountpoint/boot/memtest86+x64.bin"
 unsquashfs -cat "$mountpoint/live/filesystem.squashfs" opt/paw-migration/scripts/paw-hardware-preflight.sh >/dev/null
+unsquashfs -ll "$mountpoint/live/filesystem.squashfs" | grep -Eiq '(^|/)(usr/)?lib/firmware/rtl_nic/.*\.fw' || {
+  echo 'Built ISO squashfs does not contain Realtek firmware (rtl_nic/*.fw).' >&2
+  exit 1
+}
 grep -q 'AUTOSTART_GATE=' "$root/scripts/paw-live-controller.sh"
 umount "$mountpoint"
 

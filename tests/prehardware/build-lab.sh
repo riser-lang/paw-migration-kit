@@ -3,8 +3,8 @@
 #   * release ISO root filesystem (injected with this branch's scripts)
 #   * a bootable lab guest disk (BIOS Boot + ext4 root, /dev/vda2)
 #   * a 32 GB PF/USB media image carrying the release ISO
-# The source image (source50.raw, exactly 50 GiB) and the 240 GB target are
-# created by prepare-images.sh.  This builder never substitutes a 12 GiB image.
+# The source image (source50.raw, exactly 50 GiB) and the parameterized target
+# (target.img) are created by prepare-images.sh.  This builder never substitutes a 12 GiB image.
 # Unprivileged: mke2fs -d + fakeroot, no host loop or mount.
 set -Eeuo pipefail
 iso="${1:?usage: build-lab.sh ISO WORKDIR}"
@@ -79,7 +79,9 @@ chmod 0755 "$rootfs/opt/paw-migration/tests/prehardware/"*.sh
 install -d "$rootfs/opt/paw-migration/boot"
 install -m 0644 "$repo/boot/20-wired.network" "$rootfs/opt/paw-migration/boot/20-wired.network"
 source_bytes="$(stat -c %s "$work/boot/source50.raw" 2>/dev/null || echo 53687091200)"
-sed "s/%SOURCE_BYTES%/$source_bytes/" "$repo/tests/prehardware/paw-prehardware-chain.service" \
+target_bytes="$(stat -c %s "$work/boot/target.img" 2>/dev/null || echo "${PAW_EXPECTED_TARGET_BYTES:-240000000000}")"
+sed -e "s/%SOURCE_BYTES%/$source_bytes/" -e "s/%TARGET_BYTES%/$target_bytes/" \
+  "$repo/tests/prehardware/paw-prehardware-chain.service" \
   >"$rootfs/etc/systemd/system/paw-prehardware-chain.service"
 chmod 0644 "$rootfs/etc/systemd/system/paw-prehardware-chain.service"
 ln -sfn /etc/systemd/system/paw-prehardware-chain.service "$rootfs/etc/systemd/system/multi-user.target.wants/paw-prehardware-chain.service"

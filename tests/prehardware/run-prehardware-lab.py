@@ -268,7 +268,7 @@ def qemu_cmd(args, devices=True):
             # Source is disk 5: after the USB is unplugged the cloned target
             # (bootindex 2) must win, never the still-bootable source image.
             "-device", "ide-hd,drive=src,bus=ide.0,bootindex=5,serial=PAW-SRC-123456",
-            "-drive", f"file={args.work}/boot/target240.img,if=none,id=dst,format=raw,cache=unsafe,discard=unmap,detect-zeroes=unmap",
+            "-drive", f"file={args.work}/boot/target.img,if=none,id=dst,format=raw,cache=unsafe,discard=unmap,detect-zeroes=unmap",
             "-device", "ide-hd,drive=dst,bus=ide.1,bootindex=2,serial=PAW-DST-123456",
             "-netdev", "user,id=n0",
             "-device", "e1000,netdev=n0",

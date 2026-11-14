@@ -22,14 +22,18 @@
 # clone still writes all 50 GiB, so target allocation is budgeted at 50 GiB;
 # the 32 GB media only allocates the ISO payload because it is sparse.
 set -Eeuo pipefail
-usage(){ echo "usage: $0 WORKDIR [--iso ISO] (--source-50g RAW50G | --cloud-image IMG) [--plan-only] [--force]" >&2; }
+usage(){ echo "usage: $0 WORKDIR [--iso ISO] (--source-50g RAW50G | --cloud-image IMG) [--target-bytes BYTES] [--plan-only] [--force]" >&2; }
 work="${1:-}"; shift || true
 iso=''; seed=''; cloud=''; plan_only=0; force=0
+source_bytes=53687091200
+target_bytes="${PAW_EXPECTED_TARGET_BYTES:-240000000000}"
+media_bytes=32000000000
 while (($#)); do
   case "$1" in
     --iso) iso="${2:-}"; shift 2 ;;
     --source-50g) seed="${2:-}"; shift 2 ;;
     --cloud-image) cloud="${2:-}"; shift 2 ;;
+    --target-bytes) target_bytes="${2:-}"; shift 2 ;;
     --plan-only) plan_only=1; shift ;;
     --force) force=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -38,9 +42,9 @@ while (($#)); do
 done
 [[ -n "$work" && ( -n "$seed" || -n "$cloud" ) ]] || { usage; exit 2; }
 [[ -z "$seed" || -z "$cloud" ]] || { echo 'choose one source: --source-50g or --cloud-image' >&2; exit 2; }
-source_bytes=53687091200
-target_bytes=240000000000
-media_bytes=32000000000
+[[ "$target_bytes" =~ ^[1-9][0-9]*$ ]] || { echo "invalid target_bytes '$target_bytes': must be a positive integer" >&2; exit 2; }
+(( target_bytes >= source_bytes )) || { echo "invalid target_bytes $target_bytes: must be >= source_bytes $source_bytes" >&2; exit 2; }
+(( target_bytes % 512 == 0 )) || { echo "invalid target_bytes $target_bytes: must be a multiple of 512 bytes" >&2; exit 2; }
 boot="$work/boot"
 need(){ command -v "$1" >/dev/null 2>&1 || { echo "required tool missing: $1" >&2; exit 2; }; }
 file_size(){ stat -c %s "$1"; }
@@ -253,9 +257,9 @@ else
   expand_cloud
 fi
 
-rm -f "$boot/target240.img"
-qemu-img create -f raw "$boot/target240.img" "$target_bytes" >/dev/null
-[[ "$(file_size "$boot/target240.img")" == "$target_bytes" ]] || { echo 'target size mismatch' >&2; exit 2; }
+rm -f "$boot/target240.img" "$boot/target.img"
+qemu-img create -f raw "$boot/target.img" "$target_bytes" >/dev/null
+[[ "$(file_size "$boot/target.img")" == "$target_bytes" ]] || { echo 'target size mismatch' >&2; exit 2; }
 
 # Record identity/provenance of the images, never the guest filesystem UUID in
 # the committed tree (this file lives in the disposable work directory only).
@@ -263,8 +267,8 @@ qemu-img create -f raw "$boot/target240.img" "$target_bytes" >/dev/null
   echo "created_at=$(date -u +%FT%TZ)"
   echo "source_logical_bytes=$(file_size "$boot/source50.raw")"
   echo "source_allocated_bytes=$(file_alloc "$boot/source50.raw")"
-  echo "target_logical_bytes=$(file_size "$boot/target240.img")"
-  echo "target_allocated_bytes=$(file_alloc "$boot/target240.img")"
+  echo "target_logical_bytes=$(file_size "$boot/target.img")"
+  echo "target_allocated_bytes=$(file_alloc "$boot/target.img")"
   echo "media_logical_bytes=$media_bytes"
   echo "incoming_iso_bytes=$iso_bytes"
   echo "gpt_check=$(verify_gpt "$boot/source50.raw" && echo PASS || echo FAIL)"
@@ -273,8 +277,8 @@ qemu-img create -f raw "$boot/target240.img" "$target_bytes" >/dev/null
 cat "$boot/image-preparation.txt"
 (
   cd "$boot"
-  sha256sum source50.raw target240.img > image-manifest.sha256
-  stat -c '%n %s' source50.raw target240.img > image-sizes.txt
+  sha256sum source50.raw target.img > image-manifest.sha256
+  stat -c '%n %s' source50.raw target.img > image-sizes.txt
 )
 df -B1 "$boot" >"$boot/df-after.txt" 2>&1 || df -h "$boot" >"$boot/df-after.txt"
 cat "$boot/image-sizes.txt"
