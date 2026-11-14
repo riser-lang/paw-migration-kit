@@ -564,3 +564,101 @@ ChatGPT 复核了运行时代码 `scripts/paw-data-prepare.sh`：
 - 家庭电脑 Rufus 尚未下载。
 - 实体 TF 卡尚未写入。
 - 本记录只作为执行交接，不表示写盘已经完成。
+
+
+---
+
+## 记录 0009：50GiB Run #17 完成及启动盘写入报告复核（2026-11-14）
+
+- 记录时间：2026-11-14
+- 复核分支：`vm/ds-final-prehardware-remediation-20261112`
+- 复核时分支 HEAD：`6ffb2c486b20acbe007dbb8702a0c86adfb0b89a`
+- 本次只读核验 GitHub Actions 和追加交接；未操作真实硬件。
+
+### 1. 50GiB 完整虚拟链路：PASS
+
+GitHub Run #17：
+- Run ID：`43402874795`
+- URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/43402874795
+- Workflow：`prehardware-50g.yml`
+- conclusion：`success`
+- 测试运行时代码：`7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`
+- ISO build Run：`43398893910`，同一代码 SHA。
+- Artifact：`paw-50g-chain-evidence`，ID `14035420490`，35,058,030 bytes，digest `sha256:ebedfe020b04f4944a18c8d7b939509aa92e97fb56d6e42d1fab97c03c4b6de1`，保留至 `2026-11-27T12:14:04Z`。
+
+从 GitHub 原始 Job log 复核到：
+- 源盘：`53,687,091,200` bytes（精确50GiB）。
+- 目标盘：`240,000,000,000` bytes。
+- 启动介质：`32,000,000,000` bytes。
+- steps_seen=31，required_steps=29。
+- `chain_result_pass=PASS`。
+- `auto_reboot_before_target_login=PASS`。
+- `target_boot_login=PASS`。
+- `no_fail_steps=PASS`。
+- `all_required_steps_present=PASS`。
+- `all_required_steps_pass=PASS`。
+- `source_exact_50gib=PASS`。
+- Host runner：`main result=TARGET_BOOT_SEEN chain_pass=True target_boot=True qemu_rc=0`。
+
+关键 Guest 证据：
+- `compressed_transfer PASS`：源盘53,687,091,200 bytes，payload 946,697,338 bytes，恢复53,687,091,200 bytes。
+- `clone_complete PASS`：目标写入范围完成。
+- `sha256_verify PASS`：SHA256 `110c9a0ac831bf5dc0f786fc34bd9eef7a5346d6512e30c8593aba00f97ee6ca`，验证字节数53,687,091,200，独立校验通过，CLONE-INCOMPLETE 清除。
+- `offline_repair PASS)。
+- `gpt_expand PASS)：目标根分区由52,612,283,904 bytes扩展到238,925,192,704 bytes。
+- `preboot_handoff PASS)。
+- `auto_reboot PASS)。
+- Host runner 在自动重启后识别目标 Ubuntu ttyS0 登录提示，target_boot=true。
+
+重要限制：
+- 网络步骤为 `WARN`，日志说明这是本地链路（loopback）而非真实公网连接；主链按设计未将其作为失败条件。
+- Rescue SSH 是 QEMU 内的 `127.0.0.1:2222`，不是腾讯云公网 Rescue。
+- AHCI 是 QEMU 虚拟控制器，不是真实 B85 主板 SATA。
+- CPU 是 QEMU Haswell 模型，不是真实 CPU 直通。
+- 这是50GiB完整虚拟迁移链路 PASS，不是实际腾讯云源盘迁移或武汉实体机通过。
+
+### 2. 实体启动盘制作报告复核
+
+依据用户提供的 Gemini 本地执行报告（本会话不能直接读取用户 Windows 本地文件，故本地设备和Rufus操作事实来自用户提供的报告）：
+
+- ISO：Run `43398893910`，Runtime SHA `7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`。
+- ISO：`953,155,584` bytes。
+- ISO SHA256：`eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358`。
+- Rufus：4.15.2396 portable，报告称官方签名验证通过。
+- 写入模式：DD Image mode。
+- 目标：Disk 1，Generic Mass-Storage，`31,362,908,160` bytes，序列号 `20240418000000`。
+- USB 读卡器 PNP：`USB\VID_349C&PID_0418\20240418000000`。
+- Rufus 报告写入完成，随后 Windows `CM_Request_Device_Eject` 安全弹出成功，系统只剩 Disk 0。
+
+### 3. 108字节回读差异：不能记为全盘 SHA MATCH
+
+用户提供的只读回读报告称：
+- 从物理 TF 卡回读前953,155,584 bytes，SHA256 为 `d2a66b147577d54a561a6fc6a693bd239b285536ebb0386987490e0f56cdffd2`，与 ISO SHA256 不同。
+- 逐字节比较称953,155,476 bytes一致，108 bytes不同；差异位于FAT分区区域（offset 287659 的60 bytes、offset 3681792 的48 bytes），其他字节一致。
+- 报告推断差异来自 Windows 自动挂载 FAT 后写入卷/目录元数据。
+
+独立判断：
+- 这不是“整张卡与 ISO 位级完全一致”，不能写成全盘 SHA256 MATCH。
+- 108 bytes 位于FAT区域且其余字节一致，可能是 Windows 自动挂载产生的 FAT 元数据变化；这不必然影响 Legacy BIOS 启动路径，但仅凭该差分报告不能证明 UEFI FAT 启动路径也完全无影响。
+- 由于目标主板当前优先采用 Legacy BIOS/CSM，本次可以进入首次实机启动验证；应明确观察 BIOS 是否能从 USB 启动、PAW Live 是否完整加载。
+- 不建议现在仅因108 bytes差异就反复重写TF卡；若 Legacy BIOS 启动失败，再优先排查写盘/读卡器/固件启动模式。若希望证明 bit-for-bit 一致，可在另一次写盘前禁用 Windows automount，再DD写入并只读回读；不得对当前卡执行任何修复性写入或格式化。
+- Windows 自动弹出的格式化提示一律取消；不要格式化TF卡或手工改动PAWDATA分区。
+
+### 4. 当前放行状态
+
+- 常规 GitHub CI：PASS（Run #129 / `43398893910`）。
+- 最终候选 ISO：构建与 SHA256 sidecar / Gemini本地独立计算一致。
+- 50GiB完整虚拟迁移链路：PASS（Run #17 / `43402874795`）。
+- 实体 TF/USB 启动盘：按用户报告，DD写入完成并安全弹出；回读非完全位级一致，108 bytes FAT区域差异。
+- **允许进入 ASUS 实体主板首次启动和非破坏性硬件验收。**
+- 首次启动检查 PAW Live、中文控制台、PAWDATA、SSD自动发现、SMART/只读扫描、Memtest、HD4600、Realtek网卡及网络。
+- PAWDATA仍要求 Linux 下 live parent disk 的 `RM=1` 且 SERIAL 非空。若不满足或PAWDATA不PASS，停止，不绕过门禁、不手工分区。
+- 真实生产整盘克隆仍需：真实硬件检查通过、真实腾讯云 Rescue SSH和源盘身份确认、目标SSD身份及健康检查通过、网络传输条件确认、备份/回退方案确认，并取得用户对具体源盘和目标盘的明确最终授权。
+- 不得把 QEMU 50GiB PASS 等同于真实生产迁移已通过。
+
+### 5. 下一步
+
+1. 将TF卡/读卡器插入 ASUS B85M-G Plus，使用 Legacy/CSM 启动路径首次启动。
+2. 只观察 PAW Live 是否启动、中文菜单是否正常、PAWDATA 是否PASS、硬件和网络检测结果。
+3. 保存启动日志和报告；如PAWDATA或关键硬件门禁失败，停止并反馈。
+4. 不输入最终迁移授权，不开始真实克隆。
