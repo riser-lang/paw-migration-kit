@@ -1,7 +1,7 @@
 # PAW 项目总说明与最终需求基线
 
 文档性质：长期项目目标、用户需求、架构决策与安全边界。  
-更新日期：2026-11-12  
+更新日期：2026-11-14（目标硬件基准更新）  
 仓库：https://github.com/riser-lang/paw-migration-kit
 
 ## 1. 本文件的作用与优先级
@@ -63,28 +63,36 @@
 - 按提示拔掉 TF 卡；
 - 对不可自动判断的安全事项作出明确确认。
 
-## 4. 目标电脑的固定硬件基准
+## 4. 目标电脑的当前硬件基准（2026-11-14更新）
 
-| 项目 | 已知配置 |
+用户已将原计划的 ASUS B85M-G Plus 台式机更换为 Dell OptiPlex 3020M Micro。此前 ASUS B85M-G Plus / i5-4590 / 12GB / 240GB SSD 仅作为历史方案保留，不再是当前目标硬件。
+
+| 项目 | 当前配置 |
 |---|---|
-| 主板 | ASUS B85M-G Plus |
-| 芯片组 | Intel B85 |
-| CPU | Intel Core i5-4590 |
-| CPU | 4核4线程，Haswell，x86_64 |
-| 内存 | 12GB DDR3 |
+| 品牌/型号 | Dell OptiPlex 3020M Micro |
+| 主板 | Dell 0WWRRC（以用户提供的硬件信息为准） |
+| 芯片组 | Intel H81 |
+| CPU | Intel Core i5-4670T |
+| CPU | 4核4线程，Haswell，x86_64，2.30GHz基础频率，最高3.30GHz，45W |
+| 内存 | 16GB（8GB+8GB），Micron + Samsung |
+| 内存类型/频率 | DDR3/DDR3L组合待实机确认；当前报告1333MHz |
 | 显示 | Intel HD Graphics 4600 核显 |
-| 独立显卡 | 无；NVIDIA GTX 750 Ti 会拆除 |
-| 目标硬盘 | 计划使用 2.5 英寸 SATA SSD |
-| 目标容量 | 240GB（240,000,000,000 bytes，约223.5GiB） |
+| 独立显卡 | 无 |
+| 目标硬盘 | 用户提供的配置截图显示120GB SSD；具体型号、接口和精确字节数待实机读取 |
+| 目标容量 | 标称120GB；必须用 blockdev --getsize64 获取精确容量，确认大于源盘53,687,091,200 bytes |
 | 启动介质 | 32GB TF 卡 + USB 读卡器 |
-| 启动模式 | 优先兼容 Legacy BIOS / CSM |
-| 当前旧系统 | 可能有 Windows 10 Pro x64，也可能没有系统 |
+| 启动模式 | 优先 Legacy BIOS/CSM；Dell 3020M 支持 Legacy/UEFI，首次按原源系统的 Legacy 启动路径验证 |
 
-重要修正：
-- CPU 是 i5-4590，不是 i5-4570。
-- 最终没有独立显卡，只使用 Intel HD Graphics 4600。
-- SATA 控制器模式、SSD 型号、内存条组合、网卡 PCI ID、实际 BIOS 设置尚未实测，不得臆测。
-- QEMU 的 Haswell、AHCI、USB 和标准 VGA 只能验证虚拟逻辑，不能证明真实主板、核显、网卡或 SSD 兼容。
+重要判断：
+- CPU 从 i5-4590 改为 i5-4670T，但仍是 Haswell x86_64，HD Graphics 4600 与原方案相同；不需要因 CPU 或核显型号变化重做通用内核适配。
+- H81 与原 B85 都是 Haswell 时代 Intel 芯片组；Linux 通用 AHCI 驱动路径不需要主板专用镜像。
+- 16GB 是 OptiPlex 3020M 的规格上限；1333MHz 在 i5-4670T 支持范围内。两条不同品牌内存仍必须完成真实 Memtest，不能仅凭容量和频率判断稳定。
+- Dell 3020M 官方规格列出 Realtek RTL8151GD 千兆网卡。当前 PAW Live package list 未包含 firmware-realtek；Linux 对该系列网卡可能需要 RTL8168G 固件。**当前 ISO 必须补入 firmware-realtek 并重新构建，才能把有线网络支持作为可靠的迁移准备条件。**
+- Dell 3020M 使用2.5英寸 SATA 硬盘位；截图中的120GB SSD接口和准确型号仍需实机确认。
+- 120GB 标称容量大于50GiB源盘。当前迁移代码按精确字节检查目标盘不得小于源盘，并按目标盘实际末端扩展分区；运行时代码没有固定要求目标盘必须是240GB。但本轮50GiB QEMU完整链路使用240GB虚拟目标盘，120GB目标容量尚需补充针对性容量/扩容验证。
+- Dell BIOS 的 F2 用于 BIOS Setup，F12 用于一次性启动菜单；Legacy/UEFI 模式可选。首次实机启动优先选 Legacy/CSM，与旧系统启动方式保持一致。
+- 真实网卡 PCI ID、固件加载结果、SATA 模式、SSD精确容量、内存条组合和 BIOS 设置仍需现场读取，不得臆测。
+- QEMU Haswell、AHCI、USB 和标准 VGA 只能验证虚拟逻辑，不能证明 Dell 实际主板、Realtek 网卡、HD4600 或 SSD 已通过。
 
 ## 5. 重要要求：用户不知道 SSD 序列号
 
@@ -149,7 +157,7 @@ TF 卡自身的身份确认与目标 SSD 身份确认是两件不同的事，不
 
 不能只用 QEMU CD-ROM 启动证明 USB 启动成功。
 
-必须将 ISO 写入32GB虚拟 USB 存储设备，再从 USB 设备通过 SeaBIOS 启动；真实 ASUS 主板和真实读卡器仍需现场验收。
+必须将 ISO 写入32GB虚拟 USB 存储设备，再从 USB 设备通过 SeaBIOS 启动；真实 Dell OptiPlex 3020M 和真实读卡器仍需现场验收。
 
 用户之前已经手动格式化过 TF 卡。Codex/DS 没有真实 TF 卡格式化权限，也没有本机管理员权限。不得要求它们绕过权限或擅自格式化、写入真实 TF 卡。
 
@@ -190,7 +198,8 @@ Windows 插入 TF 卡若提示格式化，用户必须取消。
 
 ### 显示与网卡
 - Intel HD 4600：i915、framebuffer、fbcon、中文字体、tty1；
-- 网卡：通过真实 PCI ID 确认型号和驱动；
+- Dell OptiPlex 3020M 官方规格为 Realtek RTL8151GD；实机必须读取 PCI ID 并确认 r8169 驱动和所需固件已加载；
+- 当前 ISO 的 package list 未包含 firmware-realtek，必须加入该包并在新 ISO 中验证 RTL8168G 所需固件文件存在；
 - DHCP、DNS、默认路由、断网恢复。
 
 QEMU 标准 VGA 和 e1000 不能冒充真实 HD4600 或 Realtek 网卡通过。
@@ -209,7 +218,7 @@ QEMU 标准 VGA 和 e1000 不能冒充真实 HD4600 或 Realtek 网卡通过。
 
 这些是历史盘点数据，正式迁移前必须重新只读核对。
 
-目标盘计划为240GB十进制容量，即240,000,000,000 bytes。源盘容量和目标盘容量必须按精确字节比较，不能混淆GB与GiB。
+当前目标盘标称120GB（精确字节数待实机读取）。源盘约50GiB，即53,687,091,200 bytes；目标盘必须通过 blockdev --getsize64 确认实际容量大于源盘。代码按实际目标容量扩展，不得硬编码240GB。50GiB→240GB QEMU通过不等于120GB目标容量专项验证通过。
 
 ### 源盘安全
 - 必须确认源盘身份、UUID、容量、GPT、文件系统和挂载状态。
