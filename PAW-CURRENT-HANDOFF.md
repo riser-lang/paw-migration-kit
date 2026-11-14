@@ -662,3 +662,79 @@ GitHub Run #17：
 2. 只观察 PAW Live 是否启动、中文菜单是否正常、PAWDATA 是否PASS、硬件和网络检测结果。
 3. 保存启动日志和报告；如PAWDATA或关键硬件门禁失败，停止并反馈。
 4. 不输入最终迁移授权，不开始真实克隆。
+
+
+---
+
+## 记录 0010：目标主机改为 Dell OptiPlex 3020M 的镜像兼容性判断（2026-11-14）
+
+- 记录时开发分支 HEAD：`6ee87f361a8214c600b9a8712955f88facea61f0`。
+- 运行时代码仍为 `7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`；本次未修改运行时代码、未触发新 CI、未重建 ISO、未写入 TF 卡或 SSD。
+- 用户提供新硬件截图，目标主机由原计划 ASUS B85M-G Plus 改为 Dell OptiPlex 3020M Micro。
+
+### 1. 截图可确认的当前硬件
+
+- Dell OptiPlex 3020M。
+- 主板标识 Dell 0WWRRC。
+- Intel H81。
+- Intel Core i5-4670T，Haswell，4核4线程，2.30GHz基础/3.30GHz最大，45W。
+- 16GB（8GB+8GB），Micron + Samsung；DDR3/DDR3L混合组合待实机确认，截图显示1333MHz。
+- Intel HD Graphics 4600，无独立显卡。
+- 120GB SSD（截图文字只显示到“120GB S...”）；具体型号、SATA/NVMe接口、精确容量、序列号尚未读取。
+
+### 2. 官方规格交叉核对
+
+Dell OptiPlex 3020 Micro 官方规格资料确认：
+- H81 芯片组；
+- 第四代 Intel Core CPU；
+- Intel HD Graphics 4600（适用CPU）；
+- Micro版本两个SO-DIMM插槽，最高16GB；
+- Micro版本支持一个2.5英寸硬盘位；
+- Dell 3020 Micro 系列规格中列出集成 Realtek RTL8151GD 10/100/1000 Ethernet。
+
+来源：
+- Dell OptiPlex 3020 Micro Technical Specification：https://i.dell.com/sites/doccontent/business/smb/merchandizing/en/Documents/Dell_OptiPlex_3020_with_Micro_Technical_Spec_Sheet.pdf
+- Debian trixie firmware-realtek 文件列表：https://packages.debian.org/trixie/all/firmware-realtek/filelist
+- Debian trixie firmware-realtek 包说明：https://packages.debian.org/stable/firmware-realtek
+
+### 3. 镜像适配判断
+
+**无需改变的部分：**
+- CPU 仍为 Haswell x86_64；现有 Debian amd64 内核无需因 i5-4670T 更换。
+- H81 与之前 B85 同属该代 Intel 平台；不需要主板专用内核。
+- HD Graphics 4600 与原计划完全相同；i915/fbcon/CJK路径无需因主机更换而重做。
+- 16GB 内存处于 Dell 3020M 官方16GB上限；无需修改内存相关镜像配置，但实机必须跑 Memtest。
+- Dell Micro 有2.5英寸硬盘位；截图所示120GB SSD是否为该接口仍需实机确认。
+
+**建议的最小镜像改动：**
+- 当前已验收运行时代码 `7ec4dbf3` 的 `configs/live-build/package-lists/paw.list.chroot` 未包含 `firmware-realtek`。
+- Dell 3020M 官方规格列出 RTL8151GD 有线网卡；Debian trixie 的 `firmware-realtek` 包包含 `rtl_nic/rtl8168g-*.fw` 等 Realtek NIC 固件。
+- 为降低 PAW Live 在真实有线网络初始化时因固件缺失而无法联网的风险，建议把 `firmware-realtek` 加入 live-build package list，重新运行 GitHub 完整 CI 并构建新 ISO。
+- 这是兼容性保险建议，不是已经证明当前 ISO 一定无法驱动该网卡。必须以真实 PCI ID、`lspci -nnk`、`dmesg` 和 DHCP/DNS 实测确认；若当前 ISO 已能正常驱动 RTL8151GD，则不应仅为形式而重写 TF 卡。
+- 当前 `configs/live-build/auto/config` 已启用 `non-free-firmware` archive area，包源配置允许安装该固件包。
+- 不建议更换内核、重写网卡驱动或改变系统架构。
+
+### 4. 120GB目标盘判断
+
+- 旧腾讯云源盘已在50GiB虚拟链路中按精确 `53,687,091,200` bytes 验收。
+- 标称120GB目标盘从容量上应大于50GiB源盘；但必须通过真实 `blockdev --getsize64` 读取精确字节数，确认实际目标容量大于源盘。
+- 现有 `paw-stream-clone.sh`、`paw-stream-verify.sh`、`paw-final-confirm.sh` 使用实际源/目标容量比较，并未硬编码240GB作为必须容量。
+- 现有50GiB QEMU完整链路的目标盘是240,000,000,000 bytes；它证明迁移流程在240GB目标盘上工作，但没有直接证明120GB目标盘的分区末端扩容行为。
+- 建议在任何真实克隆前增加一次仅使用 disposable QEMU/loop image 的50GiB→120GB（目标精确字节数模拟真实SSD）的专项扩容测试；至少验证GPT备份头、root partition增长和ext4增长到目标末端。
+- 不得对真实120GB SSD进行测试写入或格式化；现场首次检测只读。
+
+### 5. 启动模式和现场检查
+
+- 原云端源系统使用Legacy BIOS/GRUB PC路径，目标机首次启动应在Dell BIOS中选择Legacy/CSM路径，保持与克隆系统一致；不要为了“更新”而切换UEFI。
+- Dell常规进入BIOS Setup为F2，一次性启动菜单为F12；以实机BIOS显示为准。
+- 首次启动只做非破坏性检查：PAW Live、中文控制台、PAWDATA、SSD自动发现、SMART/只读扫描、Memtest、HD4600、RTL8151GD网卡、DHCP/DNS。
+- PAWDATA仍有已知门禁：Linux live parent disk 必须报告 RM=1 且 SERIAL 非空；失败时停止，不绕过、不手工分区。
+- 不输入最终迁移授权，不对真实120GB SSD执行克隆。
+
+### 6. 本次结论
+
+- 不需要因CPU/H81/HD4600/16GB内存更换而修改内核或系统架构。
+- 建议最小补入 `firmware-realtek` 后重建候选 ISO，再决定是否重写TF卡；若先现场启动验证现有卡也可以，但网卡不通时不得开始迁移。
+- 120GB容量理论上够用，但必须实测精确容量，并补做50GiB→120GB虚拟目标盘专项扩容验证。
+- 当前TF卡可以用于首次非破坏性启动；不代表当前镜像的RTL8151GD网卡固件已经确认。
+- 50GiB→240GB虚拟链路已PASS；真实Dell硬件、120GB目标盘、Rescue公网链路和PAW服务切换仍未实测。
