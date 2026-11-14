@@ -738,3 +738,17 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 120GB容量理论上够用，但必须实测精确容量，并补做50GiB→120GB虚拟目标盘专项扩容验证。
 - 当前TF卡可以用于首次非破坏性启动；不代表当前镜像的RTL8151GD网卡固件已经确认。
 - 50GiB→240GB虚拟链路已PASS；真实Dell硬件、120GB目标盘、Rescue公网链路和PAW服务切换仍未实测。
+
+
+---
+
+## 记录 0011：Dell 3020M 的45W CPU与Micro官方35W规格差异（2026-11-14）
+
+- 追加更正，不修改记录0010及任何历史内容。
+- Dell 官方 OptiPlex 3020 Micro 规格将 Micro 机型第四代 Core i5 处理器标为35W级别；Intel 官方规格确认截图所示 i5-4670T 的 TDP 为45W。
+- 因此，虽然截图显示该机器当前确实识别并运行 i5-4670T，但该CPU功耗等级高于Dell 3020 Micro公开规格所列35W Micro CPU等级。不能仅凭当前能开机就断言在持续迁移负载下散热/供电完全符合OEM设计。
+- 这不是PAW ISO需要更换内核或CPU微码的理由；这是主机硬件稳定性/散热风险。首次实体验收应检查 BIOS 是否识别CPU、风扇和温度读数、持续负载温度及是否降频/关机；若温度异常、风扇策略不正常或出现热关机，不得开始长时间50GiB真实迁移。
+- 相关来源：
+  - Dell OptiPlex 3020 Micro Technical Specifications：https://i.dell.com/sites/csdocuments/shared-content_data-sheets_documents/en/optiplex-3020-micro-technical-spec-sheet.pdf
+  - Intel Core i5-4670T 官方规格：https://www.intel.com/content/www/us/en/products/sku/75050/intel-core-i54670t-processor-6m-cache-up-to-3-30-ghz/specifications.html
+- 结论：CPU/芯片组架构仍受现有amd64镜像支持；但45W CPU相对Micro官方35W规格的差异必须在实机持续负载和温度检查中关闭，不能忽略。
