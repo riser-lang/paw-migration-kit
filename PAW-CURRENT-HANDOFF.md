@@ -752,3 +752,51 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
   - Dell OptiPlex 3020 Micro Technical Specifications：https://i.dell.com/sites/csdocuments/shared-content_data-sheets_documents/en/optiplex-3020-micro-technical-spec-sheet.pdf
   - Intel Core i5-4670T 官方规格：https://www.intel.com/content/www/us/en/products/sku/75050/intel-core-i54670t-processor-6m-cache-up-to-3-30-ghz/specifications.html
 - 结论：CPU/芯片组架构仍受现有amd64镜像支持；但45W CPU相对Micro官方35W规格的差异必须在实机持续负载和温度检查中关闭，不能忽略。
+
+
+---
+
+## 记录 0012：Dell 3020M 镜像补充及 50GiB→120GB 虚拟验收任务准备（2026-11-14）
+
+- 记录时分支 HEAD：`d6f496dfb2ac13ca4710930078aba83148ec2814`。
+- 用户要求：针对新目标 Dell OptiPlex 3020M，给 Gemini 4 Hydrogen 一份任务 Prompt，处理必要镜像补充，并对标称120GB SSD做50GiB→120GB虚拟扩容验收。
+- 本轮未修改运行时代码、未构建ISO、未触碰真实SSD/TF卡。
+- 当前已验收运行时代码仍为 `7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`；Run #129 `43398893910` 与50GiB→240GB Run #17 `43402874795` 均在该代码SHA上成功。
+- 分支 HEAD 当前含后续文档提交；不得把文档HEAD误认为新运行时代码。
+
+### 已确认的关键事实
+
+1. 当前 `configs/live-build/package-lists/paw.list.chroot` 不含 `firmware-realtek`，而 `configs/live-build/auto/config` 已启用 `non-free-firmware`。
+2. 用户提供的 Dell OptiPlex 3020M 截图显示 i5-4670T、H81、16GB、HD4600、120GB SSD；网卡 PCI ID、SSD精确字节数和SSD接口尚未实测。
+3. Dell 3020 Micro 的网卡配置不能只凭机型名称或不同机箱版本的规格表推定。应在实机通过 `lspci -nnk` 读取实际 PCI ID；加入 `firmware-realtek` 作为通用固件覆盖建议，不得宣称它已经证明网卡型号。
+4. 当前50GiB链路存在明确240GB硬编码：
+   - `tests/prehardware/prepare-images.sh` 中 `target_bytes=240000000000`，目标镜像名 `target240.img`；
+   - `tests/prehardware/guest-chain.sh` 强制 `dst_bytes == 240000000000`；
+   - `tests/prehardware/run-prehardware-lab.py` 使用 `target240.img`；
+   - `.github/workflows/prehardware-50g.yml` 名称、注释和步骤描述均写死240GB。
+5. 因此120GB验收不能只把QEMU镜像改小；必须把测试 harness 参数化，保证容量参数从 workflow 输入一路传到 image preparation、QEMU目标文件、Guest精确容量门禁和最终报告。
+6. 当前真实源盘容量基线为53,687,091,200 bytes（50GiB）；120GB十进制测试目标建议用120,000,000,000 bytes作为可重复的模拟值，同时实机仍需用 `blockdev --getsize64` 读取实际字节数。
+7. 当前迁移运行时代码按真实容量比较源/目标，扩容阶段按实际磁盘末端扩展；但现有50GiB虚拟全链路只对240GB目标盘完成端到端验证。
+
+### 本轮任务范围
+
+- 在 Live ISO package list 增加 `firmware-realtek`，并在构建后的 rootfs/ISO 中验证固件包实际安装和关键固件文件存在；不能只检查 package list 文本。
+- 通过GitHub完整CI构建新ISO并独立核验 Artifact/ISO SHA256。
+- 将50GiB虚拟链路目标容量参数化，默认保持240GB兼容性；增加精确120,000,000,000 bytes的完整虚拟目标盘测试。
+- 120GB测试必须真实执行50GiB全盘流式克隆、恢复字节数核验、独立SHA256/O_DIRECT、离线修复、GPT备份头移动、root分区增长、ext4增长和重启后目标Ubuntu登录。
+- 报告必须同时记录 source_bytes、target_bytes、partition_before/after、filesystem_before/after、target free space 和容量余量；不能只看到QEMU镜像逻辑容量就判定通过。
+- 不允许将120GB虚拟测试说成真实120GB SSD通过，也不允许把50GiB→240GB旧Run与新120GB测试拼成一个Run。
+- 如目标120GB在真实字节容量下小于53,687,091,200 bytes，必须BLOCKED；不能缩小源盘测试数据。
+
+### 网卡识别原则更正
+
+- 不再在MASTER或任务中把RTL8151GD当作已由用户截图证实的事实。
+- 现场必须读取PCI ID、子系统ID、`lspci -nnk`、`dmesg` 和驱动/固件加载情况。
+- `firmware-realtek` 是合理的固件覆盖补充，但若实际网卡不是Realtek或需要其他固件，应根据实测证据调整；不进行猜测式驱动替换。
+
+### 安全边界
+
+- 仅使用可丢弃的QEMU/loop普通文件镜像做120GB虚拟测试。
+- 不对真实120GB SSD做测试写入、格式化、SMART写入测试或badblocks写入测试。
+- 不写真实TF卡，不修改生产VPS，不进入生产Rescue，不修改main、不合并PR。
+- 所有正式真实克隆仍需实机门禁及用户明确授权。
