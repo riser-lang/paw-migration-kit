@@ -87,7 +87,7 @@
 - CPU 从 i5-4590 改为 i5-4670T，但仍是 Haswell x86_64，HD Graphics 4600 与原方案相同；不需要因 CPU 或核显型号变化重做通用内核适配。
 - H81 与原 B85 都是 Haswell 时代 Intel 芯片组；Linux 通用 AHCI 驱动路径不需要主板专用镜像。
 - 16GB 是 OptiPlex 3020M 的规格上限；1333MHz 在 i5-4670T 支持范围内。两条不同品牌内存仍必须完成真实 Memtest，不能仅凭容量和频率判断稳定。
-- Dell 3020M 官方规格列出 Realtek RTL8151GD 千兆网卡。当前 PAW Live package list 未包含 firmware-realtek；Linux 对该系列网卡可能需要 RTL8168G 固件。**当前 ISO 必须补入 firmware-realtek 并重新构建，才能把有线网络支持作为可靠的迁移准备条件。**
+- Dell 3020M 的有线网卡型号不能仅凭产品型号推定：Dell 3020 Micro 规格表与技术手册对 Micro 网络控制器描述存在差异，用户截图也没有显示 PCI ID。必须以实机 `lspci -nnk` 读取到的 vendor/device/subsystem ID 为准。为增加 Realtek 设备的固件覆盖，可在新 ISO 中加入 Debian `firmware-realtek` 包；这只是兼容性补充，不代表已确认本机一定使用 Realtek，也不替代实机驱动绑定、固件加载和网络测试。
 - Dell 3020M 使用2.5英寸 SATA 硬盘位；截图中的120GB SSD接口和准确型号仍需实机确认。
 - 120GB 标称容量大于50GiB源盘。当前迁移代码按精确字节检查目标盘不得小于源盘，并按目标盘实际末端扩展分区；运行时代码没有固定要求目标盘必须是240GB。但本轮50GiB QEMU完整链路使用240GB虚拟目标盘，120GB目标容量尚需补充针对性容量/扩容验证。
 - Dell BIOS 的 F2 用于 BIOS Setup，F12 用于一次性启动菜单；Legacy/UEFI 模式可选。首次实机启动优先选 Legacy/CSM，与旧系统启动方式保持一致。
@@ -198,8 +198,8 @@ Windows 插入 TF 卡若提示格式化，用户必须取消。
 
 ### 显示与网卡
 - Intel HD 4600：i915、framebuffer、fbcon、中文字体、tty1；
-- Dell OptiPlex 3020M 官方规格为 Realtek RTL8151GD；实机必须读取 PCI ID 并确认 r8169 驱动和所需固件已加载；
-- 当前 ISO 的 package list 未包含 firmware-realtek，必须加入该包并在新 ISO 中验证 RTL8168G 所需固件文件存在；
+- Dell 3020M 的实际有线网卡型号以实机 PCI ID 为准，不得从 MT/SFF 规格套用到 Micro；
+- 建议加入 Debian `firmware-realtek` 包作为通用固件覆盖，并检查包内文件是否随 live rootfs 进入 ISO；只有在实机识别为相应 Realtek 芯片后，才能判断所需固件和 `r8169` 驱动是否匹配；
 - DHCP、DNS、默认路由、断网恢复。
 
 QEMU 标准 VGA 和 e1000 不能冒充真实 HD4600 或 Realtek 网卡通过。
