@@ -42,7 +42,7 @@
 - 独立复算 SHA256：`71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c`（与 `paw-live-amd64.iso.sha256`、`iso-identity.txt`、Run `43618362793` 独立复算结果完全一致）
 - `firmware-realtek`：`20250410-2`（`all`），`INSTALLED_AND_VERIFIED_IN_ISO_SQUASHFS`，chroot 与 ISO `/live/filesystem.squashfs` 均已验证含 36 个 `/usr/lib/firmware/rtl_nic/*.fw` 文件。
 - 本地验证路径：`C:\PAW-Release\run-43615851949\paw-live-amd64.iso`
-- 注：此前已写入实体 32GB TF 卡的为上一轮 Run `43398893910` ISO；需在用户明确确认后，使用 Run `43615851949` 新版 ISO 重刷启动盘（本轮适应性验收任务未触碰实体 TF 卡）。
+- 实体32GB TF卡已于2026-11-15使用Run `43615851949`新版ISO重刷，Rufus 4.15.2396 DD Image mode；只读回读逐字节比较953,155,476/953,155,584 bytes一致，108 bytes差异位于FAT元数据区；安全弹出成功。详见 `PAW-CURRENT-HANDOFF.md` 记录0015。当前待Dell实机首次启动验收。
 
 ## 已有虚拟成果与边界
 - 50GiB → 120GB（`120000000000` bytes）完整虚拟链路已在 QEMU/TCG 下端到端通过，但 **不等于** 真实 Dell OptiPlex 3020M 或真实 120GB SSD 通过。
