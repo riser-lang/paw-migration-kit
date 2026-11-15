@@ -861,3 +861,96 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 
 - QEMU/TCG 120GB 虚拟链路通过不等于真实 Dell OptiPlex 3020M 与真实 120GB SSD 通过。
 - Dell OptiPlex 3020M 实机启动后必须确认：32GB TF 卡（需先以 Run `43615851949` 新版 ISO 重写）实际引导与 PAWDATA；实际网卡 `lspci -nnk` PCI ID/驱动与 `dmesg` 固件加载状态；120GB SSD 真实 `blockdev --getsize64` 容量（必须 >= `53687091200` bytes）与 SMART/只读扫描；16GB 内存 Memtest86+ 7.20 实测 0 errors；HD4600 中文控制台与交互；以及腾讯云 Rescue SSH / Tailscale / VLESS / MCP 现场切换。
+
+
+---
+
+## 记录 0014：ChatGPT 对 Dell 3020M / 120GB 新版 ISO 的独立审核结论（2026-11-15）
+
+- 审核对象：用户提供的 `PAW-DELL-120G-AUDIT-BRIEF.md` 全文及 GitHub 对应代码、Actions、Artifact 和50GiB→120GB链路证据。
+- 当前分支：`vm/ds-final-prehardware-remediation-20261112`
+- 当前分支 HEAD：`0db974a9788b9f660bd816ca2ebaab5e3cd1e827`
+- 已验收运行时代码：`02d02c79fa3035ad3089f474566ca917e5d2482a`
+- 当前 HEAD 相对运行时代码仅有1个文档提交，文件为 `PAW-CURRENT-HANDOFF.md`、`PAW-MIGRATION-STATE.md)、`PAW-MIGRATION-BLOCKERS.md`；没有运行时代码在CI之后变化。
+- `main` 仍为 `0d6aefd093984a65f40d19e1fae584dee623b8e9`，未修改。
+- 本次审核未修改运行时代码、未写入实体TF卡/SSD、未操作生产VPS。
+
+### 1. GitHub 常规CI与ISO：独立核对 PASS
+
+- Run #130：`43615851949`
+- URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/43615851949
+- head SHA：`02d02c79fa3035ad3089f474566ca917e5d2482a`
+- Job `build-test`：`completed / success`，24个workflow步骤全部成功。
+- Artifact：`paw-live-build-test-results`，ID `14123560276`，ZIP `1,030,677,538` bytes，GitHub ZIP digest `sha256:e51493caf47a07f396fdd7969438c2abc09a23199edce7ca260c695aa5711008`，当前未过期。
+- runner构建日志明确记录：
+  - ISO `953,155,584` bytes；
+  - ISO SHA256 `71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c`；
+  - Hybrid system area：`MBR isohybrid cyl-align-on GPT APM`；
+  - SeaBIOS/TCG smoke通过。
+- 关键专项测试：PAWDATA 12/12、fault injection 43/43、offline repair 27/27、network 28/28、P0 59/59、P1 24/24、SSD identity 41/41、VLESS/Tailscale 25/25、Finalize 36/36、TTY 56/56、CJK 25/25；均为0 failed。
+- `firmware-realtek` 在Debian Trixie固定快照中的版本为 `20250410-2`；runner日志确认包安装，chroot中36个 `/usr/lib/firmware/rtl_nic/*.fw` 与成品ISO squashfs中36个文件一致，状态 `INSTALLED_AND_VERIFIED_IN_ISO_SQUASHFS`。
+- Artifact ZIP digest 与 ISO SHA256 是不同对象，不可互相替代。ISO SHA256以上述runner构建日志为依据；Gemini本地报告的7z ZIP测试及本地ISO复算结果与sidecar一致，但ChatGPT未直接访问用户本地Windows文件。
+
+### 2. 50GiB→120GB完整虚拟链路：独立核对 PASS
+
+- Run #18：`43618362793`
+- URL：https://github.com/riser-lang/paw-migration-kit/actions/runs/43618362793
+- 状态：`completed / success`；Job `chain-50g` 所有步骤成功。
+- head SHA：`02d02c79fa3035ad3089f474566ca917e5d2482a`，与Run #130 ISO来源SHA一致。
+- 输入：`iso_run_id=43615851949`，`target_bytes=120000000000`。
+- Artifact：`paw-50g-chain-evidence`，ID `14129979760`，35,068,330 bytes，未过期。
+- ChatGPT已下载并解压该35MB GitHub Artifact，直接读取 `chain-acceptance.json`、`chain-acceptance.txt`、`gpt-expand.json`、`migration-transaction.json`、`offline-repair.json`、`reboot-status.json`、`preboot-handoff.json` 和相关Guest日志。
+- 验收器：14项checks全部true；31个步骤被记录，29个必需步骤全部存在且PASS；没有missing、non-pass或failed步骤。
+- 精确容量：
+  - source：`53,687,091,200` bytes（50GiB）；
+  - target：`120,000,000,000` bytes；
+  - USB media：`32,000,000,000` bytes。
+- 传输：
+  - `source_bytes=53687091200`；
+  - `restored_bytes=53687091200`；
+  - 独立O_DIRECT SHA256：`491eb86f24ca8a8304505fdd504e58becd0c7409080dffde90e68062f06db0b1`；
+  - `bytes_verified=53687091200`，`CLONE-INCOMPLETE`已清除。
+- 扩容：
+  - root partition：`52,612,283,904` → `118,925,192,704` bytes；
+  - ext4：`12,844,795` → `29,034,470` blocks，block size 4096；
+  - target free bytes：`112,883,482,624`；
+  - GPT verified=true，fsck method=offline。
+- Host runner：`main result=TARGET_BOOT_SEEN chain_pass=True target_boot=True qemu_rc=0`。
+- Guest证据：`auto_reboot PASS`之后观察到 `Ubuntu 24.04.5 LTS ubuntu ttyS0` 和 `ubuntu login:`。
+- 这证明50GiB→120GB在QEMU/TCG可丢弃镜像中完成全链路并启动目标Ubuntu，不证明真实Dell、真实120GB SSD、真实Rescue公网SSH或真实网卡已经通过。
+
+### 3. 关键限制和审核观察
+
+- `network STATUS=WARN`：链路网络为本地loopback模拟，不是真实家宽到腾讯云Rescue公网传输；不得报告真实网络PASS。
+- `memtest STATUS=PASS`：Guest证据明确为operator attestation，且标注 `trust=operator_attestation_not_cryptographic`；不能替代真实Dell 16GB内存Memtest。
+- `hardware STATUS=PASS`：使用virtual probe adapter；真实SMART、温度和物理硬件仍OPEN。
+- `offline-repair.json` 中 `grub_debconf_pinned=cloud_style_no_debconf`、`grub_install_devices_stable=false`：这是Ubuntu cloud-style grub-pc分支，debconf install_devices pin不适用；同一报告确认显式 `grub-install` 使用 `/dev/disk/by-id/ata-QEMU_HARDDISK_PAW-DST-123456`。这不是当前链路失败，但真实目标盘修复时仍须核实by-id路径解析到已登记目标盘。
+- 真实Dell有线网卡PCI ID尚未实测；`firmware-realtek`提供固件覆盖，不等于已证明真实网卡型号或驱动绑定。
+- 120GB为十进制模拟目标容量；真实SSD必须通过 `blockdev --getsize64` 读取实际容量，且必须大于或等于源盘实际字节数（当前源盘基线53,687,091,200 bytes）。
+- i5-4670T 45W相对3020M Micro公开35W级别配置的散热差异仍需现场检查BIOS识别、风扇、温度、持续负载降频/热关机；不是重写ISO内核的理由。
+- `PAW-MIGRATION-BLOCKERS.md` 当前主表已将50GiB虚拟链路标记 `CLOSED_VIRTUAL_ONLY`，但后面的历史“发布放行标准”仍残留240GB旧基准描述；这是文档维护项，不影响本次Run证据，但后续应更新该段避免误导。
+
+### 4. 最终审核决定
+
+- **批准使用Run #130的新版ISO重写现有32GB TF卡。**
+- 批准理由：Run #130完整CI 24/24通过；Realtek固件真实进入ISO squashfs；Run #18使用同一代码SHA和该Run ISO完成50GiB→120GB完整虚拟迁移、SHA256/O_DIRECT、离线修复、GPT/ext4扩容和目标Ubuntu重启登录。
+- 本次批准只涵盖“将新版ISO写入TF卡”和随后“首次实体机非破坏性启动验收”，不涵盖真实SSD克隆。
+- 新版ISO固定信息：
+  - Run：`43615851949`
+  - Runtime SHA：`02d02c79fa3035ad3089f474566ca917e5d2482a`
+  - Artifact：`14123560276`
+  - ISO size：`953155584` bytes
+  - ISO SHA256：`71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c`
+- 重刷前确认目标为32GB TF卡，使用Rufus DD Image mode；写入会覆盖TF卡全部数据。Windows弹出格式化提示必须取消，不得手工格式化或修改PAWDATA分区。
+- 若要做位级回读校验，应注意Windows自动挂载FAT分区可能修改少量FAT元数据；以Rufus写入验证为主，不得将Windows后续写入的FAT元数据差异误判为ISO构建损坏，也不得把非完全匹配报告成全盘SHA MATCH。
+- 首次实体启动只做：Dell Legacy/CSM启动、PAW Live、中文控制台、PAWDATA、SSD身份盘点、SMART/温度/只读扫描、Memtest、HD4600、真实网卡PCI ID/驱动/固件、DHCP/DNS和温度/风扇检查。
+- PAWDATA若未PASS，停止，不绕过门禁、不手工分区。
+- 真实腾讯云Rescue SSH、源盘只读身份、120GB SSD精确容量和健康、家宽传输、Tailnet/VLESS/MCP切换仍待现场验收。真实整盘克隆必须另获用户明确授权。
+
+### 5. 本次未执行的操作
+
+- 未写入或重刷实体TF卡；
+- 未写入真实120GB SSD；
+- 未进入腾讯云生产Rescue；
+- 未修改生产VPS、Tailscale、Xray、MCP；
+- 未修改main或合并PR。
