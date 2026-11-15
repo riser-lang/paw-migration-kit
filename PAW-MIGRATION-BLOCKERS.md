@@ -8,7 +8,7 @@
 | BLOCK-50G-FULLCHAIN | P0 | CLOSED_VIRTUAL_ONLY | 50GiB 源盘完整虚拟链路（240GB 基线 & 120GB Dell 参数化） | 240GB Run #17 (`43402874795`) `success`；120GB Run #18 (`43618362793`, `02d02c79...`, `target_bytes=120000000000`) 全步骤 PASS、GPT/ext4 扩容（`12844795 -> 29034470` blocks）与 `TARGET_BOOT_SEEN` PASS；物理 120GB SSD 实盘待现场 `BLOCK-SSD-PHYSICAL` |
 | BLOCK-SSD-IDENTITY-UX | P0 | CLOSED | 预检/总控与无序列号SSD稳定身份不一致 | `paw-live-controller.sh`/`paw-hardware-preflight.sh`/`paw-memtest-confirm.sh`/`paw-final-confirm.sh` 已全线对齐 `paw-identity.py`，Run `43398893910` `41/41` PASS（在 `02d02c79...` 未回退） |
 | BLOCK-RELEASE-ISO | P0 | CLOSED | 需要基于 Dell 120GB + `firmware-realtek` 最新提交的全绿 ISO | Run #130 (`43615851949`, SHA `02d02c79fa3035ad3089f474566ca917e5d2482a`) 全绿，`firmware-realtek` `20250410-2` chroot+squashfs 双重验证（36 个 `.fw`），Artifact `14123560276` 独立复算 SHA256 `71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c` MATCH |
-| BLOCK-USB-PHYSICAL | P1 | NEEDS_TEST | 只有QEMU USB证据（且实体 TF 卡待重刷 Run `43615851949` ISO） | 使用最新 Run `43615851949` ISO 刷写 TF 卡后，在真实 Dell OptiPlex 3020M BIOS 从 TF/读卡器启动并验证 PAWDATA |
+| BLOCK-USB-PHYSICAL | P1 | MEDIA_REWRITTEN_NEEDS_BOOT_TEST | Run `43615851949` ISO已DD写入实体32GB TF卡并安全弹出；108 bytes FAT元数据差异，镜像主体与引导区逐字节一致 | 在真实 Dell OptiPlex 3020M BIOS 从TF/读卡器启动，验证PAW Live、中文控制台及PAWDATA初始化/重启持久化 |
 | BLOCK-SSD-PHYSICAL | P1 | NEEDS_TEST | 真实 120GB SSD 精确容量/SMART/温度/只读扫描未执行 | 实机扫描确认 `blockdev --getsize64 >= 53687091200` 及 SSD 身份与只读健康检查 |
 | BLOCK-MEMTEST-PHYSICAL | P1 | NEEDS_TEST | QEMU不能证明真实16GB DDR3/DDR3L健康 | Dell 3020M 真实 16GB 内存完成至少一轮 Memtest86+ 且 0 errors |
 | BLOCK-GPU-PHYSICAL | P1 | NEEDS_TEST | QEMU标准显卡不能证明HD4600 | 真实 HD4600 显示中文控制台并正常交互 |
