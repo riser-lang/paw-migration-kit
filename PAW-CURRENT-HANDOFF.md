@@ -954,3 +954,22 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 未进入腾讯云生产Rescue；
 - 未修改生产VPS、Tailscale、Xray、MCP；
 - 未修改main或合并PR。
+
+
+---
+
+## 记录 0015：Dell 3020M 适配版 Run #130 ISO 已重写实体 TF 卡（2026-11-15）
+
+- 依据用户提供的本地 Gemini 执行报告 `PAW-USB-CREATION-REPORT-RUN43615851949.md`；ChatGPT 已独立核对对应 GitHub Run #130、Run #18 和 Artifact 元数据。
+- 使用 ISO：Run `43615851949`，Runtime SHA `02d02c79fa3035ad3089f474566ca917e5d2482a`，ISO `953155584` bytes，SHA256 `71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c`。
+- Rufus：4.15.2396，用户报告数字签名 Valid；DD Image mode，`DD_CHECK=1 ISO_CHECK=0`。
+- 目标设备：Windows Disk 1，`Generic Mass-Storage USB Device`，USB，Removable Media，序列号 `20240418000000`，`31,362,908,160` bytes；系统盘 Disk 0（KIOXIA KXG80ZNV512G）报告全程隔离未触碰。
+- 写入时间：12:52:26–12:53:04；Rufus恢复“准备就绪”。
+- 只读物理回读：回读前 `953155584` bytes 的 SHA256 为 `c7484be2475a460b23c12d6fab13e490b37f07ea5fc7ea1a900eb2eb3acadfe1`，与ISO整段哈希不同。
+- 逐字节比较：`953155476 / 953155584` bytes一致；108 bytes差异均在3.25MiB FAT分区目录元数据区域。报告称 MBR/引导区 `0..284671` 和 ISO主体 `3692544..953155583` 均为0字节差异。不能报告整卡/整段SHA256 MATCH。
+- 安全弹出：`CM_Request_Device_Eject` 返回 `rc=0, vetoType=0`；弹出后Get-Disk仅余系统盘Disk 0。按用户报告，TF卡当前可安全拔出。
+- 本地报告路径：`C:\PAW-Release\PAW-USB-CREATION-REPORT-RUN43615851949.md`（本会话未直接读取该本地文件，以上本地写入与回读细节依据用户粘贴的执行报告）。
+- 结论：新版Run #130 ISO已写入实体TF卡，可进入Dell OptiPlex 3020M首次非破坏性启动验证；108字节差异不构成当前重复重刷的理由，但不能声称bit-for-bit完全一致。
+- 下一步现场只检查Legacy/CSM启动、PAW Live、中文控制台、PAWDATA初始化/重启持久化、SSD只读识别和容量、SMART/温度、Memtest、HD4600、真实网卡PCI ID/驱动/固件、DHCP/DNS及CPU温度/风扇。
+- PAWDATA若不PASS，停止，不绕过门禁、不手工修改分区。
+- 不输入最终迁移授权，不对真实120GB SSD写入，不进入生产VPS Rescue。
