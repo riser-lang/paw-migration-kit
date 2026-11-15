@@ -1,20 +1,20 @@
 # PAW Migration Blockers
 
-更新：2026-11-13。关闭条件必须有代码、日志或实际测试证据。
+更新：2026-11-15。关闭条件必须有代码、日志或实际测试证据。
 
 | ID | 优先级 | 状态 | 问题 | 关闭条件 |
 |---|---|---|---|---|
-| BLOCK-REPAIR-CI | P0 | CLOSED | Run #100 repair-virtual测试失败 | Run `43398893910` `Offline repair and rollback suite` 27/27 PASS |
-| BLOCK-50G-FULLCHAIN | P0 | IN_PROGRESS | 50GiB源盘未完成完整克隆链路 | Run `43402874795`（基于 `7ec4dbf3d14fb7e23aa213f7f9021d24c569913a` / Run `43398893910` ISO）正在执行；完整 PASS 前仍阻断真实克隆 |
-| BLOCK-SSD-IDENTITY-UX | P0 | CLOSED | 预检/总控与无序列号SSD稳定身份不一致 | `paw-live-controller.sh`/`paw-hardware-preflight.sh`/`paw-memtest-confirm.sh`/`paw-final-confirm.sh` 已全线对齐 `paw-identity.py`，Run `43398893910` `41/41` PASS |
-| BLOCK-RELEASE-ISO | P0 | CLOSED | 需要基于最终修复SHA的全绿最新ISO | Run `43398893910`（SHA `7ec4dbf3d14fb7e23aa213f7f9021d24c569913a`）全绿，Artifact `14025033882` 独立复算 SHA256 `eec712f8f2b2677046d3aafabc8e76a7fce82219062f418bad19dbd46f696358` MATCH |
-| BLOCK-USB-PHYSICAL | P1 | NEEDS_TEST | 只有QEMU USB证据 | 真实ASUS BIOS从真实TF/读卡器启动并验证PAWDATA |
-| BLOCK-SSD-PHYSICAL | P1 | NEEDS_TEST | 真实SMART/温度/只读扫描未执行 | 真实SSD身份确认后完成只读检查 |
-| BLOCK-MEMTEST-PHYSICAL | P1 | NEEDS_TEST | QEMU不能证明真实DDR3健康 | 真实12GB内存完成至少一轮Memtest且0 errors |
-| BLOCK-GPU-PHYSICAL | P1 | NEEDS_TEST | QEMU标准显卡不能证明HD4600 | 真实HD4600显示中文控制台并正常交互 |
-| BLOCK-NIC-PHYSICAL | P1 | NEEDS_TEST | 虚拟网卡不能证明真实板载网卡 | 真实PCI ID、驱动、DHCP、DNS和网络恢复通过 |
+| BLOCK-REPAIR-CI | P0 | CLOSED | Run #100 repair-virtual测试失败 | Run `43398893910` & `43615851949` `Offline repair and rollback suite` 27/27 PASS |
+| BLOCK-50G-FULLCHAIN | P0 | CLOSED_VIRTUAL_ONLY | 50GiB 源盘完整虚拟链路（240GB 基线 & 120GB Dell 参数化） | 240GB Run #17 (`43402874795`) `success`；120GB Run #18 (`43618362793`, `02d02c79...`, `target_bytes=120000000000`) 全步骤 PASS、GPT/ext4 扩容（`12844795 -> 29034470` blocks）与 `TARGET_BOOT_SEEN` PASS；物理 120GB SSD 实盘待现场 `BLOCK-SSD-PHYSICAL` |
+| BLOCK-SSD-IDENTITY-UX | P0 | CLOSED | 预检/总控与无序列号SSD稳定身份不一致 | `paw-live-controller.sh`/`paw-hardware-preflight.sh`/`paw-memtest-confirm.sh`/`paw-final-confirm.sh` 已全线对齐 `paw-identity.py`，Run `43398893910` `41/41` PASS（在 `02d02c79...` 未回退） |
+| BLOCK-RELEASE-ISO | P0 | CLOSED | 需要基于 Dell 120GB + `firmware-realtek` 最新提交的全绿 ISO | Run #130 (`43615851949`, SHA `02d02c79fa3035ad3089f474566ca917e5d2482a`) 全绿，`firmware-realtek` `20250410-2` chroot+squashfs 双重验证（36 个 `.fw`），Artifact `14123560276` 独立复算 SHA256 `71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c` MATCH |
+| BLOCK-USB-PHYSICAL | P1 | NEEDS_TEST | 只有QEMU USB证据（且实体 TF 卡待重刷 Run `43615851949` ISO） | 使用最新 Run `43615851949` ISO 刷写 TF 卡后，在真实 Dell OptiPlex 3020M BIOS 从 TF/读卡器启动并验证 PAWDATA |
+| BLOCK-SSD-PHYSICAL | P1 | NEEDS_TEST | 真实 120GB SSD 精确容量/SMART/温度/只读扫描未执行 | 实机扫描确认 `blockdev --getsize64 >= 53687091200` 及 SSD 身份与只读健康检查 |
+| BLOCK-MEMTEST-PHYSICAL | P1 | NEEDS_TEST | QEMU不能证明真实16GB DDR3/DDR3L健康 | Dell 3020M 真实 16GB 内存完成至少一轮 Memtest86+ 且 0 errors |
+| BLOCK-GPU-PHYSICAL | P1 | NEEDS_TEST | QEMU标准显卡不能证明HD4600 | 真实 HD4600 显示中文控制台并正常交互 |
+| BLOCK-NIC-PHYSICAL | P1 | NEEDS_TEST | 虚拟网卡与 `firmware-realtek` 包入不能证明真实板载网卡 | 实机启动后执行 `lspci -nnk`、`dmesg` 实证真实 PCI ID、驱动绑定、固件加载与 DHCP/DNS |
 | BLOCK-RESCUE-REAL | P1 | NEEDS_TEST | 腾讯云Rescue SSH未验证 | 真实Rescue下主机指纹、SSH、只读源盘身份确认 |
-| BLOCK-TAILSCALE-REAL | P1 | NEEDS_TEST | 真实Tailnet/VLESS/Exit Node未验证 | Windows与新Ubuntu互通，旧VPS Exit Node可用且重启恢复 |
+| BLOCK-TAILSCALE-REAL | P1 | NEEDS_TEST | 真实Tailnet/VLESS/Exit Node未验证 | Windows 与新 Dell Ubuntu 互通，旧 VPS Exit Node 可用且重启恢复 |
 | BLOCK-MCP-CUTOVER | P1 | NEEDS_TEST | GPT/Claude/Spark端到端切换未验证 | 原URL、端口、路径、认证和后端逐项验证 |
 | BLOCK-HOME-WAN | P2 | UNKNOWN | 中国移动华为路由器WAN/IPv6/CGNAT未知 | 实地检查；架构不得依赖公网IPv4或端口映射 |
 

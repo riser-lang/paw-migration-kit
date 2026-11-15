@@ -800,3 +800,64 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 不对真实120GB SSD做测试写入、格式化、SMART写入测试或badblocks写入测试。
 - 不写真实TF卡，不修改生产VPS，不进入生产Rescue，不修改main、不合并PR。
 - 所有正式真实克隆仍需实机门禁及用户明确授权。
+
+
+---
+
+## 记录 0013：Dell OptiPlex 3020M `firmware-realtek` 适配、120GB 目标容量参数化及 50GiB→120GB 完整虚拟验收完成（2026-11-15）
+
+- 运行时提交 SHA：`02d02c79fa3035ad3089f474566ca917e5d2482a`（分支：`vm/ds-final-prehardware-remediation-20261112`）。
+- 本轮未修改 `main`、未合并 PR #2、未删除历史 Artifact，也未对真实 SSD、真实 TF 卡或生产 VPS 执行任何写操作。
+
+### 1. 代码改动摘要（commit `02d02c79fa3035ad3089f474566ca917e5d2482a`）
+
+1. **`firmware-realtek` 包入与双重构建验证**
+   - `configs/live-build/package-lists/paw.list.chroot` 新增 `firmware-realtek`（使用 Debian Trixie 固定快照 `20261101T000000Z` 与 `main non-free-firmware`）。
+   - `scripts/build-debian-live.sh` 在 `dpkg-query` 锁清单阶段强制校验 `firmware-realtek` 存在。
+   - `.github/workflows/build-live-and-test.yml` 与 `scripts/ci/qemu-live-smoke.sh` 同时校验 chroot `dpkg-query -L firmware-realtek` 及成品 ISO 内 `/live/filesystem.squashfs` 中 `/usr/lib/firmware/rtl_nic/*.fw` 文件存在，并产出 `firmware-realtek-report.txt` 随产物上传。
+2. **50GiB 预硬件链目标容量全链路参数化（默认兼容 `240000000000`）**
+   - 参数传递与校验：`PAW_EXPECTED_TARGET_BYTES` / `--target-bytes`（必须为正整数、>= `53687091200` 且 512 字节对齐；默认 `240000000000`），贯通 `.github/workflows/prehardware-50g.yml`、`tests/prehardware/prepare-images.sh`、`tests/prehardware/build-live-lab-iso.sh`、`tests/prehardware/build-lab.sh`、`tests/prehardware/paw-prehardware-chain.service`、`tests/prehardware/guest-chain.sh` 与 `tests/prehardware/verify-chain-evidence.py`。
+   - 镜像文件标准化：将硬编码 `target240.img` 统一替换为 `target.img`（`prepare-images.sh`、`run-prehardware-lab.py`、`prehardware-50g.yml`）。
+   - 扩容与剩余空间指标增强：`scripts/paw-gpt-expand.sh` 与 `guest-chain.sh` 在 `gpt-expand.json` 与 `PAW3_STEP=gpt_expand` 记录 `disk_bytes`、`before_bytes`、`after_bytes`、`filesystem_before_blocks`、`filesystem_after_blocks`、`filesystem_block_size`、`filesystem_after_free_blocks`、`filesystem_after_free_bytes`、`gpt_verified`。
+   - 单元测试补充：`scripts/ci/run-p0-remediation-tests.sh`（P0 套件由 46 扩充至 59 项）覆盖 240GB 默认、120GB 通过、容量失配拒绝、非法/不对齐/小于 50GiB `target_bytes` 拒绝及未扩容拒绝。
+
+### 2. 新版 Live ISO 构建与独立校验结果
+
+- Workflow：`build-live-and-test.yml` **Run #130（`43615851949`）**
+  - `headSha`：`02d02c79fa3035ad3089f474566ca917e5d2482a`
+  - 状态 / 结论：`completed / success`（全部 24 步通过：CJK 字体 1/1、CJK QEMU 25/25、PAWDATA 12/12、Fault-injection 43/43、Offline repair 27/27、Network 28/28、P0 59/59、P1 24/24、VLESS 25/25、Finalize 36/36、TTY 56/56）
+- Artifact：`paw-live-build-test-results`（ID `14123560276`，ZIP 精确大小 `1030677538` bytes）
+  - 本地下载目录：`C:\PAW-Release\run-43615851949\`
+  - `7z t` ZIP 完整性：`Everything is Ok`（89 个文件）
+  - `paw-live-amd64.iso` 精确字节数：`953155584` bytes
+  - 本地独立 SHA256：`71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c`（与 `paw-live-amd64.iso.sha256`、`iso-identity.txt` 完全一致）
+- `firmware-realtek` 验证（`firmware-realtek-report.txt`）：
+  - 包版本：`firmware-realtek` `20250410-2`（`all`）
+  - 状态：`INSTALLED_AND_VERIFIED_IN_ISO_SQUASHFS`
+  - chroot 文件数：36；ISO `/live/filesystem.squashfs` 文件数：36（含 `rtl8168d/e/f/fp/g/h`、`rtl8105e/8106e/8107e`、`rtl8153/8156`、`rtl8125/8126`、`rtl8402/8411` 系列 `.fw`）
+
+### 3. 50GiB → 120GB 完整虚拟迁移链验收结果
+
+- Workflow：`.github/workflows/prehardware-50g.yml` **Run #18（`43618362793`）**
+  - `headSha`：`02d02c79fa3035ad3089f474566ca917e5d2482a`（与 `iso-run.json` 校验一致，ISO 来源 Run `43615851949`，输入 `target_bytes=120000000000`）
+  - 状态 / 结论：`completed / success`（`chain-50g` 耗时 `3h23m49s`，`runner_rc=0`）
+  - Artifact：`paw-50g-chain-evidence`（ID `14129979760`，ZIP 大小 `35068330` bytes，已校验）
+  - Host runner 结论：`main result=TARGET_BOOT_SEEN chain_pass=True target_boot=True qemu_rc=0`
+  - `verify-chain-evidence.py` 结果：`status=PASS`（14 项 `checks` 全部 `true`）
+  - 精确容量与扩容指标（`chain-acceptance.json` + `gpt-expand.json`）：
+    - `source_bytes`：`53687091200`（50 GiB）
+    - `target_bytes`：`120000000000`（`target_bytes_observed=120000000000`）
+    - `root_partition_before_bytes`：`52612283904`
+    - `root_partition_after_bytes`：`118925192704`（`partition_grew=true`）
+    - `filesystem_before_blocks`：`12844795`（4096 B/block）
+    - `filesystem_after_blocks`：`29034470`（`filesystem_grew=true`）
+    - 目标盘剩余可用空间：`27559444` blocks（`112883482624` bytes ≈ 105.13 GiB）
+    - `gpt_verified`：`true`（`filesystem_check_method=offline`）
+    - 独立 O_DIRECT SHA256 回读：`491eb86f24ca8a8304505fdd504e58becd0c7409080dffde90e68062f06db0b1`（`bytes_verified=53687091200`，`CLONE-INCOMPLETE cleared`）
+    - 目标系统启动：`auto_reboot PASS` 后观察到 `Ubuntu 24.04.5 LTS ubuntu ttyS0` 与 `ubuntu login:`
+  - 注：此前 240GB 基线 Run #17（`43402874795`，`7ec4dbf3...`）亦已 `success`。
+
+### 4. 诚实边界与现场待测事项
+
+- QEMU/TCG 120GB 虚拟链路通过不等于真实 Dell OptiPlex 3020M 与真实 120GB SSD 通过。
+- Dell OptiPlex 3020M 实机启动后必须确认：32GB TF 卡（需先以 Run `43615851949` 新版 ISO 重写）实际引导与 PAWDATA；实际网卡 `lspci -nnk` PCI ID/驱动与 `dmesg` 固件加载状态；120GB SSD 真实 `blockdev --getsize64` 容量（必须 >= `53687091200` bytes）与 SMART/只读扫描；16GB 内存 Memtest86+ 7.20 实测 0 errors；HD4600 中文控制台与交互；以及腾讯云 Rescue SSH / Tailscale / VLESS / MCP 现场切换。
