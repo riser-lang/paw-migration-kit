@@ -1507,3 +1507,19 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 下一步只读命令：`networkctl status --no-pager enp2s0`。不要更改网络配置、添加静态路由、手动改时钟或重启 Live。
 - 用户只能手动逐字输入单行命令；每轮只给一条简短命令并等待照片。
 
+
+
+---
+
+## 记录 0040：networkctl 确认 Realtek 网卡驱动及 IPv6 网关（2026-11-18）
+
+- 用户在 root debug shell 执行 `networkctl status --no-pager enp2s0` 并上传照片。
+- 实机网卡信息：`enp2s0`，驱动 `r8169`，Realtek RTL8111/8168/8211/8411 PCI Express Gigabit Ethernet Controller，硬件地址 `64:00:6a:3c:57:d6`，Speed 1Gbps、Duplex full、Link UP。
+- DHCPv4 地址：`192.168.3.50/24`，networkctl 显示 DHCPv4 via `192.168.3.1`（该字段表示 DHCPv4 服务器/租约来源，不能仅凭此当作已安装 IPv4 默认路由）。
+- networkctl 显示 IPv6 地址，Gateway 为 `fe80::e277:26ff:fea7:18d`，DNS 也指向该 IPv6 link-local 地址；State 为 `routable (configuring)`，Online state 为 `online`。
+- 日志重复出现 `Could not acquire DHCPv6 lease on NDisc request: Address already in use`，随后接口重新配置；当前配置文件为 `/etc/systemd/network/20-wired.network`。该 DHCPv6 提示可能与 IPv6 DHCP/NDisc 重试有关，但目前不能断定它是 NTP 失败的根因。
+- 与先前 `ip route show default` 无输出并不矛盾：该命令查看 IPv4 路由；networkctl 所列 Gateway 是 IPv6 link-local 网关。尚未查看 IPv6 路由表，也尚未证明 IPv4 默认路由存在。
+- 已确认真实 Dell 有线网卡型号和驱动绑定，说明本次 ISO 的 Realtek 驱动覆盖在该设备上至少已绑定成功；仍需确认固件加载/外网连通，不把 Link UP 当成互联网可用。
+- 下一步只读命令：`ip -6 route show default`，确认 IPv6 默认路由是否实际安装。不要手动添加路由、修改 DHCP/IPv6 配置或重启网络服务。
+- NTP 仍为 Packet count 0，系统时钟未同步；保持当前 Live boot_id 和 Memtest 登记。用户只能手动输入一行命令，每轮只给一条短命令。
+
