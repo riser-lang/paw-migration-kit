@@ -973,3 +973,72 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 下一步现场只检查Legacy/CSM启动、PAW Live、中文控制台、PAWDATA初始化/重启持久化、SSD只读识别和容量、SMART/温度、Memtest、HD4600、真实网卡PCI ID/驱动/固件、DHCP/DNS及CPU温度/风扇。
 - PAWDATA若不PASS，停止，不绕过门禁、不手工修改分区。
 - 不输入最终迁移授权，不对真实120GB SSD写入，不进入生产VPS Rescue。
+
+
+---
+
+## 记录 0016：Dell 3020M 实机启动、键盘输入与腾讯云 Rescue 操作计划（2026-11-18）
+
+- 用户今晚将借用普通 USB 键盘，准备继续实体机验收。
+- 当前目标设备：Dell OptiPlex 3020M Micro，i5-4670T、16GB、HD4600、标称120GB SSD、32GB TF+USB读卡器。
+- 当前已写入 TF 卡：Run #130 ISO，Runtime SHA `02d02c79fa3035ad3089f474566ca917e5d2482a`，SHA256 `71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c`。
+- 实体机已成功从 USB 启动并显示 Linux 驱动日志；真实 PAWDATA 输入尚待键盘完成。
+- 本记录只定义操作顺序；不授权进入生产 Rescue 或真实克隆。
+
+### 1. 首次启动键盘输入
+
+- USB 键盘插 Dell 后置 USB 口，优先 USB 2.0 口；若当前屏幕仍停在输入提示，可直接热插入并等待识别，不必先重启。
+- 首次 PAWDATA 初始化的输入是当前启动介质（TF卡/读卡器）序列号末六位，不是目标 SSD 序列号，也不是腾讯云源盘 UUID。
+- 输入后程序只追加新 PAWDATA 分区并格式化该新分区；不应格式化整个 TF 卡或目标 SSD。
+- 如果屏幕提示 RM 非 removable、序列号为空、身份不匹配或 PAWDATA BLOCKED，停止；不得绕过门禁或手工分区。
+
+### 2. PAW 菜单与建议顺序
+
+菜单键位：
+1 = 登记 Memtest86+ 人工确认；
+2 = 手动初始化/修复 PAWDATA（仅自动初始化未通过时才考虑；不能盲目重复）；
+3 = Rescue SSH 并识别旧 VPS 源盘；
+4 = 只读扫描并登记目标 SSD；
+5 = SSD SMART/只读扫描/温度/内存预检；
+6 = 最终授权并开始真实整盘迁移（破坏性操作）；
+7 = 查看报告；
+8 = 选择网络阶段 R/ U；
+0 = 重绘状态。
+
+推荐阶段：
+- 第一次进入 PAW Live：先确认 PAWDATA PASS。
+- 选择 4：只读发现目标 SSD，核对型号、精确容量、身份依据；输入序列号末六位，若无序列号则输入稳定硬件指纹末八位。登记本身不写 SSD。
+- 从启动菜单选择 Memtest86+ 独立启动项，至少完成一整轮且 errors=0；然后重新启动 PAW Live，选择菜单 1，按真实看到的 pass 数和错误数登记，并输入“确认”。
+- 选择 5：执行目标 SSD SMART、只读表面扫描、温度、内核 I/O 错误和内存状态检查。不得执行写入式磁盘测试。
+- 菜单 7 查看报告，确认 PAWDATA、target identity、hardware health、memory 状态。若有 WARN/FAIL/UNKNOWN，先停下处理。
+- 菜单 3 与 8(R) 属于腾讯云 Rescue 阶段，只有在用户决定进入正式迁移窗口、完成快照备份并准备好停机时才执行。
+- 菜单 6 会进入最终破坏性授权并启动克隆。必须另行取得用户明确授权；本轮键盘/硬件验收期间禁止选择 6。
+
+### 3. 腾讯云 VPS 操作边界
+
+- 旧 VPS 不得永久关机、销毁、重装或清空。它仍是当前权威源和未来 paw-gateway / 美国 Exit Node。
+- 进入腾讯云 Rescue Mode 前必须先做系统盘快照/可回退备份，并安排业务停机窗口。
+- 腾讯云官方文档要求实例处于关机状态才能进入 Rescue Mode；建议先正常关机，不要默认强制关机。控制台路径为实例更多操作 > 运维与检测 > 进入救援模式；设置 Rescue root 密码后进入。进入 Rescue 后，旧 Ubuntu 上的 PAW、Xray、Tailscale 和其他 systemd 服务会停止。
+- Rescue 环境中，使用 root 和本次设置的临时 Rescue 密码通过 VNC 登录；PAW 生成的一次性 ed25519 公钥需按界面提示加入 Rescue 临时 authorized_keys；在 VNC 中读取 SSH host key 指纹并与 PAW 候选 SHA256 指纹逐字核对。
+- PAW 之后要求输入旧 VPS 根分区 UUID（应在旧 Ubuntu 正常运行时先只读获取并安全保存）。该 UUID 用于唯一识别源根分区，不是 TF/PAWDATA 或本地 SSD 的 UUID。
+- 网络阶段菜单 8 选择 R（Rescue）；菜单 3 输入 Rescue 公网主机名/IP、SSH 端口（默认22）、固定主机指纹，再输入根分区 UUID。程序通过临时 SSH 只读盘点源盘并检查源盘容量、GPT、BIOS Boot、ext4、root 最后分区和只读挂载状态。
+- Rescue SSH 失败、指纹不一致、源盘身份/布局不符或读写挂载检查失败时立即停止；不得修改源盘或放宽检查。
+- 完成克隆后，只有在新系统启动和回退策略确认后，才退出 Rescue 并恢复旧 VPS 正常 Ubuntu；旧 VPS后续转为 paw-gateway。不要在新旧 PAW 写入业务同时运行时贸然启动重复任务。
+- Rescue 阶段旧 VPS 的原 Ubuntu Xray/Tailscale 不运行，因此不可依赖旧 Ubuntu 的 VLESS/Exit Node 为这次 Rescue SSH 提供网络。新 Dell 到腾讯云 Rescue 的 SSH 是从本地向 VPS 发起的出站连接。
+
+### 4. 正式迁移前需要从旧 VPS 预先收集的信息
+
+在旧 Ubuntu 仍正常运行时，通过现有 SSH 只读获取：
+- 根挂载源、文件系统类型和 UUID；
+- 系统盘精确容量；
+- `lsblk -b -o NAME,PATH,TYPE,SIZE,MODEL,SERIAL,RO,FSTYPE,UUID,PTTYPE,PARTN,START,MOUNTPOINTS` 输出；
+- 确认根分区是否最后一个分区；
+- 腾讯云实例 ID/地域/公网连接信息；
+- 可恢复的系统盘快照 ID。
+敏感信息（密码、私钥、VLESS UUID、Tailscale key）不得粘贴到聊天或写入仓库。
+
+### 5. 当前安全状态
+
+- 本记录不代表已进入 Rescue、不代表已创建快照、不代表已开始停机。
+- 真实 SSD 仅允许只读发现和健康检查；正式克隆仍未授权。
+- 旧 VPS 保持当前正常运行状态，除非用户在后续迁移窗口明确批准进入 Rescue。
