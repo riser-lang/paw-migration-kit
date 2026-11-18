@@ -1388,3 +1388,22 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 返回 tty1 后执行菜单1登记：选1、输入passes=1、errors=0；最后提示中文确认时，依次按 F11、F12、Enter。确认后可回到 debug shell 执行 `loadkeys -d` 恢复默认键盘映射，或直接重启恢复。
 - 不得把该输入方法用于虚构 Memtest 结果；本次仅因用户已实际报告1轮、0错误而登记。
 - 登记后执行菜单5硬件检查，菜单7查看状态；旧VPS仍保持运行，不进入Rescue，直到目标硬件与其它准备门禁完成。
+
+
+---
+
+## 记录 0032：Dell 实机完成 Memtest 登记、目标 SSD 登记及硬盘检查（2026-11-18）
+
+- 记录性质：用户现场报告 + 当前 PAW 主菜单照片核对；本记录不声称助手远程读取了 PAW 设备上的报告文件。
+- 用户报告：真实 Memtest86+ 已完成至少 1 个完整 Pass、Errors=0，且菜单 1 人工登记已完成；目标 SSD 已完成菜单 4 登记；菜单 5 硬盘检查已完成，用户现场观察未见 SSD 介质异常；用户确认当前 TF/读卡介质可正常使用。
+- 照片中 PAW readiness 的可见状态：总体 `BLOCKED`；`data=PASS`、`source=BLOCKED`、`target_identity=PASS`、`hardware=WARN`、`network=BLOCKED`。
+- 照片可见目标盘：`/dev/sda`，型号 `HFS128G3BMND-3210A`，精确容量 `128035676160` bytes。稳定身份依据显示为 `serial+wwn+model+exact_capacity+by-id+sysfs+partition`。目标身份登记和本次总控身份复核为 PASS；设备路径仅作为定位符，不作为唯一身份。
+- PAWDATA 当前报告为 PASS。之前记录 0026 的 TF/读卡器写入 I/O 错误保留为历史事件；本次照片没有显示该错误，用户报告当前介质正常，但不能据此改写历史或声称已找到旧错误根因。
+- `hardware=WARN` 尚未关闭。菜单 5 的整体健康状态除 SSD SMART/只读扫描外，还包含存储内核错误、温度传感器读数和 Memtest 当前启动/目标身份绑定。仅凭用户报告硬盘检查完成，不能把整个 hardware 状态提升为 PASS。需读取当前会话的 `paw-hardware-health-report.json`、`memory-test.json`、`smart-sda.json`、`storage-kernel-errors.txt`、`hardware-sensors.txt`，定位 WARN 的真实来源；不得手改报告或绕过门禁。
+- `source=BLOCKED` 的代码条件是当前启动会话尚无通过固定 SSH 主机指纹的 Rescue 源盘发现记录；需要完成 Rescue endpoint/host-key pinning、一次性 SSH 公钥配置、输入旧 VPS 根分区 UUID，并对远端磁盘容量、GPT、BIOS Boot、ext4 根分区布局和无读写挂载进行只读核验。
+- 当前代码将 `network` 状态直接映射为 `source` 状态（`network_status="$source_status"`）。因此本次 `network=BLOCKED` 不能单独解释为家庭宽带不通；源盘 Rescue SSH 尚未通过是当前 readiness 网络门禁显示 BLOCKED 的直接原因。实际外网/DNS/NTP报告仍需单独检查。
+- 照片中报告时间显示为 `2026-04-13`，与本记录日期 `2026-11-18` 不一致。需核实 Live 系统时间/NTP；在时间未确认前，不把基于时间的网络/TLS检查视为已通过。
+- 下一步顺序：先只读查看当前硬件 WARN 报告并定位原因；保持本次 Live 启动会话，不要贸然重启，以免使绑定当前 `boot_id` 的 Memtest 人工登记失效；硬件状态达到 PASS 后，再在旧 VPS 正常运行时完成快照和可恢复备份，随后由用户安排维护窗口进入 Tencent Rescue，菜单 8 选择 R、菜单 3 完成 Rescue SSH 和源盘只读身份识别。
+- 当前禁止：菜单 6、真实克隆、目标 SSD 写入、旧 VPS 关机/重启/进入 Rescue、生产 PAW/MCP/Tailscale/Xray/Tunnel/Funnel 配置变更。以上仍需相应明确授权。
+- 本记录不代表源盘已识别、Rescue SSH 已通过、迁移已开始或业务已切换。
+
