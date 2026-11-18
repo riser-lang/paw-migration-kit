@@ -1310,3 +1310,16 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 建议通过 Ctrl+Alt+Del 请求正常重启/关机；确认机器完全停止后，再重新插紧TF卡和读卡器，改插Dell后置主板USB口（不经过Hub），重新启动并观察是否再次出现相同 I/O 错误及 PAWDATA 状态。
 - 若相同错误再次出现，停止实机迁移；不要继续依赖该TF卡保存事务状态。应更换/重新制作启动介质或排查读卡器/TF卡，但未经用户后续决定不自动重做ISO。
 - 当前不提供任何SSD擦除命令。启动介质稳定、PAWDATA二次启动/持久化确认通过后，才继续处理内部SSD。
+
+
+---
+
+## 记录 0027：TF卡错误后重启恢复，PAWDATA再次显示PASS（2026-11-18）
+
+- 用户重新启动后提供的最新照片显示 PAW 中文主菜单正常，状态行显示 `data=PASS`。
+- 最新照片中未见此前 `/dev/sdb` 的 `Medium not present` / WRITE I/O error 行；这只能说明当前画面未显示该错误，不能证明介质已完成持久化写入稳定性测试。
+- 当前菜单仍显示 `source=BLOCKED`、`target_identity=BLOCKED)、`hardware=BLOCKED`，属于尚未登记源/目标盘及未完成硬件检查。
+- 下一步尝试 `Ctrl+Alt+F9) 进入临时 systemd debug shell；如果出现 root 提示符，先执行 `whoami` 和只读 `lsblk -b -o NAME,SIZE,MODEL,SERIAL,TRAN,RM,FSTYPE,MOUNTPOINTS`。
+- 若 F9 无反应，返回 tty1，不猜测 paw/live 密码；需要确认本次启动是否实际添加 `systemd.debug_shell=1` 启动参数。
+- 用户已明确授权清空内部 SSD HFS128G3BMND-3210A 上全部现有 Windows 数据，但清盘命令仍须在当前会话再次核对目标型号、精确容量、稳定身份、挂载状态以及 TF 启动盘设备，禁止仅凭旧设备编号操作。
+- 旧 VPS 保持运行；不进入 Rescue；不执行菜单6。
