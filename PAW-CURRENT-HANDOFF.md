@@ -1523,3 +1523,16 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 下一步只读命令：`ip -6 route show default`，确认 IPv6 默认路由是否实际安装。不要手动添加路由、修改 DHCP/IPv6 配置或重启网络服务。
 - NTP 仍为 Packet count 0，系统时钟未同步；保持当前 Live boot_id 和 Memtest 登记。用户只能手动输入一行命令，每轮只给一条短命令。
 
+
+
+---
+
+## 记录 0041：IPv6 默认路由表同样为空（2026-11-18）
+
+- 用户在 root debug shell 执行 `ip -6 route show default` 并上传照片；命令返回 shell 提示符，没有任何路由输出。
+- 因此当前没有安装 IPv6 默认路由。此前 `networkctl status` 显示的 `Gateway: fe80::e277:26ff:fea7:18d` 不能替代内核实际路由表证据。
+- 当前确认：Realtek `enp2s0` Link UP、驱动 `r8169`、1Gbps/full duplex；IPv4 `192.168.3.50/24` 已分配；IPv4 和 IPv6 默认路由查询均无输出；NTP Packet count=0、系统时钟未同步。
+- networkctl 记录 DHCPv4 地址来源为 `192.168.3.1`，但尚未确认 DHCP 租约是否包含 Router option。下一步只读查看 networkd 当前租约：`cat /run/systemd/netif/leases/2`（networkctl 将 enp2s0 标为 ifindex 2）。重点查看 `ROUTER=`、`SERVER_ADDRESS=`、`DNS=` 等字段。
+- 不要猜测并手动添加默认路由；先确认 DHCP 租约是否包含路由器选项。不要修改配置或重启网络服务。
+- 用户只能手动输入单行命令；每轮只给一条短命令并等待照片。
+
