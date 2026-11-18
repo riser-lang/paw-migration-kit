@@ -1293,3 +1293,20 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 用户已明确授权清空内部 HFS128G3BMND-3210A SSD 上全部现有 Windows 数据；但执行 wipe 前仍必须在当前启动会话重新核对型号、精确容量、序列号/WWN、启动介质父设备和挂载状态，确保不会清除 TF 启动盘。
 - 清除后重新启动 PAW Live，菜单4登记 SSD；当前 target discovery 对 Windows/NTFS 的排除条件仍存在，清空分区表后才可能通过正常登记。
 - 旧 VPS 继续正常运行，不关机、不进入 Rescue；本记录不授权菜单6或开始真实克隆。
+
+
+---
+
+## 记录 0026：Dell 实机出现 TF 启动介质 /dev/sdb 写入 I/O 错误（2026-11-18）
+
+- 用户最新屏幕显示 PAW tty1 主菜单等待输入，同时内核日志报告：
+  - `sd 4:0:0:0: [sdb] tag#0 FAILED Result: hostbyte=DID_OK`
+  - `Sense Key: Not Ready`
+  - `Additional Sense: Medium not present`
+  - `I/O error, dev sdb, sector 52200160 op 0x1:(WRITE)`
+- 之前现场盘点显示 `/dev/sdb` 为 32GB Mass-Storage TF 卡/USB读卡器；`/dev/sda` 为内部 SSD `HFS128G3BMND-3210A`。因此本次日志报错指向启动介质，不是内部 SSD。
+- PAWDATA此前报告曾显示 PASS，但当前出现针对启动介质的写入 I/O 错误，持久化状态和日志写入可靠性不能继续假定正常。
+- 立即停止任何菜单操作；不选择2、4、5、6，不清理内部SSD，不进入Rescue，不关闭旧VPS。
+- 建议通过 Ctrl+Alt+Del 请求正常重启/关机；确认机器完全停止后，再重新插紧TF卡和读卡器，改插Dell后置主板USB口（不经过Hub），重新启动并观察是否再次出现相同 I/O 错误及 PAWDATA 状态。
+- 若相同错误再次出现，停止实机迁移；不要继续依赖该TF卡保存事务状态。应更换/重新制作启动介质或排查读卡器/TF卡，但未经用户后续决定不自动重做ISO。
+- 当前不提供任何SSD擦除命令。启动介质稳定、PAWDATA二次启动/持久化确认通过后，才继续处理内部SSD。
