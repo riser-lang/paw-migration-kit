@@ -1265,3 +1265,18 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 不需要重新制作 ISO；但当前实体机实测目标 SSD、内存、PAWDATA、网卡和Rescue SSH仍需完成。GitHub 120GB虚拟链路 PASS不等于真实硬件 PASS。
 - 正式步骤：PAWDATA PASS → 清空并重新扫描目标SSD → 菜单4登记目标SSD → Memtest至少一轮0错误并菜单1登记 → 菜单5硬件健康检查 → 菜单7确认状态 → 旧VPS运行时创建快照并只读记录源盘UUID/容量/分区 → 维护窗口正常关机并进入腾讯云Rescue → 菜单8选R → 菜单3配置Rescue SSH/host fingerprint/root UUID并只读识别源盘 → 复核源盘/目标盘/网络/备份 → 菜单6最终授权并开始真实整盘克隆。
 - 用户尚未在本轮明确确认已清空SSD、已创建VPS快照、已授权进入Rescue或已授权菜单6真实克隆。禁止推定这些动作已获授权。
+
+
+---
+
+## 记录 0024：实体 PAW Live 当前状态与命令行登录失败（2026-11-18）
+
+- 用户已完成 PAWDATA 首次初始化；PAW报告截图显示 `data: PASS`。
+- 当前启动盘代码版本为 `02d02c79fa3035ad3089f474566ca917e5d2482a`（Run #130 ISO）。
+- 目标盘 `/dev/sda`，型号 `HFS128G3BMND-3210A`，仍含 Windows/NTFS，因此被当前 `paw-identity.py inventory()` / `paw-target-discovery.sh` 排除；菜单4无法登记。
+- 用户按 Ctrl+Alt+F2 进入 Debian tty 登录提示，尝试之前助手猜测的 `paw/live` 后显示 Authentication failure。该用户名/密码未经当前镜像证实，禁止继续猜测密码。
+- 用户按 Ctrl+Alt+F1 已返回 PAW 中文主菜单；当前可继续安全查看菜单，但没有已证实的受支持菜单项能清除 Windows SSD。
+- 当前菜单选项：1 Memtest登记、2 PAWDATA手动初始化/修复、3 Rescue SSH/源盘识别、4目标SSD登记、5硬件检查、6最终迁移、7报告、8网络阶段、0刷新。没有清盘/分区管理菜单。
+- 不得将菜单2当作SSD清理；不得选择菜单6；不得在没有已验证root shell和设备身份复核的情况下提供 `wipefs`、`sgdisk`、`dd`、`parted` 等清盘命令。
+- 下一步需先找到该ISO实际配置的合法管理Shell入口/凭据，或承认当前ISO不提供可用路径；在此之前让用户停留在PAW主菜单，不做磁盘写入。旧VPS保持运行，不进入Rescue。
+- 此记录不代表SSD已清空、已登记或迁移已开始。
