@@ -1336,3 +1336,15 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 启动完成后再按 Ctrl+Alt+F9；若键盘 F 区需要 Fn，则按 Fn+Ctrl+Alt+F9。成功应出现 root shell 提示符。
 - 若无法确认 Tab 编辑后的完整启动行，用户先拍照发来，不要盲目启动或输入清盘命令。
 - 进入 shell 后只执行 `whoami` 和 `lsblk -b -o NAME,SIZE,MODEL,SERIAL,TRAN,RM,FSTYPE,MOUNTPOINTS` 进行只读核对；未核对当前设备身份和挂载状态前，不提供擦除命令。
+
+
+---
+
+## 记录 0029：Memtest人工登记末尾中文确认无法在US文本控制台输入（2026-11-18）
+
+- 用户在 PAW 主菜单的 Memtest 人工结果登记流程遇到最后确认提示，要求输入中文 `确认`；用户只有普通 USB 键盘，当前 Live 使用 US 键盘布局且无中文输入法。
+- 已从当前运行时代码 `02d02c79fa3035ad3089f474566ca917e5d2482a` 重新读取 `scripts/paw-memtest-confirm.sh)：脚本严格判断 `[[ "$confirmed" != '确认' ]]`，因此 `confirm`、`queren` 等 ASCII 替代值都会被拒绝。
+- 不要指导用户输入英文替代，不要伪造/手工写入 `memtest-attestation.json`，不要绕过 Memtest人工观察确认。
+- 当前提示处先不要输入；可等待300秒安全超时，或按 Ctrl+C 中止子流程并返回菜单（若返回失败则拍照）；该次不会登记 Memtest 结果。
+- 这是现场可用性缺陷。后续最小修复应接受明确 ASCII token（例如 `CONFIRM`）并保留原有状态/轮次/错误数检查，新增实际 tty 正向/负向测试；但用户当前不希望重新制作 ISO，因此本轮不要求其重做镜像。若要继续当前镜像，只能找到已验证的本地输入法/键盘 Unicode 输入方式，否则暂缓该人工登记步骤，不能假报 PASS。
+- 当前用户可继续做的非破坏性工作须遵守现有菜单依赖；Memtest人工登记未完成时硬件/迁移状态保持 BLOCKED，不选择菜单6，不关闭旧VPS、不进入Rescue。
