@@ -1364,3 +1364,27 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 结论：当前ISO没有支持“跳过Memtest登记但继续菜单6”的选项。取消/跳过登记可以退出当前子流程，但迁移会保持 BLOCKED；选择选项3也会记录 WARN 并阻断。不得手工伪造报告或修改状态文件绕过门禁。
 - 若用户不愿做 Memtest 或无法输入中文确认，当前可以停止本轮真实迁移；也可以完成其他只读检查，但菜单6仍不可用。恢复迁移需完成真实 Memtest 至少一轮、0错误，并解决中文确认输入；不允许把未测结果标为通过。
 - 当前旧VPS保持运行，不进入Rescue；目标SSD不得开始克隆。
+
+
+---
+
+## 记录 0031：Memtest已完成1轮0错误；通过临时TTY键位映射输入中文确认（2026-11-18）
+
+- 用户实际观察并报告：Memtest86+ 完成 1 个完整 Pass，Errors=0。
+- 允许将真实观察结果登记为 `OPERATOR_CONFIRMED`；这不是伪造测试结果，也不代表机器自动证明。
+- 当前 `paw-memtest-confirm.sh` 最后一步严格要求中文字符串 `确认`，US Linux VT 文本控制台无法直接输入中文。
+- 可临时使用 Linux `loadkeys` 键盘映射把 F11/F12 的无修饰键映射成对应 UTF-8 字符，再在 PAW 的 tty1 确认提示处依次按 F11、F12。
+- 字符编码：`确` U+786E UTF-8 octal `\347\241\256`；`认` U+8BA4 UTF-8 octal `\350\256\244`。
+- 临时 keymap 仅修改当前 Live 启动会话的内核键盘映射；使用 `plain keycode` 仅改无修饰键，保留 Ctrl+Alt+Fn 的虚拟终端切换组合。Linux kbd keymap 文档支持 `U+` Unicode keysym、F100 string action 和 plain modifier-specific definitions。
+- root debug shell 如未启用，需再次通过启动项 Tab 在内核参数末尾追加 `systemd.debug_shell=1`，启动后 Ctrl+Alt+F9 进入 root shell。
+- 先以 `loadkeys -p -u -` 对以下 map 做语法解析，再执行 `loadkeys -u -) 实际加载：
+  ```
+  keymaps 0-15
+  plain keycode 87 = F100
+  plain keycode 88 = F101
+  string F100 = "\347\241\256"
+  string F101 = "\350\256\244"
+  ```
+- 返回 tty1 后执行菜单1登记：选1、输入passes=1、errors=0；最后提示中文确认时，依次按 F11、F12、Enter。确认后可回到 debug shell 执行 `loadkeys -d` 恢复默认键盘映射，或直接重启恢复。
+- 不得把该输入方法用于虚构 Memtest 结果；本次仅因用户已实际报告1轮、0错误而登记。
+- 登记后执行菜单5硬件检查，菜单7查看状态；旧VPS仍保持运行，不进入Rescue，直到目标硬件与其它准备门禁完成。
