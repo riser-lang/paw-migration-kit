@@ -1493,3 +1493,17 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 系统时钟仍未同步（`2026-04-13`），NTP `Packet count=0`；主板 RTC 显示 2019 年。保持当前 boot_id，不手动设置时间或 RTC。
 - 用户只能手动输入一行命令；后续每轮只给一条短命令并等待照片。
 
+
+
+---
+
+## 记录 0039：默认路由表为空，Live DHCP 网络配置已核对（2026-11-18）
+
+- 用户在 root debug shell 正确执行 `ip route show default`；命令无输出，确认当前内核路由表没有 IPv4 默认路由。此前一次 `riute` 拼写错误已由后续正确执行排除。
+- 当前有线接口 `enp2s0` 为 UP，获得 DHCP IPv4 地址 `192.168.3.50/24`；无线接口 `wlp3s0` 为 DOWN；`tailscale0` 尚未建立。
+- 已核对当前运行时代码 `02d02c79fa3035ad3089f474566ca917e5d2482a` 的 `boot/20-wired.network`：`[Match] Name=en* eth*`，`[Network] DHCP=yes`、`IPv6AcceptRA=yes`。构建脚本会将其安装到 `/etc/systemd/network/20-wired.network`，并启用 systemd-networkd、systemd-resolved、networkd-wait-online。网络配置本身请求 DHCP，不是静态配置。
+- 结论：DHCP 已为网卡分配地址，但当前未出现默认路由。需要进一步读取 systemd-networkd 对 `enp2s0` 的 DHCP 状态、DHCP server 和 Gateway 信息；不猜测家庭路由器网关地址，不直接添加默认路由。
+- NTP 状态仍为 Server n/a、Packet count 0；系统时间 2026-04-13，未同步；RTC 为 2019-05-21。默认路由缺失是目前外网不可达的直接可疑原因，但仍需确认 DHCP 网关字段。
+- 下一步只读命令：`networkctl status --no-pager enp2s0`。不要更改网络配置、添加静态路由、手动改时钟或重启 Live。
+- 用户只能手动逐字输入单行命令；每轮只给一条简短命令并等待照片。
+
