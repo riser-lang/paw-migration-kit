@@ -1468,3 +1468,15 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 系统时钟修复前，TLS/HTTPS、证书有效期、Rescue SSH host-key/时间戳检查可能受影响；旧 VPS 仍保持运行，尚未进入 Rescue，未开始克隆。
 - 当前用户只能手动输入单行命令；每轮只给一条短命令并等待照片。保持当前 boot_id，保护已登记的 Memtest 人工确认。
 
+
+
+---
+
+## 记录 0037：NTP 状态显示尚未收到任何时间同步数据包（2026-11-18）
+
+- 用户在当前 root debug shell 执行 `timedatectl timesync-status` 并上传照片。
+- 输出为：`Server: n/a (1.debian.pool.ntp.org)`、`Poll interval: 0 (min: 32s; max: 34min 8s)`、`Packet count: 0`。
+- 结论：systemd-timesyncd 已配置 Debian NTP pool，但当前没有成功收到 NTP 数据包；不能仅凭 `NTP service: active` 认为已连通或同步。根因尚未确定，可能涉及有线链路未获得地址、默认路由、DNS 或 UDP/123 出站访问。
+- 下一步只读检查网络接口及地址：`ip -br address`。根据结果再检查默认路由和 DNS；不要手动改系统时间/RTC，不要重启服务或 Live 系统。
+- 用户仅能手动输入单行命令，后续每轮最多给一条短命令并等待照片。旧 VPS 仍未进入 Rescue，真实克隆尚未开始。
+
