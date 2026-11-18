@@ -1042,3 +1042,25 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 本记录不代表已进入 Rescue、不代表已创建快照、不代表已开始停机。
 - 真实 SSD 仅允许只读发现和健康检查；正式克隆仍未授权。
 - 旧 VPS 保持当前正常运行状态，除非用户在后续迁移窗口明确批准进入 Rescue。
+
+
+---
+
+## 记录 0017：PAWDATA 序列号末六位与主菜单操作顺序澄清（2026-11-18）
+
+- 用户回忆 PAWDATA 初始化界面显示过带点号且后跟六位数字的设备标识，询问是否输入该六位数字及主菜单正确顺序。
+- 已重新读取运行时代码 `02d02c79fa3035ad3089f474566ca917e5d2482a` 的 `paw-data-prepare.sh`、`paw-tty-lib.sh`、`paw-console-menu.sh`、`paw-target-discovery.sh`、`paw-memtest-confirm.sh`、`paw-hardware-preflight.sh`、`paw-rescue-key-prepare.sh`、`paw-source-discovery.sh`、`paw-network-phase-select.sh` 和 `paw-final-confirm.sh`。
+- 若 PAWDATA 面板的字段标签确实是“序列号”，且显示完整值末尾为 `.123456`，输入提示为“请输入该设备序列号最后6位”时，应输入最后六个字符 `123456`，不输入点号及前缀。程序实际比较 Bash 字符串最后六个字符 `${serial: -6}`。
+- 该次输入绑定当前 Live 启动介质（TF卡/读卡器）的父磁盘，不是本地120GB目标SSD，也不是腾讯云源盘 UUID。
+- 当前脚本真实要求启动介质 `lsblk RM=1` 且 `lsblk SERIAL` 非空。无序列号或 RM 不为1时自动初始化会 BLOCKED；不得编造编号、输入硬件指纹替代、绕过或手工分区。
+- PAWDATA 自动服务在主菜单之前运行。若 PAWDATA 已健康会直接跳过；若出现序列号末六位提示，按实际屏幕末六位输入。成功后只追加并格式化新 PAWDATA 分区，不格式化 ISO 启动分区。主菜单2仅为手动初始化/修复，不应在 PAWDATA 已 PASS 时重复执行。
+- 推荐实体验收顺序：
+  1. 启动时完成 PAWDATA 自动初始化/检查并确认 PASS。
+  2. 主菜单输入 `4`，只读扫描并登记 Dell 内部120GB SSD；输入候选编号后，按提示确认该 SSD 的序列号末六位；若 SSD 无序列号则输入稳定硬件指纹末八位。该步骤不写SSD。
+  3. 从启动菜单独立选择 `Memory test (Memtest86+ x64, then return to PAW Live)`，至少完成一轮且 Errors=0；退出/重启回 PAW Live。
+  4. 主菜单输入 `1` 登记 Memtest 人工观察结果：选择 `1`（至少一轮且0错误），输入实际完成轮数，输入错误数 `0`，最后输入中文 `确认`。若测试未完成/不确定选3（WARN），不得登记通过；若有错误选2（FAIL）。
+  5. 主菜单输入 `5` 执行 SSD SMART、只读表面扫描、温度、内核I/O和内存报告检查。
+  6. 主菜单输入 `7` 查看状态和报告；若 PAWDATA、SSD身份、硬件或内存存在 WARN/FAIL/UNKNOWN，停止。
+  7. 菜单 `0` 只重绘状态；菜单 `2` 不要重复执行；菜单 `3` 和 `8=R` 留到已安排的正式腾讯云 Rescue 维护窗口；菜单 `6` 是破坏性整盘迁移授权，本轮实体硬件验收期间禁止选择。
+- 腾讯云 VPS 当前保持正常运行，不关机、不进入 Rescue、不停止业务。正式迁移窗口前先在旧 Ubuntu 运行时做系统盘快照并确认完成，收集旧根 UUID、精确磁盘容量和只读分区布局；安排停机窗口后才正常关机并从腾讯云控制台进入 Rescue。Rescue 会停止旧 Ubuntu 内的 PAW/Xray/Tailscale；迁移完成后再按切换计划恢复旧 VPS，保留为 paw-gateway。进入 Rescue、停机和真实克隆均需用户后续明确授权。
+- 本记录仅澄清输入与顺序，不表示已完成 PAWDATA、SSD、Memtest、VPS快照或Rescue验收。
