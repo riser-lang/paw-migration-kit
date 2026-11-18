@@ -1449,3 +1449,22 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 报告 `generated_at=2026-04-13T19:59:45Z`，与当前日期不一致。当前系统时间/NTP 仍待核实。不要因为报告时间旧就修改报告；应先只读运行 `date -u` 检查实时系统时钟。
 - 因此，记录 0032 中的 `hardware=WARN` 已被本次更新的硬件报告 `PASS` 取代；但完整 readiness 仍可能因 `source=BLOCKED` 而为 BLOCKED，须在时间核实后刷新总控状态。不得把硬件 PASS 等同于源盘/网络/迁移已通过。
 - 用户现场为 `root@localhost:/#` 命令行。后续每轮只提供一条简短单行命令，明确只读/写入属性，并等待照片确认。
+
+
+---
+
+## 记录 0036：确认 Live 系统时钟未同步且 RTC 严重落后（2026-11-18）
+
+- 用户在 root debug shell 执行 `date -u`，结果：`Mon Apr 13 20:57:16 UTC 2026`。
+- 随后执行 `timedatectl status`，照片显示：
+  - Local time / Universal time：`Mon 2026-04-13 21:00:59 UTC`（命令执行间隔导致数分钟差异）
+  - RTC time：`Tue 2019-05-21 06:16:40`
+  - Time zone：`Etc/UTC`
+  - `System clock synchronized: no`
+  - `NTP service: active`
+  - `RTC in local TZ: no`
+- 结论：NTP 服务已启动，但系统时钟并未完成同步；主板 RTC 约停留在 2019 年。当前不能把 NTP active 误判为时间已校准，也不能据此认定外网已连通或断开。
+- 不要手动修改系统时间或 RTC，不要关闭/重启 systemd-timesyncd，不要重启 Live 系统；先只读执行 `timedatectl timesync-status`，查看实际选中的 NTP 服务器、轮询和同步状态，再根据输出逐步诊断网络/DNS。
+- 系统时钟修复前，TLS/HTTPS、证书有效期、Rescue SSH host-key/时间戳检查可能受影响；旧 VPS 仍保持运行，尚未进入 Rescue，未开始克隆。
+- 当前用户只能手动输入单行命令；每轮只给一条短命令并等待照片。保持当前 boot_id，保护已登记的 Memtest 人工确认。
+
