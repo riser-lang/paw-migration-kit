@@ -1407,3 +1407,22 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 当前禁止：菜单 6、真实克隆、目标 SSD 写入、旧 VPS 关机/重启/进入 Rescue、生产 PAW/MCP/Tailscale/Xray/Tunnel/Funnel 配置变更。以上仍需相应明确授权。
 - 本记录不代表源盘已识别、Rescue SSH 已通过、迁移已开始或业务已切换。
 
+
+
+---
+
+## 记录 0033：用户要求在单机、单启动介质和键盘限时条件下优先完成今晚迁移（2026-11-18 22:30 Asia/Shanghai）
+
+- 用户明确说明：不再构建或重做 ISO；当前只有正在迁移的 Dell 服务器、手机和这一张 PAW 启动介质；USB 键盘仅能使用到今晚结束；希望今晚完成迁移。
+- 执行决策：继续使用实体 TF 卡上现有 Run #130 ISO（运行时代码 `02d02c79fa3035ad3089f474566ca917e5d2482a`），不改运行时代码、不要求第二台电脑、不要求重新写卡、不新增测试性工作。
+- 本次 GitHub 实时核对：工作分支 `vm/ds-final-prehardware-remediation-20261112`；分支 HEAD（本记录追加前）`8d2055448ebeaad518883405817898ba6e3cfcf9`；最新完整 CI Run #130（`43615851949`）成功；同一运行时代码的 50GiB→120GB QEMU 完整链路 Run #18（`43618362793`）成功。两项均为 2026-11-14 的历史 CI 证据，不代表当前实机和生产网络已通过。
+- 当前实机状态以记录 0032 和用户照片为准：PAWDATA PASS、目标 SSD 身份 PASS、Memtest 人工登记已完成、用户报告硬盘检查完成；source BLOCKED、hardware WARN、network BLOCKED。尚无证据证明 Rescue SSH、旧 VPS 源盘身份、真实克隆、目标系统首次启动或 MCP/Codex 接管已完成。
+- 由于 Memtest 人工登记绑定当前 `boot_id`，优先保留当前 Live 启动会话；在没有必要前不重启。若本次启动参数仍含 `systemd.debug_shell=1`，优先通过 Ctrl+Alt+F9 进入现有 root debug shell，只读查看硬件报告与系统时间；不清空日志、不手改报告、不绕过 WARN。
+- 计划并行使用手机处理腾讯云控制台：先创建旧 VPS 系统盘快照并确认完成；快照属于回退点，不等同于数据库一致性导出。不得在快照完成前关机或进入 Rescue。
+- Hardware WARN 必须先从 `paw-hardware-health-report.json`、`memory-test.json`、`smart-sda.json`、`storage-kernel-errors.txt`、`hardware-sensors.txt` 定位原因。若仅为传感器模块未加载，可在当前 Live 会话评估加载 `coretemp` 后再按需复检；若存在当前 I/O 错误或 SSD SMART/扫描异常，必须停止克隆。
+- 若硬件警告可安全解除，再安排旧 VPS 进入 Rescue；菜单 8 选 R，菜单 3 生成一次性 SSH key、由用户通过手机/Rescue VNC 配置公钥并核对 SSH host fingerprint，再输入旧 VPS 根分区 UUID，执行远端容量/GPT/BIOS Boot/ext4/只读挂载核验。任何 UUID、主机指纹或磁盘布局不匹配都必须停止。
+- 只有 readiness 全部达到 PASS、快照/回退点已确认、用户在现场再次核对源盘与目标盘后，才允许用户明确授权菜单 6。菜单 6 会覆盖整个目标 SSD，并执行流式克隆、独立 SHA256、离线修复、GPT/ext4 扩容和自动重启；不能跳过其中任一校验。
+- QEMU Run #18 耗时 3h23m49s，但这不是实网速度或实际迁移耗时预测。真实源盘压缩率、家宽上行/下行、Rescue SSH 吞吐和 SSD 写入速度未知；截至本记录时间 22:30，无法承诺在键盘归还前安全完成整个真实迁移。
+- 即使今晚完成块级克隆和首次启动，也不能仅凭此宣称 Windows Codex SSH、GPT/Claude/Gemini Spark MCP、Tailscale Exit Node 和旧 VPS gateway-only 全部完成。用户当前没有第二台 Windows 电脑，Codex Windows 端到端验收需后续在该电脑可用时完成；手机可作为临时 SSH/Tailscale 管理端，但不能代替 Windows Codex 验收。
+- 安全底线：不为赶今晚而跳过快照、源盘只读身份核验、目标盘身份复核、独立 SHA256、离线修复或扩容检查；不修改/删除旧 VPS 数据，不停用旧 VPS gateway，不在未验收新系统前进行 MCP/Tunnel/Funnel/DNS 切换。若时间不足，保留旧 VPS 可启动和可回退状态，明确记录未完成项，不误报迁移完成。
+
