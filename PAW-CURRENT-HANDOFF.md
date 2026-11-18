@@ -1250,3 +1250,18 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 不进入腾讯云Rescue，不关闭或修改生产VPS。
 - 不切换MCP/Tunnel/Funnel/DNS，不启动新机重复写入业务。
 - 先完成生产VPS只读盘点和可恢复备份，再开始Dell安装。
+
+
+---
+
+## 记录 0023：用户再次确认优先使用现有 PAW 启动盘直接迁移（2026-11-18）
+
+- 用户明确表示不希望继续开发/重做 ISO，希望直接使用已经制作的 PAW 启动盘完成迁移。
+- 当前可用实体介质对应最新 Run #130（GitHub Run `43615851949`），Runtime SHA `02d02c79fa3035ad3089f474566ca917e5d2482a`，ISO SHA256 `71012766e4a23b540182c6952c244768d4a9c1c9c88a9e0e289d5d5ca6e6364c`。
+- 同一 Runtime SHA 的 GitHub Run #18（`43618362793`）已完成 50GiB → 120GB（`target_bytes=120000000000`）QEMU完整虚拟链路，结论 success，SHA256/O_DIRECT、GPT/ext4扩容、自动重启和目标 Ubuntu 登录通过。
+- 该 ISO 是 Debian Live PAW 迁移工具，支持原方案：从腾讯云 Rescue SSH 读取旧 Ubuntu 系统盘，完整克隆到 Dell 内部 SSD，离线适配 AHCI/GRUB/initramfs/网络并扩容。它不是 Ubuntu Server 安装器，也不执行“空白Ubuntu安装后仅恢复PAW应用”的新方案。
+- 用户最新意图为直接使用现有启动盘完成整盘迁移；本记录将实施优先方向恢复为“现有 PAW Live + 腾讯云 Rescue + 50GiB整盘克隆”，此前记录0021/0022中的全新Ubuntu安装方案作为短暂讨论过的备选，不作为当前执行路径。若用户之后再次改变方案，需明确记录。
+- 当前目标 SSD `/dev/sda` 型号 `HFS128G3BMND-3210A`，含 Windows/NTFS。当前 ISO 的 target discovery 明确排除 Windows/NTFS，故正常菜单4不能登记。若要继续当前ISO路径，必须先清除目标SSD现有分区表/Windows分区，再重启PAW重新扫描；不能在未确认设备型号、容量和路径前执行擦除命令。目标盘清空是不可逆的，必须在操作现场再次核对 `/dev/sda`、型号、精确字节容量和非启动介质身份。
+- 不需要重新制作 ISO；但当前实体机实测目标 SSD、内存、PAWDATA、网卡和Rescue SSH仍需完成。GitHub 120GB虚拟链路 PASS不等于真实硬件 PASS。
+- 正式步骤：PAWDATA PASS → 清空并重新扫描目标SSD → 菜单4登记目标SSD → Memtest至少一轮0错误并菜单1登记 → 菜单5硬件健康检查 → 菜单7确认状态 → 旧VPS运行时创建快照并只读记录源盘UUID/容量/分区 → 维护窗口正常关机并进入腾讯云Rescue → 菜单8选R → 菜单3配置Rescue SSH/host fingerprint/root UUID并只读识别源盘 → 复核源盘/目标盘/网络/备份 → 菜单6最终授权并开始真实整盘克隆。
+- 用户尚未在本轮明确确认已清空SSD、已创建VPS快照、已授权进入Rescue或已授权菜单6真实克隆。禁止推定这些动作已获授权。
