@@ -1436,3 +1436,16 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 后续指导约束：每轮最多给一条简短、单行命令；不要求用户粘贴多行脚本、不要求用户自行编辑文件或理解代码；明确说明输入位置、按 Enter 执行、拍照反馈。根据真实输出再决定下一条命令。
 - 优先使用 PAW 已有菜单和报告，不重复要求用户运行已完成的 Memtest/SSD 检查；只做必要的只读诊断，任何真实磁盘写入、Rescue/生产变更仍需明确授权。
 - 当前尚未确认用户现场是否处于 root debug shell 或 PAW 菜单；发出命令前先确认当前屏幕状态，避免让用户在菜单提示符误输入 Shell 命令。
+
+
+---
+
+## 记录 0035：实机硬件健康报告现已 PASS（2026-11-18）
+
+- 用户通过当前 root debug shell 手动执行只读命令 `cat /var/lib/paw-migration/reports/paw-hardware-health-report.json` 并上传屏幕照片。
+- 照片明确显示报告 `status=PASS`，`reason=All currently supported checks passed`；目标设备为 `/dev/sda`，精确容量 `128035676160` bytes，稳定身份依据为 `serial+wwn+model+exact_capacity+by-id+sysfs+partition`。
+- 同一报告明确显示 `memory_status=OPERATOR_CONFIRMED`、`memory_trust=operator_attestation_not_cryptographic`。Memtest 已按人工观察登记；未将人工确认夸大为机器证明。
+- 报告中的 `boot_id` 与此前登记绑定的启动会话相同（截图可见）；本轮不要求重启，以保留现有会话状态。
+- 报告 `generated_at=2026-04-13T19:59:45Z`，与当前日期不一致。当前系统时间/NTP 仍待核实。不要因为报告时间旧就修改报告；应先只读运行 `date -u` 检查实时系统时钟。
+- 因此，记录 0032 中的 `hardware=WARN` 已被本次更新的硬件报告 `PASS` 取代；但完整 readiness 仍可能因 `source=BLOCKED` 而为 BLOCKED，须在时间核实后刷新总控状态。不得把硬件 PASS 等同于源盘/网络/迁移已通过。
+- 用户现场为 `root@localhost:/#` 命令行。后续每轮只提供一条简短单行命令，明确只读/写入属性，并等待照片确认。
