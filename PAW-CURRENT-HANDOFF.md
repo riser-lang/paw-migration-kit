@@ -1151,3 +1151,102 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 目标 SSD 格式化/安装系统将清除现有 Windows 数据。用户已表达清空目标盘的意图，但实际写盘前仍须在设备屏幕确认准确设备为 `HFS128G3BMND-3210A`，并确认没有需要保留的本地数据。
 - 下一步应先重新设计并审核“干净 Ubuntu 安装 + PAW 应用/数据恢复”方案，明确它与旧整盘克隆方案的差异；不能继续沿用菜单6的块级克隆流程，也不能把 PAWDATA 初始化当成 SSD 安装步骤。
 - 在新方案完成前，不选择当前菜单4尝试登记 Windows SSD，不选择菜单6，不格式化、不删除分区、不进入腾讯云 Rescue。
+
+
+---
+
+## 记录 0022：全新 Ubuntu Server 24.04 安装 + PAW 全量业务迁移实施方案（2026-11-18）
+
+### 用户已确认的目标
+
+- Dell OptiPlex 3020M Micro：i5-4670T、16GB RAM、Intel HD Graphics 4600、内部 HFS128G3BMND-3210A 标称约120GB SSD。
+- 新系统：Ubuntu Server 24.04 LTS。
+- 迁移范围：完整迁移 PAW 全部业务、数据库、配置、MCP 和自动化任务。
+- 用户明确希望清空目标 SSD、全新安装操作系统，再迁移旧 VPS 上的 PAW 内容；不再把旧 VPS 50GiB 系统盘块级克隆作为目标方法。
+- 最终角色不变：新 Dell 成为 PAW 主服务器；旧腾讯云 VPS 保留为 paw-gateway / 美国网络出口，保留 VLESS/Xray 和适当的 Tailscale Exit Node；Windows 通过 Tailscale SSH 管理新服务器；尽可能保持 GPT、Claude、Gemini Spark MCP 的原有URL和路径。
+
+### 与现有 Master 的冲突
+
+- 当前 `PAW-PROJECT-MASTER.md` 第2节仍写明“完整复制旧 Ubuntu 系统盘”，与用户本次明确确认的新方式冲突。
+- 当前 PAW Live ISO 是 Debian Live 迁移工具，不是 Ubuntu Server 安装器。
+- 下一轮应将“全新 Ubuntu 安装 + 应用/数据/配置迁移”更新为新的权威迁移方式，并将整盘克隆记录为已放弃的旧方案/历史验证。不要继续沿用 PAW Live 菜单6。
+- 本次只记录用户决策与实施计划，不格式化 SSD、不安装系统、不访问或修改生产 VPS。
+
+### 建议实施阶段
+
+1. **生产 VPS 只读盘点（VPS保持运行）**
+   - 清点 PAW 应用代码版本、目录、服务、systemd units/timers、cron、容器、数据库类型/版本/数据库列表/大小、持久化目录、MCP服务与URL路径、Nginx/反向代理、Tunnel/Funnel、COS、证书、用户/权限、环境变量、外部API和任务依赖。
+   - 生成不含秘密的服务与数据清单。
+   - 明确所有敏感凭据位置和恢复方式；不得把密钥、token、VLESS UUID、Tailscale state 或密码提交 GitHub 或粘贴到聊天。
+
+2. **备份与可恢复性验证**
+   - 在旧 VPS 正常运行时创建腾讯云系统盘快照并等待完成。
+   - 对数据库执行适配数据库类型的一致性导出（例如 PostgreSQL pg_dump/pg_dumpall、MySQL/MariaDB mysqldump、SQLite一致性备份）；不要只依赖文件系统快照。
+   - 对 PAW 持久化业务目录、MCP配置、服务配置、Nginx配置、脚本和自动化任务做清单化归档。
+   - 凭据和私密配置加密备份，保存在与源VPS不同的安全位置；单独保存解密密钥。
+   - 对所有备份生成SHA256，抽样/完整执行恢复演练，确认数据库可恢复、文件权限/属主可重建。
+   - 备份未验证前不得清理旧 VPS 或开始切换。
+
+3. **Dell 目标盘与硬件确认**
+   - 用 Ubuntu 安装介质启动安装器前，再次确认内部目标盘为 `HFS128G3BMND-3210A`，读取精确容量、SMART和接口。
+   - 明确目标 SSD 全部现有 Windows 数据将被清除；只在安装器显示正确型号/容量且用户再次确认后操作。
+   - 当前旧PAW Live菜单4会排除Windows盘；新方案不再使用该菜单登记或菜单6克隆。
+   - 先完成真实 Memtest、SSD健康、BIOS/UEFI、SATA和有线网卡检查；若硬件失败先处理。
+
+4. **全新安装 Ubuntu Server 24.04 LTS**
+   - 从 Ubuntu 官方渠道获取最新24.04 LTS point release ISO并核对SHA256。
+   - 以Dell支持的UEFI启动方式优先安装；若实际固件/启动介质只能可靠Legacy启动，再按实机验证选择Legacy。安装模式、GPT和GRUB模式必须一致。
+   - 安装器选择整块已确认的120GB内部SSD作为目标并使用整盘安装；不得选择32GB TF卡。
+   - 使用ext4；不采用ZFS；不复制旧VPS的系统盘布局、machine-id、SSH host keys或tailscaled.state。
+   - 设置独立管理员账号、主机名、时区、DHCP/有线网络、OpenSSH Server；安装完成后移除安装介质并确认本地SSD独立启动。
+   - 完成系统更新、时间同步、磁盘/内存/温度/网卡基础检查。
+
+5. **新服务器基础接入**
+   - 安装独立Tailscale节点身份，加入现有Tailnet；不复制旧VPS的tailscaled.state。
+   - 配置仅LAN/Tailscale可访问的SSH管理，不依赖公网IPv4或路由器端口映射。
+   - Windows Codex通过Tailscale SSH管理新Dell。
+   - 保持新机和旧VPS的machine-id、SSH host keys、Tailscale身份独立。
+
+6. **恢复 PAW 应用与数据**
+   - 根据盘点清单安装精确版本的运行环境和依赖，不从旧VPS整盘复制操作系统文件。
+   - 从代码仓库/固定release部署PAW程序；从已验证备份恢复数据库和业务数据。
+   - 恢复配置、systemd units、脚本、MCP服务、证书和自动化任务。
+   - 恢复密钥时从加密备份/安全凭据源注入，不写入GitHub、普通日志或聊天。
+   - 先保持业务写入、外部MCP入口、COS同步和定时任务关闭；逐项验证数据库连接、API、文件权限、服务健康和日志。
+
+7. **MCP与网络路径切换**
+   - 先只读审计生产实际URL、域名、端口、路径、认证、Tunnel/Funnel/Serve和后端依赖。
+   - GPT独立Tunnel尽量保持原样，切换其origin到新Dell或通过稳定代理转发。
+   - Claude和Gemini Spark原有Tailscale相关路径优先保留；如需改变，先做兼容转发，不让用户提前重新绑定。
+   - 旧VPS继续保留Xray/VLESS和美国出口；新Dell以独立Tailscale身份加入Tailnet，可按需要使用旧VPS Exit Node。
+   - 在切换前完成GPT、Claude、Gemini Spark实际客户端端到端测试；不把虚拟测试当成真实MCP验收。
+
+8. **最终数据同步与业务切换**
+   - 初始备份恢复后，安排短暂业务维护窗口。
+   - 暂停旧VPS上会写入数据库/业务数据的任务，执行最终增量数据库导出和文件同步。
+   - 将最终数据恢复到新Dell，校验记录数、关键文件哈希、应用状态。
+   - 更新Tunnel/反向代理入口，逐个启用新机MCP和业务服务。
+   - 新机业务验证通过后，旧VPS停止重复PAW业务写入和定时任务，仅保留gateway-only能力。
+   - 避免新旧两台机器同时运行相同的轮询、自动化或数据库写入任务。
+
+9. **旧 VPS 转为 paw-gateway 与观察**
+   - 保留原VPS系统盘快照、数据库备份和回退资料。
+   - 保留SSH管理、Xray/VLESS、所需Tailscale Exit Node。
+   - 禁用重复PAW业务/MCP/COS轮询任务，但先导出原服务清单并记录回退命令。
+   - 观察新机至少一个完整业务周期；确认自动化、MCP、数据库备份和重启恢复。
+   - 若新机失败，暂停新机写入并按回退清单恢复旧VPS服务及原入口。
+
+### 腾讯云 Rescue 决策
+
+- 在“全新Ubuntu安装 + PAW应用/数据迁移”方案下，**正常情况下不需要把旧VPS关机并进入Rescue Mode**。
+- 数据通过旧Ubuntu正常运行时的SSH、数据库一致性导出和文件同步迁移；旧VPS可继续提供Xray/VLESS/Exit Node，直到最终切换。
+- 只有发现某些必须离线读取、且无法通过正常系统导出的数据时，才重新评估Rescue；不得默认进入Rescue。
+- 旧VPS停机仅限最终一致性切换所需的短窗口，且必须在快照和备份验证完成后进行。
+
+### 当前停止条件
+
+- 不格式化Dell SSD，直到Ubuntu安装ISO、目标磁盘身份、备份和安装方案全部准备好，并在安装器中再次确认正确磁盘。
+- 不选择旧PAW Live菜单6；它属于块级克隆旧流程，与新方案不兼容。
+- 不进入腾讯云Rescue，不关闭或修改生产VPS。
+- 不切换MCP/Tunnel/Funnel/DNS，不启动新机重复写入业务。
+- 先完成生产VPS只读盘点和可恢复备份，再开始Dell安装。
