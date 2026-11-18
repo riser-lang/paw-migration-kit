@@ -1280,3 +1280,16 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 不得将菜单2当作SSD清理；不得选择菜单6；不得在没有已验证root shell和设备身份复核的情况下提供 `wipefs`、`sgdisk`、`dd`、`parted` 等清盘命令。
 - 下一步需先找到该ISO实际配置的合法管理Shell入口/凭据，或承认当前ISO不提供可用路径；在此之前让用户停留在PAW主菜单，不做磁盘写入。旧VPS保持运行，不进入Rescue。
 - 此记录不代表SSD已清空、已登记或迁移已开始。
+
+
+---
+
+## 记录 0025：通过 systemd 临时 debug shell 进入 root 命令行（2026-11-18）
+
+- 用户已回到 PAW Live 启动菜单；此前 Ctrl+Alt+F2 进入 tty2 登录提示，尝试未证实的 paw/live 凭据后 Authentication failure。不要继续猜密码。
+- 当前 ISO 运行时代码：`02d02c79fa3035ad3089f474566ca917e5d2482a`，Debian 13 Trixie Live，systemd。
+- 操作方案：启动菜单高亮 `Live system (amd64)`，按 Tab 编辑该项启动命令行，在现有内核参数末尾追加空格和 `systemd.debug_shell=1`，按 Enter 启动；PAW Live 启动后按 Ctrl+Alt+F9 进入 systemd debug shell。该临时 shell 预期为 root，无需 paw/live 登录。仅临时本地控制台使用，完成后正常重启且不再添加该参数，避免保留无密码 root shell。
+- 首先只运行 `whoami` 与 `lsblk -b -o NAME,SIZE,MODEL,SERIAL,TRAN,RM,FSTYPE,MOUNTPOINTS`，确认当前用户为 root、内部目标盘仍为 HFS128G3BMND-3210A、启动介质为32GB Mass-Storage，且目标盘没有挂载。不要仅依赖旧的 /dev/sda 设备名。
+- 用户已明确授权清空内部 HFS128G3BMND-3210A SSD 上全部现有 Windows 数据；但执行 wipe 前仍必须在当前启动会话重新核对型号、精确容量、序列号/WWN、启动介质父设备和挂载状态，确保不会清除 TF 启动盘。
+- 清除后重新启动 PAW Live，菜单4登记 SSD；当前 target discovery 对 Windows/NTFS 的排除条件仍存在，清空分区表后才可能通过正常登记。
+- 旧 VPS 继续正常运行，不关机、不进入 Rescue；本记录不授权菜单6或开始真实克隆。
