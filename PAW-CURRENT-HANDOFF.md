@@ -1348,3 +1348,19 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 当前提示处先不要输入；可等待300秒安全超时，或按 Ctrl+C 中止子流程并返回菜单（若返回失败则拍照）；该次不会登记 Memtest 结果。
 - 这是现场可用性缺陷。后续最小修复应接受明确 ASCII token（例如 `CONFIRM`）并保留原有状态/轮次/错误数检查，新增实际 tty 正向/负向测试；但用户当前不希望重新制作 ISO，因此本轮不要求其重做镜像。若要继续当前镜像，只能找到已验证的本地输入法/键盘 Unicode 输入方式，否则暂缓该人工登记步骤，不能假报 PASS。
 - 当前用户可继续做的非破坏性工作须遵守现有菜单依赖；Memtest人工登记未完成时硬件/迁移状态保持 BLOCKED，不选择菜单6，不关闭旧VPS、不进入Rescue。
+
+
+---
+
+## 记录 0030：用户询问跳过 Memtest 登记直接迁移（2026-11-18）
+
+- 用户当前希望跳过 Memtest 人工登记，不再输入中文“确认”，并直接进行真实迁移。
+- 已核对运行时代码 `02d02c79fa3035ad3089f474566ca917e5d2482a`：
+  - `paw-memtest-confirm.sh` 的选项3会记录 `WARN`，不是通过；选项1只有用户确实观察到至少一整轮且错误数为0时才能记录 `OPERATOR_CONFIRMED)。
+  - `paw-memory-test-report.sh` 未发现有效人工登记时生成 `WARN`；`FAIL` 或 `WARN` 不会变成通过。
+  - `paw-hardware-preflight.sh` 对 Memtest 状态不是 `OPERATOR_CONFIRMED/PASS` 时将硬件状态置为 `WARN`。
+  - `paw-live-controller.sh` 只有目标身份与硬件报告均为 `PASS` 才能形成可继续状态。
+  - `paw-final-confirm.sh` 明确要求当前启动的硬件报告与 Memtest 状态为 `OPERATOR_CONFIRMED` 或 `PASS`，否则拒绝最终授权。
+- 结论：当前ISO没有支持“跳过Memtest登记但继续菜单6”的选项。取消/跳过登记可以退出当前子流程，但迁移会保持 BLOCKED；选择选项3也会记录 WARN 并阻断。不得手工伪造报告或修改状态文件绕过门禁。
+- 若用户不愿做 Memtest 或无法输入中文确认，当前可以停止本轮真实迁移；也可以完成其他只读检查，但菜单6仍不可用。恢复迁移需完成真实 Memtest 至少一轮、0错误，并解决中文确认输入；不允许把未测结果标为通过。
+- 当前旧VPS保持运行，不进入Rescue；目标SSD不得开始克隆。
