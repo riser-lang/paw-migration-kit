@@ -1323,3 +1323,16 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 若 F9 无反应，返回 tty1，不猜测 paw/live 密码；需要确认本次启动是否实际添加 `systemd.debug_shell=1` 启动参数。
 - 用户已明确授权清空内部 SSD HFS128G3BMND-3210A 上全部现有 Windows 数据，但清盘命令仍须在当前会话再次核对目标型号、精确容量、稳定身份、挂载状态以及 TF 启动盘设备，禁止仅凭旧设备编号操作。
 - 旧 VPS 保持运行；不进入 Rescue；不执行菜单6。
+
+
+---
+
+## 记录 0028：Ctrl+Alt+F9 未打开 debug shell（2026-11-18）
+
+- 用户在当前 PAW Live 主菜单按 Ctrl+Alt+F9 无反应。
+- 只有在本次启动的内核命令行实际包含 `systemd.debug_shell=1` 时，systemd 才会启用 tty9 的 root debug shell；单纯在已经启动的系统里按 F9 不会开启它。
+- 当前尚无现场证据确认该参数是否成功加入本次启动命令行，因此不能断言键盘或系统故障。
+- 下一步应重新启动，从 USB 进入 Debian 启动菜单；高亮 `Live system (amd64)` 后按 Tab 编辑该启动项，在命令行末尾追加空格和 `systemd.debug_shell=1`，然后按 Enter 启动。不要在 PAW 主菜单里输入该字符串。
+- 启动完成后再按 Ctrl+Alt+F9；若键盘 F 区需要 Fn，则按 Fn+Ctrl+Alt+F9。成功应出现 root shell 提示符。
+- 若无法确认 Tab 编辑后的完整启动行，用户先拍照发来，不要盲目启动或输入清盘命令。
+- 进入 shell 后只执行 `whoami` 和 `lsblk -b -o NAME,SIZE,MODEL,SERIAL,TRAN,RM,FSTYPE,MOUNTPOINTS` 进行只读核对；未核对当前设备身份和挂载状态前，不提供擦除命令。
