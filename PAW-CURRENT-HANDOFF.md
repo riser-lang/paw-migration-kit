@@ -1480,3 +1480,16 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 下一步只读检查网络接口及地址：`ip -br address`。根据结果再检查默认路由和 DNS；不要手动改系统时间/RTC，不要重启服务或 Live 系统。
 - 用户仅能手动输入单行命令，后续每轮最多给一条短命令并等待照片。旧 VPS 仍未进入 Rescue，真实克隆尚未开始。
 
+
+
+---
+
+## 记录 0038：有线网卡已 UP 并获得家庭路由器 IPv4 地址（2026-11-18）
+
+- 用户在当前 root debug shell 执行 `ip -br address` 并上传照片。
+- 可见输出：`enp2s0 UP 192.168.3.50/24`，并有 IPv6 link-local 地址；`wlp3s0 DOWN`；`tailscale0 UNKNOWN`，仅显示 link-local IPv6。
+- 结论：有线网卡链路已 UP，DHCP 已成功分配 IPv4 地址 `192.168.3.50/24`。这证明本机到局域网的基础连接建立，但不证明默认路由、DNS、互联网访问或 NTP UDP/123 可用。
+- 下一步只读检查默认路由：`ip route show default`。如果有 default via 路由，再分别检查 DNS 和公网 HTTPS；如果没有默认路由，再检查 DHCP/路由器配置。不要修改网络配置或重启 Live。
+- 系统时钟仍未同步（`2026-04-13`），NTP `Packet count=0`；主板 RTC 显示 2019 年。保持当前 boot_id，不手动设置时间或 RTC。
+- 用户只能手动输入一行命令；后续每轮只给一条短命令并等待照片。
+
