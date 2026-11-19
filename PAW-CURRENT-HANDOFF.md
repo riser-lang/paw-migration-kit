@@ -1551,3 +1551,15 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - `paw-final-confirm.sh` 在最终授权前会再次调用 `paw-source-discovery.sh`，重新通过固定 host key 的 SSH 读取源盘并比对 source UUID、容量、组合身份和 host fingerprint；所以即使五项 readiness 曾全部 PASS，退出 Rescue 后仍需重新建立临时 SSH 授权并完成源盘复核，才能继续菜单6。
 - 下一步先确认 Dell PAW Live 自菜单6停止后是否重启/断电。若未重启，先只读检查当前公钥文件是否仍在；若已重启，则按新 Live 会话生成新 key。随后重新进入 Tencent Rescue、重新写入对应公钥，并核对新 Rescue host fingerprint。真实 SSD 写入前仍须检查迁移事务和 `CLONE-INCOMPLETE`，不得直接重复菜单6。
 
+
+
+---
+
+## 记录 0043：用户确认 Dell PAW Live 未重启，仅退出腾讯云 Rescue（2026-11-19）
+
+- 用户明确确认情况 A：菜单 6 停止后 Dell 电脑一直运行，没有重启或关机；只是通过腾讯云控制台退出了旧 VPS 的 Rescue Mode。
+- 因 PAW Live 的 Rescue 客户端私钥、公钥、endpoint、known_hosts 均位于 /run/paw-network（tmpfs），Dell 未重启意味着这些文件预计仍在；但尚未通过实机文件检查确认，下一步只读列出目录文件。
+- 若文件仍在，可以复用原 rescue_ed25519 私钥对应的同一把公钥；不需要为了重新进入 Rescue 而生成新密钥。新 Rescue 会话应重新安装/确认临时 authorized_keys 包含该公钥，并重新从腾讯云 VNC 核对当前 Rescue SSH host fingerprint。
+- 关键实现限制：当前 paw-rescue-key-prepare.sh 会先写入新的 rescue-endpoint.json，然后若发现 /run/paw-network/rescue_ed25519 或 rescue_ed25519.pub 已存在就直接退出；它不会显示或复用旧公钥，也不会刷新 known_hosts。菜单 3 即使 key-prepare 失败，仍会继续调用 source-discovery（|| true），后者可能拿旧 known_hosts 去连接新 Rescue。因此不要盲目再次按菜单 3。
+- 安全下一步：先用只读命令 ls -l /run/paw-network/ 确认原 key、pub、known_hosts、endpoint 是否存在；不要显示或复制私钥。之后可单独显示 .pub（公钥允许公开），由用户把同一公钥添加到新 Rescue；再通过可信 VNC 指纹更新/核验 known_hosts。若旧 key 不存在，才考虑新生成。
+- 菜单 6 上次快速停止的事务状态尚未读取。重新进入 Rescue/重新执行菜单 6 前，必须先读取 PAWDATA 中 migration-transaction.json、CLONE-INCOMPLETE、stream-transfer-report.json、stream-verify.json 和相关日志；确认是否已写入目标 SSD。五项 readiness PASS 不能证明克隆已开始或已完成。
