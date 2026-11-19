@@ -1536,3 +1536,18 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 不要猜测并手动添加默认路由；先确认 DHCP 租约是否包含路由器选项。不要修改配置或重启网络服务。
 - 用户只能手动输入单行命令；每轮只给一条短命令并等待照片。
 
+
+
+---
+
+## 记录 0042：退出并重新进入 Tencent Rescue 后的一次性 SSH 公钥处理（2026-11-19）
+
+- 代码核对范围：当前远程分支 `vm/ds-final-prehardware-remediation-20261112`，HEAD `2d66603ffca87234460feb237ee1a9245457dff9`；运行时代码仍为 `02d02c79fa3035ad3089f474566ca917e5d2482a`。
+- `scripts/paw-rescue-key-prepare.sh` 将 Rescue endpoint、Ed25519 私钥 `/run/paw-network/rescue_ed25519`、公钥 `/run/paw-network/rescue_ed25519.pub` 和 pinned `known_hosts` 存在 `/run/paw-network`；脚本明确要求 `/run` 为 tmpfs。因此这些客户端凭据只在本次 PAW Live 启动会话的 RAM 中存在，PAW Live 重启/断电后会丢失。
+- Tencent Rescue 侧使用临时 `authorized_keys`。退出 Rescue 并恢复普通 Ubuntu 后，再次进入 Rescue 属于新的 Rescue 会话；不能假设前一次写入的临时授权仍存在。重新进入后需要把当前 PAW Live 会话对应的公钥再次加入新 Rescue 会话的临时 `authorized_keys`。
+- 若 Dell 上的 PAW Live 自上次菜单6退出后一直未重启，`/run/paw-network/rescue_ed25519.pub` 理论上仍是原公钥，可重新添加同一公钥；若 PAW Live 已重启，旧私钥/公钥已随 tmpfs 清空，必须由新 Live 会话生成新密钥并添加新公钥。
+- 重新进入 Rescue 时还必须核对当前 Rescue VNC 显示的 SSH 主机指纹。不能因为公钥相同就信任旧 host key；脚本启用了 `StrictHostKeyChecking=yes`。
+- 发现当前菜单3有一个重要的重复进入限制：它先调用 `paw-rescue-key-prepare.sh` 再调用 `paw-source-discovery.sh`；若本次 PAW Live 的旧密钥文件仍存在，key-prepare 会拒绝生成并不会重新显示公钥（但菜单会继续尝试 source-discovery）。因此在确认 PAW Live 是否重启、现有 key 是否仍在、Rescue endpoint/host key 是否变化前，不要盲目重复菜单3，也不要手工删除私钥/known_hosts 或绕过主机指纹门禁。
+- `paw-final-confirm.sh` 在最终授权前会再次调用 `paw-source-discovery.sh`，重新通过固定 host key 的 SSH 读取源盘并比对 source UUID、容量、组合身份和 host fingerprint；所以即使五项 readiness 曾全部 PASS，退出 Rescue 后仍需重新建立临时 SSH 授权并完成源盘复核，才能继续菜单6。
+- 下一步先确认 Dell PAW Live 自菜单6停止后是否重启/断电。若未重启，先只读检查当前公钥文件是否仍在；若已重启，则按新 Live 会话生成新 key。随后重新进入 Tencent Rescue、重新写入对应公钥，并核对新 Rescue host fingerprint。真实 SSD 写入前仍须检查迁移事务和 `CLONE-INCOMPLETE`，不得直接重复菜单6。
+
