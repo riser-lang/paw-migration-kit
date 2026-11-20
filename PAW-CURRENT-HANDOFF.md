@@ -1563,3 +1563,19 @@ Dell OptiPlex 3020 Micro 官方规格资料确认：
 - 关键实现限制：当前 paw-rescue-key-prepare.sh 会先写入新的 rescue-endpoint.json，然后若发现 /run/paw-network/rescue_ed25519 或 rescue_ed25519.pub 已存在就直接退出；它不会显示或复用旧公钥，也不会刷新 known_hosts。菜单 3 即使 key-prepare 失败，仍会继续调用 source-discovery（|| true），后者可能拿旧 known_hosts 去连接新 Rescue。因此不要盲目再次按菜单 3。
 - 安全下一步：先用只读命令 ls -l /run/paw-network/ 确认原 key、pub、known_hosts、endpoint 是否存在；不要显示或复制私钥。之后可单独显示 .pub（公钥允许公开），由用户把同一公钥添加到新 Rescue；再通过可信 VNC 指纹更新/核验 known_hosts。若旧 key 不存在，才考虑新生成。
 - 菜单 6 上次快速停止的事务状态尚未读取。重新进入 Rescue/重新执行菜单 6 前，必须先读取 PAWDATA 中 migration-transaction.json、CLONE-INCOMPLETE、stream-transfer-report.json、stream-verify.json 和相关日志；确认是否已写入目标 SSD。五项 readiness PASS 不能证明克隆已开始或已完成。
+
+
+---
+
+## 记录 0044：真实迁移已进入目标系统离线修复，但 initramfs 模块核验失败（2026-11-20）
+
+- 用户上传实机屏幕照片；现场命令提示符为 `root@localhost:/opt/paw-migration/scripts#`，对目标根分区 `/dev/sda2` 多次执行 `./paw-offline-repair.sh /dev/sda2`，并查看 `/tmp/e` 的尾部日志。
+- 照片至少两轮日志在 2026-04-15 16:25:32Z / 16:29:41Z 报错：`Initramfs verification missing modules: ahci,r8169,i915`；`Initramfs module verification failed`；拒绝宣称目标系统可启动。事务事件可见 `status=PASS,event=NEEDS_MANUAL_ACTION,state=NEEDS_MANUAL_ACTION`，失败后备份保留在 `/var/lib/paw-migration/backups/offline-repair-20260415T...`。
+- 照片显示 `/dev/sda2` 被以 r/w 挂载后卸载，ext4 统计为 `578733/3276800 files`、`11779258/13106683 blocks`；这不是文件系统检查失败的直接证据。`service-cutover-manifest.json` 有 WARN，当前还不能断言它是本次阻断根因。
+- 日志还显示 depmod 找不到 `/lib/modules/6.8.0-101-generic/modules.order`、`modules.builtin`、`modules.builtin.modinfo`；同时 update-initramfs 生成 `6.8.0-124-generic` 和 `6.8.0-111-generic` 的 initrd。说明目标系统存在内核模块目录/索引不一致或残留目录问题的强烈线索，但尚未确认根因。必须按每个实际安装内核版本核对 `/lib/modules/<version>`、对应内核映像、模块文件和 initrd，不能只看某个版本存在 `.ko`。
+- 当前 GitHub 官方 `scripts/paw-offline-repair.sh` blob 为 `ed844a62703ac2efb30e05fb4fab24eaccf9e9bf`，未被本次现场手工操作修改；该脚本会先检查独立 `stream-verify.json` 为 PASS，再进入 repair 阶段；模块门禁明确要求 AHCI 和 Realtek r8169 可用，避免新机启动后看不到 SATA 根盘或失去网络。i915 对 HD4600 图形控制台是次要项，但当前脚本若将其加入 initramfs_modules，也会对它执行同一 initrd 内容核验。
+- 官方脚本在 initramfs 核验失败时会触发 rollback：恢复预先归档的目标配置、删除本轮新增 initrd、卸载目标根分区，并写事务状态 `NEEDS_MANUAL_ACTION`（failed_phase=repair）；备份保留。因照片中出现该事务事件，判断菜单6至少已推进到离线修复阶段，且 repair 脚本要求此前存在 `stream-verify.json` PASS，所以这不是单纯 SSH/源盘准备阶段快速退出；但仍需读取真实 `migration-transaction.json` 与 `stream-verify.json` 证明克隆完整性和已写入字节数。
+- 照片可见用户尝试用 `sed -i` 手工改写 `paw-offline-repair.sh` 的 initramfs 失败判断，随后再次运行出现 `python3: can't open file '/opt/paw-migration/scripts/true'` 和 `line 407: syntax error: unexpected end of file`。这表明现场 `/opt/paw-migration/scripts/paw-offline-repair.sh` 已被手工修改且当前副本疑似语法损坏；GitHub 官方文件仍保持原样。不得继续运行该本地副本，不得再用 sed/文本编辑绕过门禁。
+- 当前事务应视为 `NEEDS_MANUAL_ACTION` / repair 阶段，不要重复菜单6，不要重复写入克隆数据，不要重启目标 SSD，不要删除 PAWDATA 备份，不要恢复或清空事务文件。先只读读取事务状态、stream verify 报告、offline-repair 报告、CLONE-INCOMPLETE 标记及最近 repair 日志；确认官方 rollback 是否完成以及目标盘当前状态。
+- 下一步排查重点：对目标 Ubuntu 的每个内核版本逐一核对 `/boot/vmlinuz-*`、`/boot/initrd.img-*`、`/lib/modules/*` 是否一一对应；确认 AHCI/r8169 模块是否存在于当前将启动的同一内核版本，并检查 `modules.dep.bin`/depmod 结果。不能用 `sed` 把 FAIL 改 PASS；只有修复了真实模块/内核包问题，并独立确认 initrd 包含 AHCI 与 r8169 后，才允许继续 repair → GPT/ext4 expand → preboot handoff。
+- 当前远程工作分支 HEAD 为 `d49def24efad2d6bcb328c2ffd00c1f88f49d4c5`；相对已验收运行时代码 `02d02c79fa3035ad3089f474566ca917e5d2482a` 的 33 个后续提交仅涉及 PAW-CURRENT-HANDOFF、STATE、BLOCKERS 文档，没有新的运行时代码修复提交或 Antigravity 新分支可见。此记录为实机新证据，不代表修复完成或可启动。
